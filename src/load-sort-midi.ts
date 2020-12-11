@@ -2,6 +2,8 @@ import { Midi, Track, Header } from "@tonejs/midi";
 import { Note, NoteInterface } from "@tonejs/midi/dist/Note";
 import { resolve } from "path";
 import { Readable, Transform, Writable } from "stream";
+import { EventEmitter } from "events";
+
 export const sleep = (ms: number) => {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -17,18 +19,12 @@ export async function convertMidi(
     output: Writable;
     interrupt?: Readable;
     realtime?: boolean;
-  }
+  },
+  donecb?
 ) {
-  let { output, interrupt, realtime } = props;
-  interrupt = interrupt || process.stdin;
-  interrupt.on("keydown", handleMessage);
-  const readline = require("readline");
-  const rl = readline.createInterface({
-    input: interrupt,
-    output: output,
-    terminal: true,
-    prompt: "loading....",
-  });
+  const emitter = new EventEmitter();
+  let { output, realtime } = props;
+
   let lastRow;
   const sequenceArray = new Array(24).fill([]);
 
@@ -39,10 +35,17 @@ export async function convertMidi(
   };
 
   output.write("#title: " + header.name + "\n");
-  output.write("\n#tempo:\t" + header.tempos[0].bpm);
   output.write(
-    "\n#signature:\t" + header.timeSignatures[0].timeSignature.join("/")
+    "#tempo: " +
+      header.tempos[0].bpm +
+      header.timeSignatures[0].timeSignature.join("/") +
+      "\n"
   );
+  emitter.emit("temp", {
+    bmp: header.tempos[0].bpm,
+    signature: header.timeSignatures[0].timeSignature,
+  });
+  pullMidiTrack(tracks, callback);
 
   async function pullMidiTrack(tracks, cb) {
     let now = 0;
@@ -62,56 +65,62 @@ export async function convertMidi(
           });
         }
       });
-      output.write("\ntime: " + now + " " + header.ticksToMeasures(now));
+      output.write("time: " + now + " " + header.ticksToMeasures(now) + "\n");
       const { abort, increment } = await cb(group, now);
       if (abort) break;
       now += increment;
     }
+    donecb();
   }
 
   function currentTempo(now) {
+    let shifted = false;
     if (header.tempos[1] && now >= header.tempos[1].ticks) {
       header.tempos.shift();
+      shifted = true;
     }
     if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
       header.timeSignatures.shift();
+      shifted = true;
     }
     let ppb = header.ppq;
     let bpm = header.tempos[0].bpm || 120;
     let signature = header.timeSignatures[0].timeSignature;
     let beatLengthMs = 60000 / header.tempos[0].bpm;
     let ticksPerbeat = (header.ppq / signature[1]) * 4;
-    return { ppb, bpm, ticksPerbeat, signature, beatLengthMs };
+    return { ppb, bpm, ticksPerbeat, signature, beatLengthMs, shifted };
   }
 
   async function callback(
     notes: NoteWithInstrument[],
     now: number
   ): Promise<{ increment: number; abort: boolean }> {
-    const { beatLengthMs, ticksPerbeat } = currentTempo(now);
-
-    addNotes(notes, ticksPerbeat);
-    showCurrentRow();
-    if (realtime) await sleep(beatLengthMs);
-
-    return { increment: ticksPerbeat, abort: state.paused };
-  }
-  const format = (str) =>
-    str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
-
-  const addNotes = (notes: NoteWithInstrument[], ticksPerbeat: number) => {
+    const { beatLengthMs, ticksPerbeat, shifted } = currentTempo(now);
+    if (shifted) {
+      output.write(
+        "#tempo: " +
+          header.tempos[0].bpm +
+          header.timeSignatures[0].timeSignature.join("/") +
+          "\n"
+      );
+      emitter.emit("temp", {
+        bmp: header.tempos[0].bpm,
+        signature: header.timeSignatures[0].timeSignature,
+      });
+    }
     while (notes.length) {
       const note = notes.shift();
       output.write(
-        `\n` +
-          [
-            format(note.instrument),
-            note.midi,
-            note.ticks,
-            note.durationTicks,
-            note.velocity,
-          ]
+        [
+          format(note.instrument) + ": ",
+          note.midi,
+          note.ticks,
+          note.durationTicks,
+          note.velocity,
+          "\n",
+        ].join(",")
       );
+      emitter.emit(format(note.instrument), note);
 
       for (let i = 0; i < Math.ceil(note.durationTicks / ticksPerbeat); i++) {
         sequenceArray[i].push({
@@ -121,47 +130,15 @@ export async function convertMidi(
       }
       sequenceArray.push([]);
     }
-  };
-
-  const showCurrentRow = () => {
     let row = sequenceArray.shift();
     for (const note of row) {
       if (!note) continue;
-    }
-
-    if (row) {
-      lastRow = row;
+      emitter.emit("beat", note);
     }
     sequenceArray.push([]);
-  };
-
-  function handleMessage(d) {
-    const msg = d.toString().trim().split(" ");
-    switch (msg[0]) {
-      case "p":
-        state.paused = true;
-        output.write("\npaused");
-        break;
-      case "r":
-        state.paused = false;
-        output.write("\n resume");
-        break;
-      case "q":
-        process.exit();
-
-        break;
-      case "l":
-        state.paused = true;
-        output.write("\nlastrow: " + JSON.stringify(lastRow, null, "\t"));
-      case "ff":
-        state.paused = true;
-        output.write("\nstopped");
-        break;
-    }
+    if (realtime) await sleep(beatLengthMs);
+    return { increment: ticksPerbeat, abort: state.paused };
   }
-
-  pullMidiTrack(tracks, callback);
-  return 0;
 }
 
 // if (require.main === module) {
@@ -171,3 +148,5 @@ export async function convertMidi(
 //     realtime: true,
 //   });
 // }
+const format = (str) =>
+  str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");

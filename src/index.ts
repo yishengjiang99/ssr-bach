@@ -5,41 +5,95 @@ import {
   createWriteStream,
   createReadStream,
   readdirSync,
+  readFileSync,
   write,
 } from "fs";
+import { Transform } from "stream";
+const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
+const httpd = require("http").createServer(async (req, res) => {
+  const file = resolve(__dirname, "../Beethoven-Symphony5-1.mid");
 
-const httpd = require("http").createServer((req, res) => {
-  console.log(req.url);
+  const [comma, rm, eventstr, datastr] = [":", "\n", "event: ", "data: "];
   switch (req.url) {
-    case "/bach":
-      res.writeHead(200, {
-        "Content-Type": "csv/midi",
-        "Content-Disposition": "inline",
+    case "/":
+      res.end(indexHtml);
+      break;
+    case "/rt":
+      const tx = new Transform({
+        transform: (chunk, _, cb) => {
+          const event = chunk.slice(0, chunk.indexOf(comma));
+          const data = chunk.slice(event.byteLength + 1);
+          cb(null, [eventstr, event, rm, datastr, data, rm, rm].join(""));
+          console.log(event.toString());
+        },
       });
-      const file = resolve("./Beethoven-Symphony5-1.mid");
-      convertMidi(file, {
-        output: res,
-        realtime: false,
-      }).then(() => res.end());
+      tx.pipe(res);
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        Connection: "keep-alive",
+        "Cache-Control": "no-cache",
+      });
+      convertMidi(
+        file,
+        {
+          output: tx,
+          realtime: true,
+        },
+        () => {
+          res.end();
+        }
+      );
       break;
     case "/list":
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(readdirSync("./csv")));
       break;
-    case "/bach.csv":
-      res.writeHead(200, { "Content-Type": "plain/csv" });
-      const filename = req.query.name || "song";
-      if (existsSync("./csv/" + filename + ".csv")) {
-        createReadStream(filename).pipe(res);
-      } else {
-        convertMidi(file, {
-          output: createWriteStream(filename),
+    case "/csv":
+      res.writeHead(200, {
+        "Content-Type": "text/csv",
+        "Content-Disposition": `inline; filename="bach.csv"`,
+      });
+      convertMidi(
+        file,
+        {
+          output: res,
           realtime: false,
-        }).then(() => {
-          createReadStream(filename).pipe(res);
+        },
+        () => {
+          res.end();
+        }
+      );
+      break;
+    case "/html":
+      res.write(`<html><body><pre>`);
+      const csvname = "./csv/" + (req.query.name || "song") + ".csv";
+      if (!existsSync(csvname)) {
+        await convertMidi(file, {
+          output: createWriteStream(csvname),
+          realtime: false,
         });
       }
+      const rs = createReadStream(csvname);
+      rs.pipe(res, { end: false });
+      rs.on("ended", res.write("</pre></body></html>"));
+      break;
+    default:
+      res.end(req.url);
       break;
   }
 });
 httpd.listen("8081");
+
+function getBuffer(str: TemplateStringsArray, args: []) {
+  //`${Instrument},${Midi},${start},${duration}`;
+  //const pcm = `midisf/${format(Instrument)}/${Midi}`;
+}
+
+/*
+  `clarinet,67,256,116
+  string ensemble 1,67,256,116
+  string ensemble 1,67,256,116
+  string ensemble 1,55,256,116
+  string ensemble 1,43,256,116
+  string ensemble 1,43,256,116`
+  */

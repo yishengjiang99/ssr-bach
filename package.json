@@ -7,18 +7,44 @@
     "test": "test"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.25",
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^8.2.0",
     "connect": "^3.7.0",
     "express": "^4.17.1",
     "http-proxy": "^1.18.1",
-    "http-proxy-rules": "^1.1.3"
+    "http-proxy-rules": "^1.1.3",
+    "webpack": "^5.10.0",
+    "xaa": "^1.6.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^8.2.1",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.2"
+  },
   "scripts": {
-    "test": "mocha"
+    "dev": "sudo systemctl stop bachd;sudo systemctl disable bachd; nodemon -r ts-node/register src/index.ts",
+    "test": "mocha",
+    "log": "sudo journalctl -u bachd >> server.log",
+    "build": "tsc; sudo systemctl enable bachd; sudo systemctl start bachd"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yishengjiang99/ssr-bach.git"
+  },
+  "mocha": {
+    "package": "./package.json",
+    "extension": [
+      "ts"
+    ],
+    "spec": [
+      "src/*.test.ts"
+    ],
+    "recursive": true,
+    "require": [
+      "ts-node/register",
+      "./mocha.js"
+    ]
   },
   "keywords": [],
   "author": "",
