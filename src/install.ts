@@ -10,8 +10,8 @@ const csvfile = process.argv[2];
 
 const setname = process.argv[3] || "FatBoy";
 
-const mkfolder=(folder)=>existsSync(folder) || execSync(`mkdir ${folder}`); //
-'midisf,db,csv,mp3'.split(",").map(f=>f && mkfolder(f));
+const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`); //
+"midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
 
 for (const name of execSync("cat " + csvfile + " |cut -f1 -d','|sort |uniq")
   .toString()
@@ -45,7 +45,7 @@ for (const name of execSync("cat " + csvfile + " |cut -f1 -d','|sort |uniq")
     if (!midi) continue;
 
     const index = midi - 21;
-    const pcmname = `midisf/${fontname}/48000-mono-f32le-${index}.pcm`;
+    const pcmname = `midisf/${fontname}_${setname}/${index}.pcm`;
     execSync(
       `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
     );
