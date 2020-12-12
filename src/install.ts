@@ -6,14 +6,14 @@ const sfUrl = (setname, fontname) =>
 const format = (str) =>
   str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 
-const csvfile = process.argv[2];
+const csvfile = process.argv[2] || 
 
 const setname = process.argv[3] || "FatBoy";
 
 const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`); //
 "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
 
-for (const name of execSync("cat " + csvfile + " |cut -f1 -d','|sort |uniq")
+for (const name of execSync("cat " + csvfile + "|cut -f1 -d':'|sort |uniq")
   .toString()
   .trim()
   .split("\n")) {
@@ -25,7 +25,7 @@ for (const name of execSync("cat " + csvfile + " |cut -f1 -d','|sort |uniq")
     `curl "${sfUrl(
       setname,
       fontname
-    )}" -o - |grep 'data:audio/mp3;base64,' |awk -F 'data:audio/mp3;base64,' '{print $2}'|tr '\",' '\n'|grep -v ^$ |base64 --decode > ${localname}`
+    )}" -o - |grep 'data:audio/mp3;base64,' |awk -F 'data:audio/mp3;base64,' '{print $2}'| grep -v ^$ |base64 --decode > ${localname}`
   );
   const byteswrote = parseInt(
     execSync("wc -c " + localname)

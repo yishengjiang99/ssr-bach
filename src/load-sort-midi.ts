@@ -25,7 +25,6 @@ export async function convertMidi(
   const emitter = new EventEmitter();
   let { output, realtime } = props;
 
-  let lastRow;
   const sequenceArray = new Array(24).fill([]);
 
   const { tracks, header } = new Midi(require("fs").readFileSync(source));
@@ -34,9 +33,9 @@ export async function convertMidi(
     time: 0,
   };
 
-  output.write("#title: " + header.name + "\n");
+  output.write("#title, " + header.name + "\n");
   output.write(
-    "#tempo: " +
+    "#tempo, " +
       header.tempos[0].bpm +
       header.timeSignatures[0].timeSignature.join("/") +
       "\n"
@@ -45,15 +44,19 @@ export async function convertMidi(
     bmp: header.tempos[0].bpm,
     signature: header.timeSignatures[0].timeSignature,
   });
+
   pullMidiTrack(tracks, callback);
 
   async function pullMidiTrack(tracks, cb) {
     let now = 0;
     let done = 0;
+    let doneSet = new Set();
     while (tracks.length > done) {
       const group = [];
       tracks.forEach((track, i) => {
+        if (doneSet.has(i)) return;
         if (!track.notes || track.notes.length === 0) {
+          doneSet.add(i);
           done++;
           return;
         }
@@ -65,11 +68,13 @@ export async function convertMidi(
           });
         }
       });
-      output.write("time: " + now + " " + header.ticksToMeasures(now) + "\n");
+      // output.write(`time:,${now},${header.ticksToMeasures(now)}\n`);
       const { abort, increment } = await cb(group, now);
       if (abort) break;
+
       now += increment;
     }
+
     donecb();
   }
 
@@ -97,12 +102,6 @@ export async function convertMidi(
   ): Promise<{ increment: number; abort: boolean }> {
     const { beatLengthMs, ticksPerbeat, shifted } = currentTempo(now);
     if (shifted) {
-      output.write(
-        "#tempo: " +
-          header.tempos[0].bpm +
-          header.timeSignatures[0].timeSignature.join("/") +
-          "\n"
-      );
       emitter.emit("temp", {
         bmp: header.tempos[0].bpm,
         signature: header.timeSignatures[0].timeSignature,
@@ -112,7 +111,8 @@ export async function convertMidi(
       const note = notes.shift();
       output.write(
         [
-          format(note.instrument) + ": ",
+          "note",
+          format(note.instrument),
           note.midi,
           note.ticks,
           note.durationTicks,
@@ -120,7 +120,6 @@ export async function convertMidi(
           "\n",
         ].join(",")
       );
-      emitter.emit(format(note.instrument), note);
 
       for (let i = 0; i < Math.ceil(note.durationTicks / ticksPerbeat); i++) {
         sequenceArray[i].push({
@@ -141,12 +140,15 @@ export async function convertMidi(
   }
 }
 
-// if (require.main === module) {
-//   convertMidi("./song.mid", {
-//     output: process.stderr,
-//     interrupt: process.stdin,
-//     realtime: true,
-//   });
-// }
+if (require.main === module) {
+  // convertMidi(
+  //   "./midi/chpn_op10_e05-mid.mid",
+  //   {
+  //     output: process.stderr,
+  //     realtime: false,
+  //   },
+  //   console.log
+  // );
+}
 const format = (str) =>
   str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
