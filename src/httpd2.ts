@@ -10,34 +10,58 @@ import {
 } from "fs";
 import { Transform } from "stream";
 import { execSync } from "child_process";
-import { readAsSSE } from "./readMidiSSE";
 const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
 const httpd = require("http").createServer(async (req, res) => {
+  // const url = require("url").parse(req.url);
+  // let start = url.searchParams.get("t") || 0; //length
+  // let to = url.searchParams.get("to") || 30;
   const file = resolve(__dirname, "../Beethoven-Symphony5-1.mid");
+
+  const [comma, rm, eventstr, datastr] = [",", "\n", "event: ", "data: "];
+
   switch (req.url) {
     case "/":
       res.end(indexHtml);
       break;
     case "/rt":
+      const tx = new Transform({
+        transform: (chunk, _, cb) => {
+          const event = chunk.slice(0, chunk.indexOf(comma));
+          const data = chunk.slice(event.byteLength + 1);
+          cb(null, [eventstr, event, rm, datastr, data, rm, rm].join(""));
+        },
+      });
+      tx.pipe(res);
       res.writeHead(200, {
         "Access-Control-Allow-Origin": "*",
         "Content-Type": "text/event-stream",
         Connection: "keep-alive",
         "Cache-Control": "no-cache",
       });
-      readAsSSE(file, true).pipe(res);
+
+      convertMidi(
+        file,
+        {
+          output: tx,
+          realtime: true,
+        },
+        () => {
+          res.end();
+        }
+      );
       break;
     case "/list":
       res.writeHead(200, { "Content-Type": "application/json" });
+
       res.end(JSON.stringify(execSync("ls midi/*").toString()));
       break;
     case "/note":
+
     case "/csv":
       res.writeHead(200, {
         "Content-Type": "text/csv",
         "Content-Disposition": `inline; filename="bach.csv"`,
       });
-      readAsSSE(filename);
       convertMidi(
         file,
         {

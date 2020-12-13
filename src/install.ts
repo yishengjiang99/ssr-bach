@@ -6,7 +6,7 @@ const sfUrl = (setname, fontname) =>
 const format = (str) =>
   str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 
-const csvfile = process.argv[2] || 
+const csvfile = process.argv[2] || "";
 
 const setname = process.argv[3] || "FatBoy";
 
