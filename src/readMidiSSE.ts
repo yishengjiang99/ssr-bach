@@ -1,15 +1,14 @@
-import { Readable } from "stream";
-import { convertMidi } from "./load-sort-midi";
-const [comma, rm, eventstr, datastr] = [",", "\n", "event: ", "data: "];
-
+import { Readable, Transform } from "stream";
+import { readAsCSV } from "./readMidiCSV";
 export const readMidiSSE = (midifile: string, realtime: boolean): Readable => {
-  const { emitter } = convertMidi(midifile, realtime);
-  const readable = new Readable({ read: () => "" });
-
-  emitter.on("note", genEvent);
-  emitter.on("#meta", genEvent);
-  emitter.on("#tempo", genEvent);
-
-  proc.on("done", () => readable.emit("ended"));
-  return readable;
+  return readAsCSV(midifile, realtime).pipe(
+    new Transform({
+      transform: (chunk, _, cb) => {
+        const firstcomman = chunk.indexOf(",");
+        const event = chunk.slice(0, firstcomman);
+        const data = chunk.slice(event.byteLength + 1);
+        cb(null, ["event: ", event, "\n", "data: ", data, "\n\n"].join(""));
+      },
+    })
+  );
 };
