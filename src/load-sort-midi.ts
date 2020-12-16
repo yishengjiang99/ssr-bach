@@ -10,17 +10,13 @@ export function convertMidi(source: Filename, realtime): RemoteControl {
     paused: false,
     time: 0,
     midifile: source,
+    tempo: null,
+    timeSignature: null,
   };
+
   const setState = (update: { [key: string]: string | boolean | number }) => {
     Object.keys(update).forEach((k) => (state[k] = update[k]));
   };
-  emitter.emit("#meta", {
-    name: header.name,
-  });
-  emitter.emit("#tempo", {
-    bmp: header.tempos[0].bpm,
-    signature: header.timeSignatures[0].timeSignature,
-  });
   const controller = {
     pause: () => setState({ paused: true }),
     resume: () => {
@@ -33,67 +29,68 @@ export function convertMidi(source: Filename, realtime): RemoteControl {
     emitter,
   };
   async function pullMidiTrack(tracks, cb) {
-    let now = -1;
     let done = 0;
     let doneSet = new Set();
     while (tracks.length > done) {
-      console.log(now, done);
-      tracks.forEach((track, i) => {
-        if (doneSet.has(i)) return;
-        if (!track.notes || track.notes.length === 0) {
+      for (let i = 0; i < tracks.length; i++) {
+        if (doneSet.has(i)) continue;
+        if (!tracks[i].notes || tracks[i].notes.length === 0) {
           doneSet.add(i);
           done++;
-          return;
+          continue;
         }
-        if (track.notes[0] > now) return;
-        emitter.emit("note", {
-          ...track.notes.shift(),
-          instrument: format(track.instrument.name),
-        });
-      });
-      now = await cb(now);
-      emitter.emit("time", header.ticksToMeasures(now));
+        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.time) {
+          emitter.emit("note", {
+            ...tracks[i].notes.shift(),
+            trackId: i,
+            instrument: format(tracks[i].instrument.name),
+          });
+        }
+      }
+
+      if (!realtime) state.time += 10;
+      else {
+        await cb();
+      }
+      // await cb();
     }
     emitter.emit("ended");
   }
 
   function currentTempo(now) {
-    let shifted = now < 0;
-    if (header.tempos[1] && now >= header.tempos[1].ticks) {
-      header.tempos.shift();
-      shifted = true;
+    if (!state.tempo || (header.tempos[0] && now >= header.tempos[0].ticks)) {
+      state.tempo = header.tempos.shift();
+      emitter.emit("#tempo", state.tempo);
     }
-    if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
-      header.timeSignatures.shift();
-      shifted = true;
+    if (
+      !state.timeSignature ||
+      (header.timeSignatures[0] && now >= header.timeSignatures[0].ticks)
+    ) {
+      state.timeSignature = header.timeSignatures.shift().timeSignature;
+      emitter.emit("#timeSignature", state.timeSignature);
     }
-    let ppb = header.ppq;
-    let bpm = header.tempos[0].bpm || 120;
-    let signature = header.timeSignatures[0].timeSignature;
-    let beatLengthMs = 60000 / header.tempos[0].bpm;
-    let ticksPerbeat = (header.ppq / signature[1]) * 4;
-    return { ppb, bpm, ticksPerbeat, signature, beatLengthMs, shifted };
   }
 
-  const callback = async (now: number) => {
-    const { beatLengthMs, ticksPerbeat, shifted } = currentTempo(now);
-    if (shifted) {
-      emitter.emit("tempo", {
-        bmp: header.tempos[0].bpm,
-        signature: header.timeSignatures[0].timeSignature,
-      });
-    }
-    if (now >= 0 && realtime) {
-      await sleep(beatLengthMs);
-    }
+  const callback = async () => {
+    let beatLengthMs = 60000 / state.tempo.bpm;
+    let ticksPerbeat = (header.ppq / state.timeSignature[1]) * 4;
     if (state.paused) {
       await new Promise((resolve) => {
-        this.emitter.on("resume", resolve);
+        emitter.on("resume", resolve);
       });
     }
-    return now + ticksPerbeat;
-  };
 
+    if (state.time >= 0 && realtime) {
+      await sleep(beatLengthMs);
+    }
+    emitter.emit("#time", header.ticksToMeasures(state.time));
+    setState({
+      time: state.time + ticksPerbeat,
+    });
+    currentTempo(state.time);
+    return ticksPerbeat;
+  };
+  currentTempo(state.time);
   pullMidiTrack(tracks, callback);
 
   return controller;
