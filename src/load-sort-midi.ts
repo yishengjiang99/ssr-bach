@@ -3,12 +3,16 @@ import { EventEmitter } from "events";
 import { Filename, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 
-export function convertMidi(source: Filename, realtime): RemoteControl {
+export function convertMidi(
+  source: Filename,
+  realtime: boolean
+): RemoteControl {
   const emitter = new EventEmitter();
   const { tracks, header } = new Midi(require("fs").readFileSync(source));
   const state = {
     paused: false,
     time: 0,
+    ticks: 0,
     midifile: source,
     tempo: null,
     timeSignature: null,
@@ -27,8 +31,9 @@ export function convertMidi(source: Filename, realtime): RemoteControl {
     next: () => {},
     rwd: () => setState({ time: Math.max(state.time - 15, 0) }),
     emitter,
+    state,
   };
-  async function pullMidiTrack(tracks, cb) {
+  const pullMidiTrack = async (tracks, cb) => {
     let done = 0;
     let doneSet = new Set();
     while (tracks.length > done) {
@@ -47,50 +52,61 @@ export function convertMidi(source: Filename, realtime): RemoteControl {
           });
         }
       }
-
-      if (!realtime) state.time += 10;
-      else {
-        await cb();
-      }
+      await cb();
       // await cb();
+      console.log(done);
+      console.log(doneSet);
     }
     emitter.emit("ended");
-  }
-
-  function currentTempo(now) {
-    if (!state.tempo || (header.tempos[0] && now >= header.tempos[0].ticks)) {
-      state.tempo = header.tempos.shift();
-      emitter.emit("#tempo", state.tempo);
-    }
-    if (
-      !state.timeSignature ||
-      (header.timeSignatures[0] && now >= header.timeSignatures[0].ticks)
-    ) {
-      state.timeSignature = header.timeSignatures.shift().timeSignature;
-      emitter.emit("#timeSignature", state.timeSignature);
-    }
-  }
-
+  };
   const callback = async () => {
-    let beatLengthMs = 60000 / state.tempo.bpm;
-    let ticksPerbeat = (header.ppq / state.timeSignature[1]) * 4;
+    function currentTempo(now) {
+      if (header.tempos[1] && now >= header.tempos[1].ticks) {
+        header.tempos.shift();
+      }
+      if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
+        header.timeSignatures.shift();
+      }
+      let ppb = header.ppq;
+      let bpm =
+        (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
+      let signature = (header.timeSignatures &&
+        header.timeSignatures[0] &&
+        header.timeSignatures[0].timeSignature) || [4, 4];
+
+      let beatLengthMs = 60000 / header.tempos[0].bpm;
+      let ticksPerbeat = header.ppq;
+      const beatResolution = signature[1];
+      const quarterNotesInBeat = signature[0];
+      return {
+        ppb,
+        bpm,
+        ticksPerbeat,
+        signature,
+        beatLengthMs,
+        beatResolution,
+        quarterNotesInBeat,
+      };
+    }
+    const { beatLengthMs, ticksPerbeat } = currentTempo(state.time);
+    if (realtime) await sleep(beatLengthMs / 4);
+    else await sleep(0);
+    setState({
+      ticks: state.ticks + ticksPerbeat / 4,
+      time: state.time + beatLengthMs / 4,
+    });
+
     if (state.paused) {
       await new Promise((resolve) => {
         emitter.on("resume", resolve);
       });
     }
 
-    if (state.time >= 0 && realtime) {
-      await sleep(beatLengthMs);
-    }
-    emitter.emit("#time", header.ticksToMeasures(state.time));
-    setState({
-      time: state.time + ticksPerbeat,
-    });
-    currentTempo(state.time);
+    emitter.emit("#time", [state.time, state.ticks]);
+    console.log("#time", state.time, state.ticks);
+    currentTempo(state.ticks);
     return ticksPerbeat;
   };
-  currentTempo(state.time);
   pullMidiTrack(tracks, callback);
 
   return controller;
@@ -98,6 +114,7 @@ export function convertMidi(source: Filename, realtime): RemoteControl {
 
 function format(str) {
   return str
+
     .replace(" ", "_")
     .replace(" ", "_")
     .replace(" ", "_")
