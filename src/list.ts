@@ -1,13 +1,43 @@
-import { convertMidi } from "./load-sort-midi";
-import { basename, extname, resolve } from "path";
 import { execSync } from "child_process";
 import { readdir } from "fs";
 
-export function list(resp) {
-  const set = new Set(execSync("ls csv/*csv").toString().split(/s+/));
+import { Writable } from "stream";
+import { readdirSync } from "fs";
+import { AnalyzerView } from "./js/analyzerview";
+export const notelist = (res: Writable) => {
+  const sections = readdirSync("./midisf");
 
-  readdir(resolve(__dirname, "..", "midis"), (err, results) => {
-    if (err) resp.end(err.message);
-    resp.send(JSON.stringify(results));
-  });
-}
+  for (const section of sections) {
+    const links = readdirSync("midisf/" + section).filter((n) =>
+      n.endsWith(".pcm")
+    );
+    res.write("<div class='mt-25'></div>");
+    res.write(`<div><span>${section}</span>
+    ${links.map((n) => {
+      const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
+      return `<a href="/bach/notes/${section}/${nn}"> ${nn} </a>`;
+    })}
+    </div>`);
+  }
+  res.write(`
+     <style>
+     .mt-25{
+       margin-top:25px;
+     }
+     body{
+       background-color:black;
+       color:white;
+       
+     }
+     a{
+       color:white;
+     }
+     canvas{
+       top:0;left:0;
+       z-index:-2;
+    position:absolute;
+    width:100vw;
+    height:100vh;
+  }</style>
+  <script type='module' src='/bach/js/playsample.js'></script>`);
+};
