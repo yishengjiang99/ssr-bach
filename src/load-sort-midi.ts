@@ -56,9 +56,6 @@ export function convertMidi(
       }
       await cb();
       if (state.stop) break;
-      // await cb();
-      console.log(done);
-      console.log(doneSet);
     }
     emitter.emit("ended");
   };
@@ -106,7 +103,6 @@ export function convertMidi(
     }
 
     emitter.emit("#time", [state.time, state.ticks]);
-    console.log("#time", state.time, state.ticks);
     currentTempo(state.ticks);
     return ticksPerbeat;
   };

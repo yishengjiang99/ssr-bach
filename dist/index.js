@@ -5,14 +5,13 @@ const fs_1 = require("fs");
 const child_process_1 = require("child_process");
 const read_midi_sse_csv_1 = require("./read-midi-sse-csv");
 const list_1 = require("./list");
-const filelist = JSON.stringify(child_process_1.execSync("ls midi/*").toString());
 const indexHtml = fs_1.readFileSync(path_1.resolve(__dirname, "../index.html"));
 const httpd = require("http").createServer(async (req, res) => {
     const parts = req.url.split("/");
     const p1 = parts[1];
     const p2 = parts[2] || "";
     const p3 = parts[3] || "";
-    const file = (fs_1.existsSync("./midi/" + p2) && "./midi/p2") || "./midi/song";
+    const file = (p2 && fs_1.existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
     switch (p1) {
         case "":
             res.end(indexHtml);

@@ -12,15 +12,14 @@ import { execSync } from "child_process";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { notelist } from "./list";
 
-const filelist = JSON.stringify(execSync("ls midi/*").toString());
-
 const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
 const httpd = require("http").createServer(async (req, res) => {
   const parts = req.url.split("/");
   const p1 = parts[1];
   const p2 = parts[2] || "";
   const p3 = parts[3] || "";
-  const file = (existsSync("./midi/" + p2) && "./midi/p2") || "./midi/song";
+  const file =
+    (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
   switch (p1) {
     case "":
       res.end(indexHtml);
