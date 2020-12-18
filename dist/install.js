@@ -13,11 +13,9 @@ const format = (str) => str
     .replace("(", "")
     .replace(")", "")
     .trim();
-const csvfile = process.argv[2] || "";
-const setname = process.argv[3] || "FatBoy";
 const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
 "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
-exports.installNotesFromCsv = (csvfile) => {
+exports.installNotesFromCsv = (csvfile, setname) => {
     for (const name of execSync("cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq")
         .toString()
         .trim()
@@ -57,4 +55,9 @@ exports.installNotesFromCsv = (csvfile) => {
     }
 };
 // installNotesFromCsv("/home/AzureUser/ssr-bach/csv/serenade_k361_3rd-mid.csv");
+if (process.argv[2]) {
+    const csvfile = process.argv[2] || "";
+    const setname = process.argv[3] || "FatBoy";
+    exports.installNotesFromCsv(csvfile, setname);
+}
 //# sourceMappingURL=install.js.map
