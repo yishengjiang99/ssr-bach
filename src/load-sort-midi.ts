@@ -55,6 +55,7 @@ export function convertMidi(
           emitter.emit("note", {
             ...note, //...tracks[i].notes.shift(),
             trackId: i,
+            start: header.ticksToSeconds(note.ticks),
             velicity: note.velocity * 0x7f,
             instrument: format(tracks[i].instrument.name),
           });
@@ -106,31 +107,25 @@ export function convertMidi(
     };
   }
   const callback = async () => {
-    const {
-      beatLengthMs,
-      ticksPerbeat,
-      quarterNotesInBeat,
-      beatResolution,
-    } = currentTempo(state.ticks);
-    const interval = ((1 / 8) * quarterNotesInBeat) / beatResolution;
+    const { beatLengthMs, ticksPerbeat } = currentTempo(state.ticks);
+
+    if (realtime) await sleep(beatLengthMs);
+    else await sleep(0);
+    setState({
+      ticks: state.ticks + ticksPerbeat,
+      time: state.time + beatLengthMs,
+    });
 
     emitter.emit("#time", [
       header.ticksToSeconds(state.ticks),
       state.ticks,
       header.ticksToMeasures(state.ticks),
     ]);
-    if (realtime) await sleep(beatLengthMs * interval);
-    else await sleep(0);
-    setState({
-      ticks: state.ticks + ticksPerbeat * interval,
-      time: state.time + beatLengthMs * interval,
-    });
     if (state.paused) {
       await new Promise((resolve) => {
         emitter.on("resume", resolve);
       });
     }
-    return ticksPerbeat;
   };
   emitter.emit("#tempo", { bpm: header.tempos[0].bpm });
   emitter.emit("#meta", "debug");
