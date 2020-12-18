@@ -1,125 +1,121 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.convertMidi = exports.sleep = void 0;
+exports.convertMidi = void 0;
 const midi_1 = require("@tonejs/midi");
 const events_1 = require("events");
-exports.sleep = (ms) => {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-};
-async function convertMidi(source, props, donecb) {
+const utils_1 = require("./utils");
+function convertMidi(source, realtime) {
     const emitter = new events_1.EventEmitter();
-    let { output, realtime } = props;
-    let lastRow;
-    const sequenceArray = new Array(24).fill([]);
     const { tracks, header } = new midi_1.Midi(require("fs").readFileSync(source));
     const state = {
         paused: false,
         time: 0,
+        ticks: 0,
+        stop: false,
+        midifile: source,
+        tempo: null,
+        timeSignature: null,
     };
-    output.write("#title: " + header.name + "\n");
-    output.write("#tempo: " +
-        header.tempos[0].bpm +
-        header.timeSignatures[0].timeSignature.join("/") +
-        "\n");
-    emitter.emit("temp", {
-        bmp: header.tempos[0].bpm,
-        signature: header.timeSignatures[0].timeSignature,
-    });
-    pullMidiTrack(tracks, callback);
-    async function pullMidiTrack(tracks, cb) {
-        let now = 0;
+    const setState = (update) => {
+        Object.keys(update).forEach((k) => (state[k] = update[k]));
+    };
+    const controller = {
+        pause: () => setState({ paused: true }),
+        resume: () => {
+            emitter.emit("resume");
+            setState({ paused: false });
+        },
+        stop: () => setState({ stop: true }),
+        ff: () => setState({ time: state.time + 15 }),
+        next: () => { },
+        rwd: () => setState({ time: Math.max(state.time - 15, 0) }),
+        emitter,
+        state,
+    };
+    const pullMidiTrack = async (tracks, cb) => {
         let done = 0;
+        let doneSet = new Set();
         while (tracks.length > done) {
-            const group = [];
-            tracks.forEach((track, i) => {
-                if (!track.notes || track.notes.length === 0) {
+            for (let i = 0; i < tracks.length; i++) {
+                if (doneSet.has(i))
+                    continue;
+                if (!tracks[i].notes || tracks[i].notes.length === 0) {
+                    doneSet.add(i);
                     done++;
-                    return;
+                    continue;
                 }
-                if (track.notes[0].ticks < now) {
-                    group.push({
-                        ...track.notes.shift(),
-                        instrument: track.instrument.name,
+                while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.time) {
+                    emitter.emit("note", {
+                        ...tracks[i].notes.shift(),
+                        trackId: i,
+                        instrument: format(tracks[i].instrument.name),
                     });
                 }
-            });
-            output.write("time: " + now + " " + header.ticksToMeasures(now) + "\n");
-            const { abort, increment } = await cb(group, now);
-            if (abort)
-                break;
-            now += increment;
-        }
-        donecb();
-    }
-    function currentTempo(now) {
-        let shifted = false;
-        if (header.tempos[1] && now >= header.tempos[1].ticks) {
-            header.tempos.shift();
-            shifted = true;
-        }
-        if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
-            header.timeSignatures.shift();
-            shifted = true;
-        }
-        let ppb = header.ppq;
-        let bpm = header.tempos[0].bpm || 120;
-        let signature = header.timeSignatures[0].timeSignature;
-        let beatLengthMs = 60000 / header.tempos[0].bpm;
-        let ticksPerbeat = (header.ppq / signature[1]) * 4;
-        return { ppb, bpm, ticksPerbeat, signature, beatLengthMs, shifted };
-    }
-    async function callback(notes, now) {
-        const { beatLengthMs, ticksPerbeat, shifted } = currentTempo(now);
-        if (shifted) {
-            output.write("#tempo: " +
-                header.tempos[0].bpm +
-                header.timeSignatures[0].timeSignature.join("/") +
-                "\n");
-            emitter.emit("temp", {
-                bmp: header.tempos[0].bpm,
-                signature: header.timeSignatures[0].timeSignature,
-            });
-        }
-        while (notes.length) {
-            const note = notes.shift();
-            output.write([
-                format(note.instrument) + ": ",
-                note.midi,
-                note.ticks,
-                note.durationTicks,
-                note.velocity,
-                "\n",
-            ].join(","));
-            emitter.emit(format(note.instrument), note);
-            for (let i = 0; i < Math.ceil(note.durationTicks / ticksPerbeat); i++) {
-                sequenceArray[i].push({
-                    note,
-                    envelopeIdx: i,
-                });
             }
-            sequenceArray.push([]);
+            await cb();
+            if (state.stop)
+                break;
+            // await cb();
+            console.log(done);
+            console.log(doneSet);
         }
-        let row = sequenceArray.shift();
-        for (const note of row) {
-            if (!note)
-                continue;
-            emitter.emit("beat", note);
+        emitter.emit("ended");
+    };
+    const callback = async () => {
+        function currentTempo(now) {
+            if (header.tempos[1] && now >= header.tempos[1].ticks) {
+                header.tempos.shift();
+            }
+            if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
+                header.timeSignatures.shift();
+            }
+            let ppb = header.ppq;
+            let bpm = (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
+            let signature = (header.timeSignatures &&
+                header.timeSignatures[0] &&
+                header.timeSignatures[0].timeSignature) || [4, 4];
+            let beatLengthMs = 60000 / header.tempos[0].bpm;
+            let ticksPerbeat = header.ppq;
+            const beatResolution = signature[1];
+            const quarterNotesInBeat = signature[0];
+            return {
+                ppb,
+                bpm,
+                ticksPerbeat,
+                signature,
+                beatLengthMs,
+                beatResolution,
+                quarterNotesInBeat,
+            };
         }
-        sequenceArray.push([]);
+        const { beatLengthMs, ticksPerbeat } = currentTempo(state.time);
         if (realtime)
-            await exports.sleep(beatLengthMs);
-        return { increment: ticksPerbeat, abort: state.paused };
-    }
+            await utils_1.sleep(beatLengthMs / 4);
+        else
+            await utils_1.sleep(0);
+        setState({
+            ticks: state.ticks + ticksPerbeat / 4,
+            time: state.time + beatLengthMs / 4,
+        });
+        if (state.paused) {
+            await new Promise((resolve) => {
+                emitter.on("resume", resolve);
+            });
+        }
+        emitter.emit("#time", [state.time, state.ticks]);
+        console.log("#time", state.time, state.ticks);
+        currentTempo(state.ticks);
+        return ticksPerbeat;
+    };
+    pullMidiTrack(tracks, callback);
+    return controller;
 }
 exports.convertMidi = convertMidi;
-// if (require.main === module) {
-//   convertMidi("./song.mid", {
-//     output: process.stderr,
-//     interrupt: process.stdin,
-//     realtime: true,
-//   });
-// }
-const format = (str) => str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
+function format(str) {
+    return str
+        .replace(" ", "_")
+        .replace(" ", "_")
+        .replace(" ", "_")
+        .replace(" ", "_");
+}
 //# sourceMappingURL=load-sort-midi.js.map

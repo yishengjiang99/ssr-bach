@@ -9,8 +9,7 @@ import {
   write,
 } from "fs";
 import { execSync } from "child_process";
-import { readAsCSV } from "./readMidiCSV";
-import { readMidiSSE } from "./readMidiSSE";
+import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { notelist } from "./list";
 
 const filelist = JSON.stringify(execSync("ls midi/*").toString());
@@ -46,7 +45,7 @@ const httpd = require("http").createServer(async (req, res) => {
         Connection: "keep-alive",
         "Cache-Control": "no-cache",
       });
-      readMidiSSE(file, true).pipe(res);
+      readMidiSSE(req, res, file, true);
       break;
     case "samples":
       res.writeHead(200, { contentType: "text/html" });

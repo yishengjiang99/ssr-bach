@@ -13,6 +13,7 @@ export function convertMidi(
     paused: false,
     time: 0,
     ticks: 0,
+    stop: false,
     midifile: source,
     tempo: null,
     timeSignature: null,
@@ -27,6 +28,7 @@ export function convertMidi(
       emitter.emit("resume");
       setState({ paused: false });
     },
+    stop: () => setState({ stop: true }),
     ff: () => setState({ time: state.time + 15 }),
     next: () => {},
     rwd: () => setState({ time: Math.max(state.time - 15, 0) }),
@@ -53,6 +55,7 @@ export function convertMidi(
         }
       }
       await cb();
+      if (state.stop) break;
       // await cb();
       console.log(done);
       console.log(doneSet);

@@ -8,6 +8,7 @@ export type RemoteControl = {
   rwd: () => void;
   next: () => void;
   state: {};
+  stop: () => void;
   emitter: EventEmitter;
 };
 export type SSRState = {
