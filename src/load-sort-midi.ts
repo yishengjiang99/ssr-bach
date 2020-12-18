@@ -13,10 +13,11 @@ export function convertMidi(
     paused: false,
     time: 0,
     ticks: 0,
+    measure: 0,
     stop: false,
     midifile: source,
-    tempo: null,
-    timeSignature: null,
+    tempo: header.tempos[0].bpm,
+    timeSignature: header.timeSignatures[0].timeSignature,
   };
 
   const setState = (update: { [key: string]: string | boolean | number }) => {
@@ -36,6 +37,9 @@ export function convertMidi(
     state,
   };
   const pullMidiTrack = async (tracks, cb) => {
+    console.log("start");
+    const { beatLengthMs, ticksPerbeat } = currentTempo(0);
+
     let done = 0;
     let doneSet = new Set();
     while (tracks.length > done) {
@@ -46,10 +50,12 @@ export function convertMidi(
           done++;
           continue;
         }
-        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.time) {
+        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.ticks) {
+          let note = tracks[i].notes.shift();
           emitter.emit("note", {
-            ...tracks[i].notes.shift(),
+            ...note, //...tracks[i].notes.shift(),
             trackId: i,
+            velicity: note.velocity * 0x7f,
             instrument: format(tracks[i].instrument.name),
           });
         }
@@ -59,55 +65,77 @@ export function convertMidi(
     }
     emitter.emit("ended");
   };
-  const callback = async () => {
-    function currentTempo(now) {
-      if (header.tempos[1] && now >= header.tempos[1].ticks) {
-        header.tempos.shift();
-      }
-      if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
-        header.timeSignatures.shift();
-      }
-      let ppb = header.ppq;
-      let bpm =
-        (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
-      let signature = (header.timeSignatures &&
-        header.timeSignatures[0] &&
-        header.timeSignatures[0].timeSignature) || [4, 4];
+  function currentTempo(now: number) {
+    let shifted = 0;
+    if (header.tempos[1] && now >= header.tempos[0].ticks) {
+      header.tempos.shift();
+      shifted = 1;
+    }
+    if (header.timeSignatures[1] && now >= header.timeSignatures[0].ticks) {
+      header.timeSignatures.shift();
+      shifted = 1;
+    }
+    let ppb = header.ppq;
+    let bpm =
+      (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
+    let signature = (header.timeSignatures &&
+      header.timeSignatures[0] &&
+      header.timeSignatures[0].timeSignature) || [4, 4];
 
-      let beatLengthMs = 60000 / header.tempos[0].bpm;
-      let ticksPerbeat = header.ppq;
-      const beatResolution = signature[1];
-      const quarterNotesInBeat = signature[0];
-      return {
-        ppb,
+    let beatLengthMs = 60000 / header.tempos[0].bpm;
+    let ticksPerbeat = header.ppq;
+    const beatResolution = signature[1];
+    const quarterNotesInBeat = signature[0];
+    if (now === 0 || shifted) {
+      emitter.emit("#tempo", {
         bpm,
         ticksPerbeat,
-        signature,
         beatLengthMs,
-        beatResolution,
         quarterNotesInBeat,
-      };
+        beatResolution,
+      });
     }
-    const { beatLengthMs, ticksPerbeat } = currentTempo(state.time);
-    if (realtime) await sleep(beatLengthMs / 4);
+    return {
+      ppb,
+      bpm,
+      ticksPerbeat,
+      signature,
+      beatLengthMs,
+      beatResolution,
+      quarterNotesInBeat,
+    };
+  }
+  const callback = async () => {
+    const {
+      beatLengthMs,
+      ticksPerbeat,
+      quarterNotesInBeat,
+      beatResolution,
+    } = currentTempo(state.ticks);
+    const interval = ((1 / 8) * quarterNotesInBeat) / beatResolution;
+
+    emitter.emit("#time", [
+      header.ticksToSeconds(state.ticks),
+      state.ticks,
+      header.ticksToMeasures(state.ticks),
+    ]);
+    if (realtime) await sleep(beatLengthMs * interval);
     else await sleep(0);
     setState({
-      ticks: state.ticks + ticksPerbeat / 4,
-      time: state.time + beatLengthMs / 4,
+      ticks: state.ticks + ticksPerbeat * interval,
+      time: state.time + beatLengthMs * interval,
     });
-
     if (state.paused) {
       await new Promise((resolve) => {
         emitter.on("resume", resolve);
       });
     }
-
-    emitter.emit("#time", [state.time, state.ticks]);
-    currentTempo(state.ticks);
     return ticksPerbeat;
   };
-  pullMidiTrack(tracks, callback);
+  emitter.emit("#tempo", { bpm: header.tempos[0].bpm });
+  emitter.emit("#meta", "debug");
 
+  pullMidiTrack(tracks, callback);
   return controller;
 }
 

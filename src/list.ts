@@ -1,9 +1,5 @@
-import { execSync } from "child_process";
-import { readdir } from "fs";
-
 import { Writable } from "stream";
 import { readdirSync } from "fs";
-import { AnalyzerView } from "./js/analyzerview";
 export const notelist = (res: Writable) => {
   const sections = readdirSync("./midisf");
 

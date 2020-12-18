@@ -57,7 +57,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
         ticks,
         midi,
         durationTicks,
-        velocity,
+        velocity * 0x7f,
         noteOffVelocity,
         instrument,
         trackId,

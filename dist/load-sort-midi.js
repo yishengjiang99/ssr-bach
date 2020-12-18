@@ -11,10 +11,11 @@ function convertMidi(source, realtime) {
         paused: false,
         time: 0,
         ticks: 0,
+        measure: 0,
         stop: false,
         midifile: source,
-        tempo: null,
-        timeSignature: null,
+        tempo: header.tempos[0].bpm,
+        timeSignature: header.timeSignatures[0].timeSignature,
     };
     const setState = (update) => {
         Object.keys(update).forEach((k) => (state[k] = update[k]));
@@ -33,6 +34,8 @@ function convertMidi(source, realtime) {
         state,
     };
     const pullMidiTrack = async (tracks, cb) => {
+        console.log("start");
+        const { beatLengthMs, ticksPerbeat } = currentTempo(state.ticks);
         let done = 0;
         let doneSet = new Set();
         while (tracks.length > done) {
@@ -58,34 +61,40 @@ function convertMidi(source, realtime) {
         }
         emitter.emit("ended");
     };
-    const callback = async () => {
-        function currentTempo(now) {
-            if (header.tempos[1] && now >= header.tempos[1].ticks) {
-                header.tempos.shift();
-            }
-            if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
-                header.timeSignatures.shift();
-            }
-            let ppb = header.ppq;
-            let bpm = (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
-            let signature = (header.timeSignatures &&
-                header.timeSignatures[0] &&
-                header.timeSignatures[0].timeSignature) || [4, 4];
-            let beatLengthMs = 60000 / header.tempos[0].bpm;
-            let ticksPerbeat = header.ppq;
-            const beatResolution = signature[1];
-            const quarterNotesInBeat = signature[0];
-            return {
-                ppb,
-                bpm,
-                ticksPerbeat,
-                signature,
-                beatLengthMs,
-                beatResolution,
-                quarterNotesInBeat,
-            };
+    function currentTempo(now) {
+        let shifted = 0;
+        if (header.tempos[1] && now >= header.tempos[0].ticks) {
+            header.tempos.shift();
+            shifted = 1;
         }
-        const { beatLengthMs, ticksPerbeat } = currentTempo(state.time);
+        if (header.timeSignatures[1] && now >= header.timeSignatures[0].ticks) {
+            header.timeSignatures.shift();
+            shifted = 1;
+        }
+        let ppb = header.ppq;
+        let bpm = (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
+        let signature = (header.timeSignatures &&
+            header.timeSignatures[0] &&
+            header.timeSignatures[0].timeSignature) || [4, 4];
+        let beatLengthMs = 60000 / header.tempos[0].bpm;
+        let ticksPerbeat = header.ppq;
+        const beatResolution = signature[1];
+        const quarterNotesInBeat = signature[0];
+        if (shifted || now === 0) {
+            emitter.emit("#tempo", { bpm, ticksPerbeat, beatLengthMs });
+        }
+        return {
+            ppb,
+            bpm,
+            ticksPerbeat,
+            signature,
+            beatLengthMs,
+            beatResolution,
+            quarterNotesInBeat,
+        };
+    }
+    const callback = async () => {
+        const { beatLengthMs, ticksPerbeat } = currentTempo(state.ticks);
         if (realtime)
             await utils_1.sleep(beatLengthMs / 4);
         else
@@ -103,6 +112,9 @@ function convertMidi(source, realtime) {
         currentTempo(state.ticks);
         return ticksPerbeat;
     };
+    emitter.emit("#meta", "startingno");
+    currentTempo(0);
+    emitter.emit("#meta", "debug");
     pullMidiTrack(tracks, callback);
     return controller;
 }
