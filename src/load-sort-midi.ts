@@ -1,4 +1,4 @@
-import { Midi } from "@tonejs/midi";
+import { Header, Midi } from "@tonejs/midi";
 import { EventEmitter } from "events";
 import { Filename, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
@@ -9,15 +9,18 @@ export function convertMidi(
 ): RemoteControl {
   const emitter = new EventEmitter();
   const { tracks, header } = new Midi(require("fs").readFileSync(source));
+  const tempos = JSON.parse(JSON.stringify(header.tempos));
+  console.log(tempos);
   const state = {
     paused: false,
     time: 0,
     ticks: 0,
     stop: false,
     midifile: source,
-    tempo: null,
-    timeSignature: null,
+    tempo: tempos[0],
+    timeSignature: header.timeSignatures[0],
   };
+  emitter.emit("#tempo", state.tempo.bpm, state.timeSignature.timeSignature);
 
   const setState = (update: { [key: string]: string | boolean | number }) => {
     Object.keys(update).forEach((k) => (state[k] = update[k]));
@@ -35,10 +38,14 @@ export function convertMidi(
     emitter,
     state,
   };
+
   const pullMidiTrack = async (tracks, cb) => {
     let done = 0;
     let doneSet = new Set();
+    const t0 = process.uptime();
+    // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;
     while (tracks.length > done) {
+      const now = header.secondsToTicks(process.uptime() - t0); // * ticksPerSecond;
       for (let i = 0; i < tracks.length; i++) {
         if (doneSet.has(i)) continue;
         if (!tracks[i].notes || tracks[i].notes.length === 0) {
@@ -46,12 +53,23 @@ export function convertMidi(
           done++;
           continue;
         }
-        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.time) {
+        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= now + 5) {
+          const note = tracks[i].notes.shift();
           emitter.emit("note", {
-            ...tracks[i].notes.shift(),
+            ...note,
             trackId: i,
+
+            start: header.ticksToSeconds(note.ticks),
+            durationTime:
+              ((60 / state.tempo.bpm) * note.durationTicks) / header.ppq,
+            velocity: note.velocity * 0x7f,
             instrument: format(tracks[i].instrument.name),
           });
+        }
+        if (tempos[1] && now >= tempos[1].ticks) {
+          tempos.shift();
+          state.tempo = tempos[0];
+          emitter.emit("#tempo", { bpm: state.tempo.bpm });
         }
       }
       await cb();
@@ -59,53 +77,17 @@ export function convertMidi(
     }
     emitter.emit("ended");
   };
+
   const callback = async () => {
-    function currentTempo(now) {
-      if (header.tempos[1] && now >= header.tempos[1].ticks) {
-        header.tempos.shift();
-      }
-      if (header.timeSignatures[1] && now >= header.timeSignatures[1].ticks) {
-        header.timeSignatures.shift();
-      }
-      let ppb = header.ppq;
-      let bpm =
-        (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
-      let signature = (header.timeSignatures &&
-        header.timeSignatures[0] &&
-        header.timeSignatures[0].timeSignature) || [4, 4];
-
-      let beatLengthMs = 60000 / header.tempos[0].bpm;
-      let ticksPerbeat = header.ppq;
-      const beatResolution = signature[1];
-      const quarterNotesInBeat = signature[0];
-      return {
-        ppb,
-        bpm,
-        ticksPerbeat,
-        signature,
-        beatLengthMs,
-        beatResolution,
-        quarterNotesInBeat,
-      };
-    }
-    const { beatLengthMs, ticksPerbeat } = currentTempo(state.time);
-    if (realtime) await sleep(beatLengthMs / 4);
+    if (realtime) await sleep(30);
     else await sleep(0);
-    setState({
-      ticks: state.ticks + ticksPerbeat / 4,
-      time: state.time + beatLengthMs / 4,
-    });
-
     if (state.paused) {
       await new Promise((resolve) => {
         emitter.on("resume", resolve);
       });
     }
-
-    emitter.emit("#time", [state.time, state.ticks]);
-    currentTempo(state.ticks);
-    return ticksPerbeat;
   };
+
   pullMidiTrack(tracks, callback);
 
   return controller;
@@ -117,5 +99,6 @@ function format(str) {
     .replace(" ", "_")
     .replace(" ", "_")
     .replace(" ", "_")
+
     .replace(" ", "_");
 }
