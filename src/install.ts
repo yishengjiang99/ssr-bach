@@ -1,26 +1,16 @@
 const execSync = require("child_process").execSync;
 const { existsSync, createWriteStream, readFileSync } = require("fs");
 const { execFile, exec } = require("child_process");
-const sfUrl = (setname, fontname) =>
-  `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
+const sfUrl = (setname, fontname) => `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
 
 const format = (str) =>
-  str
-    .replace(" ", "_")
-    .replace(" ", "_")
-    .replace(" ", "_")
-    .replace(" ", "_")
-    .replace("(", "")
-    .replace(")", "")
-    .trim();
+  str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_").replace("(", "").replace(")", "").trim();
 
 const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
 "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
 
 export const installNotesFromCsv = (csvfile, setname) => {
-  for (const name of execSync(
-    "cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq"
-  )
+  for (const name of execSync("cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq")
     .toString()
     .trim()
     .split("\n")) {
@@ -44,12 +34,7 @@ export const installNotesFromCsv = (csvfile, setname) => {
         .split(/\s+/)[0]
     );
     const bytesPerNote = byteswrote / 88;
-    const uniqnotes = execSync(
-      `grep ${fontname} ${csvfile} |grep -v '#'|cut -f2 -d','|sort |uniq`
-    )
-      .toString()
-      .trim()
-      .split("\n");
+    const uniqnotes = execSync(`grep ${fontname} ${csvfile} |grep -v '#'|cut -f2 -d','|sort |uniq`).toString().trim().split("\n");
     for (const midi of uniqnotes) {
       if (!midi) continue;
       mkfolder(`midisf/${fontname}`);

@@ -1,11 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const child_process_1 = require("child_process");
 describe("this system", () => {
-    it("listens on public port", (done) => {
-        child_process_1.execSync("curl https://www.grepawk.com/bach").toString();
-        done();
-    });
+    // it("listens on public port", (done) => {
+    //   execSync("curl https://www.grepawk.com/bach").toString();
+    //   done();
+    // });
     // it("respond with a list of midis at ", () => {
     //   const resp = execSync("curl -I https://www.grepawk.com/bach/rt").toString();
     //   expect(resp).to.contain("event-stream");

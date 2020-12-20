@@ -1,22 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.convertMidi = void 0;
+exports.secondsPerTick = exports.msPerBeat = exports.convertMidiASAP = exports.convertMidiRealTime = exports.convertMidi = void 0;
 const midi_1 = require("@tonejs/midi");
 const events_1 = require("events");
 const utils_1 = require("./utils");
-function convertMidi(source, realtime) {
+function convertMidi(source, cb) {
     const emitter = new events_1.EventEmitter();
     const { tracks, header } = new midi_1.Midi(require("fs").readFileSync(source));
+    const tempos = JSON.parse(JSON.stringify(header.tempos));
     const state = {
-        paused: false,
+        paused: true,
         time: 0,
-        ticks: 0,
-        measure: 0,
         stop: false,
         midifile: source,
-        tempo: header.tempos[0].bpm,
-        timeSignature: header.timeSignatures[0].timeSignature,
+        tempo: tempos[0],
+        timeSignature: header.timeSignatures[0],
     };
+    emitter.emit("#tempo", state.tempo.bpm, state.timeSignature.timeSignature);
+    const setCallback = (_cb) => (cb = _cb);
     const setState = (update) => {
         Object.keys(update).forEach((k) => (state[k] = update[k]));
     };
@@ -30,15 +31,24 @@ function convertMidi(source, realtime) {
         ff: () => setState({ time: state.time + 15 }),
         next: () => { },
         rwd: () => setState({ time: Math.max(state.time - 15, 0) }),
-        emitter,
+        emitter: emitter,
+        start: () => {
+            setState({ paused: false });
+            pullMidiTrack(tracks, cb);
+        },
+        setCallback,
         state,
     };
-    const pullMidiTrack = async (tracks, cb) => {
-        console.log("start");
-        const { beatLengthMs, ticksPerbeat } = currentTempo(state.ticks);
+    const pullMidiTrack = async (tracks, _cb) => {
         let done = 0;
+        console.log("start");
         let doneSet = new Set();
+        setState({ t0: process.uptime() });
+        // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;
         while (tracks.length > done) {
+            const notesstarting = [];
+            const currentTick = header.secondsToTicks(state.time);
+            console.log(currentTick);
             for (let i = 0; i < tracks.length; i++) {
                 if (doneSet.has(i))
                     continue;
@@ -47,83 +57,61 @@ function convertMidi(source, realtime) {
                     done++;
                     continue;
                 }
-                while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= state.time) {
-                    emitter.emit("note", {
-                        ...tracks[i].notes.shift(),
+                if (tracks[i].notes[0] && tracks[i].notes[0].ticks <= currentTick) {
+                    const note = tracks[i].notes.shift();
+                    const noteEvent = {
+                        ...note,
                         trackId: i,
+                        start: header.ticksToSeconds(note.ticks),
+                        durationTime: exports.secondsPerTick(state.tempo.bpm) * note.durationTicks,
+                        velocity: note.velocity * 0x7f,
                         instrument: format(tracks[i].instrument.name),
-                    });
+                    };
+                    notesstarting.push(noteEvent);
+                    emitter.emit("note", noteEvent);
+                }
+                if (tempos[1] && currentTick >= tempos[1].ticks) {
+                    tempos.shift();
+                    state.tempo = tempos[0];
+                    emitter.emit("#tempo", { bpm: state.tempo.bpm });
                 }
             }
-            await cb();
+            state.time += await _cb(notesstarting);
+            console.log(state.time, state.stop, state.paused);
+            if (state.paused) {
+                await new Promise((resolve) => {
+                    emitter.on("resume", resolve);
+                });
+            }
             if (state.stop)
                 break;
         }
         emitter.emit("ended");
     };
-    function currentTempo(now) {
-        let shifted = 0;
-        if (header.tempos[1] && now >= header.tempos[0].ticks) {
-            header.tempos.shift();
-            shifted = 1;
-        }
-        if (header.timeSignatures[1] && now >= header.timeSignatures[0].ticks) {
-            header.timeSignatures.shift();
-            shifted = 1;
-        }
-        let ppb = header.ppq;
-        let bpm = (header.tempos && header.tempos[0] && header.tempos[0].bpm) || 120;
-        let signature = (header.timeSignatures &&
-            header.timeSignatures[0] &&
-            header.timeSignatures[0].timeSignature) || [4, 4];
-        let beatLengthMs = 60000 / header.tempos[0].bpm;
-        let ticksPerbeat = header.ppq;
-        const beatResolution = signature[1];
-        const quarterNotesInBeat = signature[0];
-        if (shifted || now === 0) {
-            emitter.emit("#tempo", { bpm, ticksPerbeat, beatLengthMs });
-        }
-        return {
-            ppb,
-            bpm,
-            ticksPerbeat,
-            signature,
-            beatLengthMs,
-            beatResolution,
-            quarterNotesInBeat,
-        };
-    }
-    const callback = async () => {
-        const { beatLengthMs, ticksPerbeat } = currentTempo(state.ticks);
-        if (realtime)
-            await utils_1.sleep(beatLengthMs / 4);
-        else
-            await utils_1.sleep(0);
-        setState({
-            ticks: state.ticks + ticksPerbeat / 4,
-            time: state.time + beatLengthMs / 4,
-        });
-        if (state.paused) {
-            await new Promise((resolve) => {
-                emitter.on("resume", resolve);
-            });
-        }
-        emitter.emit("#time", [state.time, state.ticks]);
-        currentTempo(state.ticks);
-        return ticksPerbeat;
-    };
-    emitter.emit("#meta", "startingno");
-    currentTempo(0);
-    emitter.emit("#meta", "debug");
-    pullMidiTrack(tracks, callback);
     return controller;
 }
 exports.convertMidi = convertMidi;
+exports.convertMidiRealTime = (file) => {
+    const controller = convertMidi(file, async function () {
+        await utils_1.sleep(10); //achieves real tiem by asking 'is it next beat yet every 10 ms
+        return 0.01;
+    });
+    controller.start();
+    return controller;
+};
+exports.convertMidiASAP = (file) => {
+    const controller = convertMidi(file, async function () {
+        console.log("pullcb");
+        await utils_1.sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
+        return exports.msPerBeat(controller.state.tempo.bpm) / 1000;
+    });
+    controller.start();
+    return controller;
+};
+exports.msPerBeat = (bpm) => 60000 / bpm;
+exports.secondsPerTick = (bpm) => 60 / bpm / 256;
 function format(str) {
-    return str
-        .replace(" ", "_")
-        .replace(" ", "_")
-        .replace(" ", "_")
-        .replace(" ", "_");
+    return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 }
+//convertMidiRealTime("./midi/song").emitter.on("note", console.log);
 //# sourceMappingURL=load-sort-midi.js.map

@@ -1,12 +1,19 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "commonjs",
-    "lib": ["esnext.asynciterable"],
+    "outDir": "dist",
+    "lib": ["es2018"],
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "target": "ES2018",
+    "preserveConstEnums": true,
     "sourceMap": true,
-    "outDir": "./dist"
+    "declaration": true,
+    "types": ["node", "mocha", "chai"],
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "alwaysStrict": true,
+    "strictFunctionTypes": true
   },
-  
-  "exclude": ["node_modules", "./src/js/*ts"],
-  "include": ["./src/**/*.tsx", "./src/**/*.ts"]
+  "include": ["src"],
+  "exclude": ["src/js/**/*.ts"]
 }

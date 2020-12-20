@@ -1,27 +1,20 @@
-import { resolve } from "path"; //   output: process.stdout,
-import {
-  existsSync,
-  createWriteStream,
-  createReadStream,
-  readdirSync,
-  readFileSync,
-  write,
-} from "fs";
+import { resolve } from "path";
+import { existsSync, createReadStream, readdirSync, readFileSync, write } from "fs";
 import { Writable } from "stream";
 
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 
 import { createServer } from "http";
+import { produce } from "./sound-sprites";
 
-const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
+export const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
 export const rrrun = () =>
   createServer(async (req, res) => {
     const parts = req.url.split("/");
     const p1 = parts[1];
     const p2 = parts[2] || "";
     const p3 = parts[3] || "";
-    const file =
-      (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
+    const file = (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
     switch (p1) {
       case "":
         res.end(indexHtml);
@@ -54,9 +47,11 @@ export const rrrun = () =>
         notelist(res);
         res.end("</body></html>");
         break;
+      case "pcm":
+        produce(file, res);
+        break;
       case "notes":
-        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm"))
-          res.writeHead(404);
+        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) res.writeHead(404);
         res.writeHead(200, { "Content-Type": "audio/raw" });
         createReadStream("./midisf/" + p2 + "/" + p3 + ".pcm").pipe(res);
         break;
@@ -72,14 +67,11 @@ export const rrrun = () =>
         break;
     }
   }).listen(8081);
-export {};
-const notelist = (res: Writable) => {
+export const notelist = (res: Writable) => {
   const sections = readdirSync("./midisf");
 
   for (const section of sections) {
-    const links = readdirSync("midisf/" + section).filter((n) =>
-      n.endsWith(".pcm")
-    );
+    const links = readdirSync("midisf/" + section).filter((n) => n.endsWith(".pcm"));
     res.write("<div class='mt-25'></div>");
     res.write(`<div><span>${section}</span>
     ${links.map((n) => {

@@ -1,2 +1,4 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 require("./http").rrrun();
 //# sourceMappingURL=index.js.map
