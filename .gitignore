@@ -1,7 +1,7 @@
 node_modules
 midisf/**/*pcm
 mp3/*mp3
-
+midi/*
 mp3/FatBoy_bassoon.js
 mp3/FatBoy_clarinet.js
 mp3/FatBoy_flute.js

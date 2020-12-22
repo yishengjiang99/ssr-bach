@@ -35,5 +35,5 @@ export const notelist = (res: Writable) => {
     width:100vw;
     height:100vh;
   }</style>
-  <script type='module' src='/bach/js/playsample.js'></script>`);
+  <script type='module' src='/js/playsample.js'></script>`);
 };

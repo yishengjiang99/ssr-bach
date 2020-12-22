@@ -1,19 +1,15 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "lib": ["es2018"],
     "module": "CommonJS",
-    "esModuleInterop": true,
-    "target": "ES2018",
+    "esModuleInterop": false,
+    "target": "ES2020",
+    "moduleResolution": "node",
     "preserveConstEnums": true,
     "sourceMap": true,
     "declaration": true,
-    "types": ["node", "mocha", "chai"],
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitReturns": true,
-    "alwaysStrict": true,
-    "strictFunctionTypes": true
+    "types": ["node", "mocha", "chai"]
   },
   "include": ["src"],
-  "exclude": ["src/js/**/*.ts"]
+  "compileOnSave": true
 }

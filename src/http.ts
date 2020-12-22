@@ -1,5 +1,11 @@
 import { resolve } from "path";
-import { existsSync, createReadStream, readdirSync, readFileSync, write } from "fs";
+import {
+  existsSync,
+  createReadStream,
+  readdirSync,
+  readFileSync,
+  write,
+} from "fs";
 import { Writable } from "stream";
 
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
@@ -13,14 +19,25 @@ export const rrrun = () =>
     const parts = req.url.split("/");
     const p1 = parts[1];
     const p2 = parts[2] || "";
-    const p3 = parts[3] || "";
-    const file = (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
+    const p3 = parts.slice(3).join("/");
+    const file =
+      (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
     switch (p1) {
       case "":
-        res.end(indexHtml);
+      case "samples":
+        res.writeHead(200, { contentType: "text/html" });
+        res.write("<html><head><style>  " + style + "</style><body>");
+        notelist(res);
+        res.end("</body></html>");
         break;
       case "js":
-        const jsn = resolve(__dirname, "js/build", p2);
+        let jsn;
+        if (p2 === "node_modules") {
+          jsn = resolve(__dirname, "../js/node_modules", p3);
+        } else {
+          jsn = resolve(__dirname, "../js/build", p2);
+        }
+        console.log(jsn);
         if (!existsSync(jsn)) {
           res.writeHead(404);
           res.end();
@@ -41,17 +58,13 @@ export const rrrun = () =>
         });
         readMidiSSE(req, res, file, true);
         break;
-      case "samples":
-        res.writeHead(200, { contentType: "text/html" });
-        res.write("<html><body>");
-        notelist(res);
-        res.end("</body></html>");
-        break;
+
       case "pcm":
-        produce(file, res);
+        produce(file, res, null, "auto");
         break;
       case "notes":
-        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) res.writeHead(404);
+        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm"))
+          res.writeHead(404);
         res.writeHead(200, { "Content-Type": "audio/raw" });
         createReadStream("./midisf/" + p2 + "/" + p3 + ".pcm").pipe(res);
         break;
@@ -69,36 +82,77 @@ export const rrrun = () =>
   }).listen(8081);
 export const notelist = (res: Writable) => {
   const sections = readdirSync("./midisf");
+  res.write(`
+  
+  <div id='header' class='mt-125'> <a href='pcm'>dot dot dot dash</a></div>`);
 
   for (const section of sections) {
-    const links = readdirSync("midisf/" + section).filter((n) => n.endsWith(".pcm"));
-    res.write("<div class='mt-25'></div>");
+    const links = readdirSync("midisf/" + section).filter((n) =>
+      n.endsWith(".pcm")
+    );
     res.write(`<div><span>${section}</span>
     ${links.map((n) => {
       const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
-      return `<a href="/bach/notes/${section}/${nn}"> ${nn} </a>`;
+      return `<a href="notes/${section}/${nn}"> ${nn} </a>`;
     })}
     </div>`);
   }
-  res.write(`
-     <style>
-     .mt-25{
-       margin-top:25px;
-     }
-     body{
-       background-color:black;
-       color:white;
-       
-     }
-     a{
-       color:white;
-     }
-     canvas{
-       top:0;left:0;
-       z-index:-2;
-    position:absolute;
-    width:100vw;
-    height:100vh;
-  }</style>
-  <script type='module' src='/bach/js/playsample.js'></script>`);
+
+  res.write(`  <div id="mocha">
+  <a href="https://grep32bit.blob.core.windows.net/pcm/billiebadguy.pcm"
+    >Billie Erish</a
+  >
+</div>
+<div id="mocha">
+  <a href="https://grep32bit.blob.core.windows.net/pcm/byebyebye.pcm"
+    >N'Sync</a
+  >
+</div>
+<div id="mocha">
+  <a href="https://grep32bit.blob.core.windows.net/pcm/song-f32le.pcm"
+    >Miami</a
+  >
+</div>
+<div id="mocha">
+  <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
+    >Gorillaz</a
+  >
+</div>
+<div id="mocha">
+  <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
+    >Start</a
+  >
+  <br /><a href="#stop">stop</a>
+</div>
+<script type='module' src='js/playsample.js'></script>`);
 };
+const style = ` .mt-125{
+  margin-top:215px;
+  padding-bottom:215px;
+
+  align-content:center;
+  text-align:center
+}
+body{
+  background-color:black;
+  color:white;
+  font-size:1.1em;
+  
+}
+.playing {
+  color:rgba(13,13,13,.4);
+}
+.playing a{
+  color:rgba(13,13,13,.4);
+
+}
+a{
+  color:white;
+}
+canvas{
+  top:0;left:0;
+  z-index:-2;
+position:absolute;
+width:100vw;
+height:100vh;
+}`;

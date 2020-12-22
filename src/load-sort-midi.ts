@@ -11,7 +11,10 @@ import {
 } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 
-export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteControl {
+export function convertMidi(
+  source: MidiFile,
+  cb?: CallbackFunction
+): RemoteControl {
   const emitter = new EventEmitter();
   const { tracks, header } = new Midi(require("fs").readFileSync(source));
   const tempos = JSON.parse(JSON.stringify(header.tempos));
@@ -56,7 +59,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     while (tracks.length > done) {
       const notesstarting: NoteEvent[] = [];
       const currentTick = header.secondsToTicks(state.time);
-      console.log(currentTick);
       for (let i = 0; i < tracks.length; i++) {
         if (doneSet.has(i)) continue;
         if (!tracks[i].notes || tracks[i].notes.length === 0) {
@@ -84,7 +86,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
         }
       }
       state.time += await _cb(notesstarting);
-      console.log(state.time, state.stop, state.paused);
       if (state.paused) {
         await new Promise((resolve) => {
           emitter.on("resume", resolve);
@@ -109,7 +110,6 @@ export const convertMidiRealTime = (file) => {
 
 export const convertMidiASAP = (file: MidiFile) => {
   const controller = convertMidi(file, async function () {
-    console.log("pullcb");
     await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return msPerBeat(controller.state.tempo.bpm) / 1000;
   });
@@ -122,6 +122,10 @@ export const msPerBeat = (bpm) => 60000 / bpm;
 export const secondsPerTick = (bpm) => 60 / bpm / 256;
 
 function format(str) {
-  return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
+  return str
+    .replace(" ", "_")
+    .replace(" ", "_")
+    .replace(" ", "_")
+    .replace(" ", "_");
 }
 //convertMidiRealTime("./midi/song").emitter.on("note", console.log);

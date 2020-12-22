@@ -1,99 +1,132 @@
-import { PassThrough, Readable, Transform, Writable } from "stream";
-import { convertMidi, convertMidiASAP, msPerBeat } from "./load-sort-midi";
-import { FlatCache } from "nodejcached";
-import { open, read, close, writeFileSync } from "fs";
-import { basename } from "path";
-import { SSRContext, ScheduledBufferSource } from "ssr-cxt";
-import { MidiFile, NoteEvent } from "./ssr-remote-control.types";
+import { Writable } from "stream";
+import { spawn } from "child_process";
+import { convertMidi, convertMidiASAP } from "./load-sort-midi";
+import { FlatCache, tieredCache, Multicache } from "flat-cached";
+import { openSync, readSync, closeSync } from "fs";
+import { SSRContext } from "ssr-cxt";
+import { PulseSource } from "ssr-cxt/dist/audio-sources/pulse-source";
+import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-import { EventEmitter } from "events";
-import { debug } from "webpack";
-export const gencache = (songname: string) => {
-  const audioSourceNotes = [];
+import { Sequencer } from "./soundPNG";
+const spriteBytePeSecond = 48000 * 1 * 4;
 
-  const spriteBytePeSecond = 48000 * 1 * 4;
-  const c2 = new FlatCache(100, spriteBytePeSecond / 2, "halfsecond");
-  const c4 = new FlatCache(100, spriteBytePeSecond / 4, "quartersecond");
-  const c1 = new FlatCache(5, spriteBytePeSecond, "second");
-  const { emitter } = convertMidiASAP(songname);
-  const pt = new PassThrough();
-  const script = {};
-  emitter.on("note", (data) => {
-    const path = `./midisf/${data.instrument}/${data.midi - 21}.pcm`;
-    const cache = data.durationTime < 0.2 ? c2 : data.durationTime < 0.4 ? c4 : c1;
-    const cacheKeyIndx = loadBuffer(path, cache);
-  });
+export const initcache = (preset) => {
+  const multicache: Multicache = tieredCache(preset, [
+    spriteBytePeSecond / 4,
+    spriteBytePeSecond / 2,
+    spriteBytePeSecond,
+    spriteBytePeSecond * 3,
+  ]);
+  return multicache;
+};
+export const precache = (songname: string, preset: string = "") => {
+  const controller = convertMidi(songname);
+  // const multicache = initcache(preset);
+  controller.setCallback(
+    async (notes: NoteEvent[]): Promise<number> => {
+      notes.map((data, i) => {
+        const path = `./midisf/${data.instrument}/${data.midi - 21}.pcm`;
+        console.log(path);
+        loadBuffer(path, multicache, data.durationTime * spriteBytePeSecond);
+      });
+      return 10;
+    }
+  );
 
-  emitter.on("ended", () => {
-    c2.persist();
-    c4.persist();
-    c1.persist();
-    Object.values(script).map((lines, trackId) => {
-      writeFileSync("./db/script-" + basename(songname) + "-" + trackId + ".txt", lines.toString());
-    });
+  controller.emitter.on("ended", () => {
+    console.log("ended");
+    multicache.persist();
+    controller.stop();
   });
+  controller.start();
 };
 
-export function loadBuffer(file: string, noteCache: FlatCache) {
-  if (noteCache && noteCache.cacheKeys.includes(file)) {
-    return noteCache.cacheKeys.indexOf(file);
+export function loadBuffer(file: string, noteCache: Multicache, size: number) {
+  if (noteCache.read(file, size)) {
+    return noteCache.read(file, size);
   } else {
-    loadFile(noteCache, file);
-    return noteCache.cacheKeys.indexOf(file);
+    const ob = noteCache.malloc(file, size);
+    return loadFile(ob, file);
   }
 }
-export function loadFile(noteCache: FlatCache, file: string): Buffer {
-  const ob = noteCache.malloc(file);
-  open(file, "r", (err, fd) => {
-    err ||
-      read(fd, ob, 0, ob.byteLength, 0, (err) => {
-        err || close(fd, (err) => err);
-      });
-  });
+const multicache = initcache("ro");
+export function loadFile(ob: Buffer, file: string): Buffer {
+  const fd = openSync(file, "r");
+  readSync(fd, ob, 0, ob.byteLength, 1024);
+  closeSync(fd);
   return ob;
 }
-export const produce = (songname: string, output: Writable) => {
+
+export const produce = (
+  songname: string,
+  output: Writable,
+  pngOutput: Writable,
+  mode: "manual" | "auto" = "auto"
+) => {
   const spriteBytePeSecond = 48000 * 1 * 4;
   const ctx = new SSRContext({
     nChannels: 1,
     bitDepth: 32,
     sampleRate: 48000,
-    fps: 10,
+    fps: 100,
   });
-  const inputevent = new EventEmitter();
-  const c2 = new FlatCache(100, spriteBytePeSecond / 2, "halfsecond");
-  const c4 = new FlatCache(100, spriteBytePeSecond / 4, "quartersecond");
-  const c1 = new FlatCache(5, spriteBytePeSecond, "second");
+
+  // console.log(ctx.blockSize);
+  // return;
+
   const controller = convertMidi(songname);
+
   controller.setCallback(
     async (notes: NoteEvent[]): Promise<number> => {
-      // console.log(notes.map((n) => JSON.stringify(Object.values(n))).join("\n"));
       const startloop = process.uptime();
-      const msPer16thBeat = msPerBeat(controller.state.tempo.bpm) / 4;
-      ctx.fps = 1000 / msPer16thBeat;
-      notes.map((note) => {
+
+      notes.map((note, i) => {
+        //if (i > 0) return;
+        const velocityshift = note.velocity * 8;
         const path = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
-        const cache = note.durationTime < 0.2 ? c2 : note.durationTime < 0.4 ? c4 : c1;
-        const ab = new ScheduledBufferSource(ctx, {
-          start: ctx.currentTime,
-          end: ctx.currentTime + note.durationTime,
-          buffer: cache.read(path) || loadFile(cache, path), //, path),
+        let ob = loadBuffer(
+          path,
+          multicache,
+          note.durationTime * spriteBytePeSecond
+        );
+        if (!ob) {
+          console.error("ob not found for " + path);
+          return;
+        }
+        new PulseSource(ctx, {
+          buffer: ob.slice(
+            velocityshift,
+            note.durationTime * spriteBytePeSecond + velocityshift
+          ),
         });
       });
+
       ctx.pump();
-      //  await new Promise((resolve) => inputevent.on("pump", resolve));
       const elapsed = process.uptime() - startloop;
-      await sleep(msPer16thBeat - elapsed * 1000);
-      return msPer16thBeat / 1000;
+
+      if (mode === "manual") {
+        await new Promise<void>((r2) =>
+          process.stdin.on("data", (d) => {
+            d.toString().trim() === "p" && r2();
+          })
+        );
+      } else await sleep(ctx.secondsPerFrame * 1000 - elapsed);
+
+      return ctx.secondsPerFrame; // / 1000;
     }
   );
-  let lastframe;
+
   controller.start();
 
   ctx.on("data", (d) => {
+    // console.log(d);
     output.write(d);
   });
+  //  ctx.pipe(output);
 
+  // ctx.on("data", (d) => {
+  //   output.write(d);
+  // });
   let debugloop = 0,
     idp = 0;
   process.stdin.on("data", (d) => {
@@ -105,7 +138,7 @@ export const produce = (songname: string, output: Writable) => {
         controller.resume();
         break;
       case "d":
-        inputevent.emit("pump");
+        console.log(controller.state);
         break;
       case "i":
         console.log(ctx.inputs[idp++ % ctx.inputs.length]);
@@ -127,8 +160,32 @@ export const produce = (songname: string, output: Writable) => {
         console.log(debugs[debugloop++ % debugs.length]);
         break;
       default:
-        console.log(d.toString().trim());
         break;
     }
   });
 };
+// //precache(process.argv[2], "");
+
+const ffp = () => {
+  const { stdin, stderr, stdout } = spawn("ffplay", [
+    "-i",
+    "pipe:0",
+    "-ac",
+    "2",
+    "-f",
+    "f32le",
+    "-ar",
+    "48000",
+  ]);
+  stderr.pipe(process.stderr);
+  stdout.pipe(process.stderr);
+  return stdin;
+};
+
+// //produce("./bach_846-mid.mid", createWriteStream("day32.pcm"), null, "auto");
+// produce("./song.mid", ffp(), null, "auto");
+
+// //createWriteStream("d, null, "auto");
+//produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
+//precache("./song.mid", "ro2");
+//produce("./song.mid", ffp(), null, "auto");

@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+mv(readFileSync(process.argv[2]));
 export function mv (buffer: Buffer) {
   let offset = 0;
   function bufferReader(buffer: Buffer) {

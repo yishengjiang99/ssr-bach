@@ -1,31 +1,26 @@
 {
   "name": "ssr-bach",
   "version": "2.1.0",
-  "description": "turns ''Beethoven-Symphony5-1.mid.csv'' into",
-  "main": "index.js",
+  "description": "server-rendered hifi audio",
+  "main": "./dist/index.js",
   "directories": {
     "test": "test"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.25",
-    "@types/chai": "^4.2.14",
-    "@types/mocha": "^8.2.0",
-    "commander": "^6.2.1",
-    "connect": "^3.7.0",
-    "global": "^4.4.0",
-    "nodejcached": "file:../nodejcached",
-    "ssr-cxt": "file:../ssr-ctx",
-    "tsee": "^1.3.2",
-    "webpack": "^5.10.0"
+    "ff32bit": "^1.0.0",
+    "grepupload": "^1.1.3"
   },
   "devDependencies": {
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^8.2.0",
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
     "ts-node": "^9.1.1",
     "typescript": "^4.1.2"
   },
   "scripts": {
-    "dev": "sudo systemctl stop bachd;sudo systemctl disable bachd; nodemon -r ts-node/register src/index.ts",
+    "dev": "sudo systemctl stop bachd;sudo systemctl disable bachd; nodemon ts-node/register src/index.ts",
     "test": "mocha",
     "log": "sudo journalctl -u bachd >> server.log",
     "build": "tsc; sudo systemctl enable bachd; sudo systemctl start bachd"

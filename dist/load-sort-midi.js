@@ -48,7 +48,6 @@ function convertMidi(source, cb) {
         while (tracks.length > done) {
             const notesstarting = [];
             const currentTick = header.secondsToTicks(state.time);
-            console.log(currentTick);
             for (let i = 0; i < tracks.length; i++) {
                 if (doneSet.has(i))
                     continue;
@@ -77,7 +76,6 @@ function convertMidi(source, cb) {
                 }
             }
             state.time += await _cb(notesstarting);
-            console.log(state.time, state.stop, state.paused);
             if (state.paused) {
                 await new Promise((resolve) => {
                     emitter.on("resume", resolve);
@@ -101,7 +99,6 @@ exports.convertMidiRealTime = (file) => {
 };
 exports.convertMidiASAP = (file) => {
     const controller = convertMidi(file, async function () {
-        console.log("pullcb");
         await utils_1.sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
         return exports.msPerBeat(controller.state.tempo.bpm) / 1000;
     });
@@ -111,7 +108,11 @@ exports.convertMidiASAP = (file) => {
 exports.msPerBeat = (bpm) => 60000 / bpm;
 exports.secondsPerTick = (bpm) => 60 / bpm / 256;
 function format(str) {
-    return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
+    return str
+        .replace(" ", "_")
+        .replace(" ", "_")
+        .replace(" ", "_")
+        .replace(" ", "_");
 }
 //convertMidiRealTime("./midi/song").emitter.on("note", console.log);
 //# sourceMappingURL=load-sort-midi.js.map
