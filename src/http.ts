@@ -11,10 +11,11 @@ import { Writable } from "stream";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 
 import { createServer } from "http";
-import { produce } from "./sound-sprites";
+import { initcache, produce } from "./sound-sprites";
+import { spawn } from "child_process";
 
 export const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
-export const rrrun = () =>
+export const rrrun = () => {
   createServer(async (req, res) => {
     const parts = req.url.split("/");
     const p1 = parts[1];
@@ -60,13 +61,25 @@ export const rrrun = () =>
         break;
 
       case "pcm":
+        res.writeHead(200, {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "audio/raw",
+          "Cache-Control": "no-cache",
+        });
         produce(file, res, null, "auto");
         break;
       case "notes":
         if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm"))
           res.writeHead(404);
         res.writeHead(200, { "Content-Type": "audio/raw" });
-        createReadStream("./midisf/" + p2 + "/" + p3 + ".pcm").pipe(res);
+        const filename = "./midisf/" + p2 + "/" + p3 + ".pcm";
+        spawn(
+          "ffmpeg",
+          `-f f32le -ar 48000 -ac 1 -i ${filename} -af volume=0.5 -f f32le -ac 2 -ar 48000 -`.split(
+            " "
+          )
+        ).stdout.pipe(res);
+        // createReadStream("./midisf/" + p2 + "/" + p3 + ".pcm").pipe(res);
         break;
       case "csv":
         res.writeHead(200, {
@@ -80,53 +93,54 @@ export const rrrun = () =>
         break;
     }
   }).listen(8081);
-export const notelist = (res: Writable) => {
-  const sections = readdirSync("./midisf");
-  res.write(`
-  
-  <div id='header' class='mt-125'> <a href='pcm'>dot dot dot dash</a></div>`);
 
-  for (const section of sections) {
-    const links = readdirSync("midisf/" + section).filter((n) =>
-      n.endsWith(".pcm")
-    );
-    res.write(`<div><span>${section}</span>
+  const notelist = (res: Writable) => {
+    const sections = readdirSync("./midisf");
+    res.write(`
+  
+  <div id='header' class='mt-125'> <a class='mocha' href='/bach/pcm'>dot dot dot dash</a></div>`);
+
+    for (const section of sections) {
+      const links = readdirSync("midisf/" + section).filter((n) =>
+        n.endsWith(".pcm")
+      );
+      res.write(`<div><span>${section}</span>
     ${links.map((n) => {
       const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
-      return `<a href="notes/${section}/${nn}"> ${nn} </a>`;
+      return `<a class=samples href="/bach/notes/${section}/${nn}"> ${nn} </a>`;
     })}
     </div>`);
-  }
+    }
 
-  res.write(`  <div id="mocha">
+    res.write(`  <div class="mocha">
   <a href="https://grep32bit.blob.core.windows.net/pcm/billiebadguy.pcm"
     >Billie Erish</a
   >
 </div>
-<div id="mocha">
+<div class="mocha">
   <a href="https://grep32bit.blob.core.windows.net/pcm/byebyebye.pcm"
     >N'Sync</a
   >
 </div>
-<div id="mocha">
+<div class="mocha">
   <a href="https://grep32bit.blob.core.windows.net/pcm/song-f32le.pcm"
     >Miami</a
   >
 </div>
-<div id="mocha">
+<div class="mocha">
   <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
     >Gorillaz</a
   >
 </div>
-<div id="mocha">
+<div class="mocha">
   <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
     >Start</a
   >
   <br /><a href="#stop">stop</a>
 </div>
-<script type='module' src='js/playsample.js'></script>`);
-};
-const style = ` .mt-125{
+<script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js'></script>`);
+  };
+  const style = ` .mt-125{
   margin-top:215px;
   padding-bottom:215px;
 
@@ -156,3 +170,5 @@ position:absolute;
 width:100vw;
 height:100vh;
 }`;
+  initcache("ro");
+};

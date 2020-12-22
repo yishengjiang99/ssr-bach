@@ -3,15 +3,13 @@ import { spawn } from "child_process";
 import { convertMidi, convertMidiASAP } from "./load-sort-midi";
 import { FlatCache, tieredCache, Multicache } from "flat-cached";
 import { openSync, readSync, closeSync } from "fs";
-import { SSRContext } from "ssr-cxt";
-import { PulseSource } from "ssr-cxt/dist/audio-sources/pulse-source";
+import { SSRContext, PulseSource } from "ssr-cxt";
 import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { Sequencer } from "./soundPNG";
 const spriteBytePeSecond = 48000 * 1 * 4;
-
 export const initcache = (preset) => {
-  const multicache: Multicache = tieredCache(preset, [
+  let multicache = tieredCache(preset, [
     spriteBytePeSecond / 4,
     spriteBytePeSecond / 2,
     spriteBytePeSecond,
@@ -19,9 +17,10 @@ export const initcache = (preset) => {
   ]);
   return multicache;
 };
+
 export const precache = (songname: string, preset: string = "") => {
   const controller = convertMidi(songname);
-  // const multicache = initcache(preset);
+  const multicache = initcache(preset);
   controller.setCallback(
     async (notes: NoteEvent[]): Promise<number> => {
       notes.map((data, i) => {
@@ -40,7 +39,7 @@ export const precache = (songname: string, preset: string = "") => {
   });
   controller.start();
 };
-
+//precache("song.mid", "ro24");
 export function loadBuffer(file: string, noteCache: Multicache, size: number) {
   if (noteCache.read(file, size)) {
     return noteCache.read(file, size);
@@ -49,7 +48,7 @@ export function loadBuffer(file: string, noteCache: Multicache, size: number) {
     return loadFile(ob, file);
   }
 }
-const multicache = initcache("ro");
+
 export function loadFile(ob: Buffer, file: string): Buffer {
   const fd = openSync(file, "r");
   readSync(fd, ob, 0, ob.byteLength, 1024);
@@ -68,9 +67,8 @@ export const produce = (
     nChannels: 1,
     bitDepth: 32,
     sampleRate: 48000,
-    fps: 100,
   });
-
+  const multicache = initcache("ro24");
   // console.log(ctx.blockSize);
   // return;
 
@@ -82,17 +80,22 @@ export const produce = (
 
       notes.map((note, i) => {
         //if (i > 0) return;
-        const velocityshift = note.velocity * 8;
-        const path = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
-        let ob = loadBuffer(
-          path,
-          multicache,
-          note.durationTime * spriteBytePeSecond
-        );
-        if (!ob) {
-          console.error("ob not found for " + path);
-          return;
-        }
+        const velocityshift = 0; //note.velocity * 8;
+        const bytelength = ~~((spriteBytePeSecond * note.durationTime) / 4) * 4;
+        const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
+        // let ob = loadBuffer(
+        //   path,
+        //   multicache,
+        //   note.durationTime * spriteBytePeSecond
+        // );
+        // if (!ob) {
+        //   console.error("ob not found for " + path);
+        //   return;
+        // }
+        const fd = openSync(file, "r");
+        const ob = Buffer.alloc(bytelength);
+        readSync(fd, ob, 0, bytelength, 0);
+        closeSync(fd);
         new PulseSource(ctx, {
           buffer: ob.slice(
             velocityshift,
@@ -181,11 +184,31 @@ const ffp = () => {
   stdout.pipe(process.stderr);
   return stdin;
 };
-
+const mp3c = () => {
+  const { stdin, stderr, stdout } = spawn("ffmpeg", [
+    "-loglevel",
+    "debug",
+    "-i",
+    "pipe:0",
+    "-ac",
+    "2",
+    "-f",
+    "f32le",
+    "-ar",
+    "48000",
+    "-acodec",
+    "copy",
+    "-",
+  ]);
+  stderr.pipe(process.stderr);
+  stdout.pipe(process.stderr);
+  return stdin;
+};
 // //produce("./bach_846-mid.mid", createWriteStream("day32.pcm"), null, "auto");
-// produce("./song.mid", ffp(), null, "auto");
+//produce("./song.mid", process.stdout, null, "auto");
 
 // //createWriteStream("d, null, "auto");
+
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
-//produce("./song.mid", ffp(), null, "auto");
+//produce("./song.mid", process.stdout, null, "auto");

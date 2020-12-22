@@ -9,7 +9,8 @@
   "dependencies": {
     "@tonejs/midi": "^2.0.25",
     "ff32bit": "^1.0.0",
-    "grepupload": "^1.1.3"
+    "flat-cached": "^1.0.1",
+    "ssr-cxt": "^1.2.3"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",

@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 mv(readFileSync(process.argv[2]));
-export function mv (buffer: Buffer) {
+export function mv(buffer: Buffer) {
   let offset = 0;
   function bufferReader(buffer: Buffer) {
     const bl = buffer.byteLength;
@@ -53,12 +53,13 @@ export function mv (buffer: Buffer) {
   const limit = buffer.byteLength;
   while (offset < limit) {
     const mhrk = [btoa(), btoa(), btoa(), btoa()].join("");
+    console.log(mhrk);
     let mhrkLength = read32();
     const endofTrack = offset + mhrkLength;
-
-    while (offset < endofTrack && offset < limit) {
+    console.log(endofTrack, "endoftrack");
+    while (readMessage() !== 0 && offset < endofTrack && offset < limit) {
       //", endofTrack, "vs", limit);
-      readMessage();
+      //  readMessage();
     }
     console.log("OEF inner while");
 
@@ -76,9 +77,11 @@ export function mv (buffer: Buffer) {
             meta = fgetc();
             var len = readVarLength();
             let cmd = "";
+            if (meta === 0x01) return 0;
             switch (meta) {
               case 0x01:
                 cmd = "done";
+
                 break;
 
               case 0x02:
@@ -156,6 +159,10 @@ export function mv (buffer: Buffer) {
           case 0xf4:
             console.log("icd,", fgetc());
             break;
+          case 0xf5:
+            console.log("0xf5", fgetc());
+            break;
+
           case 0xf6:
             console.log("list tunes");
             break;
