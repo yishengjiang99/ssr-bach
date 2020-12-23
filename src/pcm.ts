@@ -1,6 +1,6 @@
 import { open, createReadStream } from "fs";
 import { execSync, spawn } from "child_process";
-import { FlatCache } from "nodejcached";
+import { FlatCache } from "flat-cached";
 import { openSync, readSync, closeSync, close, createWriteStream } from "fs";
 import { outputHelp } from "commander";
 

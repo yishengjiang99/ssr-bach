@@ -67,6 +67,7 @@ export const produce = (
     nChannels: 1,
     bitDepth: 32,
     sampleRate: 48000,
+    fps: 375,
   });
   const multicache = initcache("ro24");
   // console.log(ctx.blockSize);
@@ -80,7 +81,7 @@ export const produce = (
 
       notes.map((note, i) => {
         //if (i > 0) return;
-        const velocityshift = 0; //note.velocity * 8;
+        let velocityshift = 0; //note.velocity * 8;
         const bytelength = ~~((spriteBytePeSecond * note.durationTime) / 4) * 4;
         const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
         // let ob = loadBuffer(
@@ -93,14 +94,15 @@ export const produce = (
         //   return;
         // }
         const fd = openSync(file, "r");
+
         const ob = Buffer.alloc(bytelength);
-        readSync(fd, ob, 0, bytelength, 0);
+        if (note.durationTime < 1.0) {
+          velocityshift = note.velocity * 8;
+        }
+        readSync(fd, ob, 0, bytelength, velocityshift);
         closeSync(fd);
         new PulseSource(ctx, {
-          buffer: ob.slice(
-            velocityshift,
-            note.durationTime * spriteBytePeSecond + velocityshift
-          ),
+          buffer: ob,
         });
       });
 
