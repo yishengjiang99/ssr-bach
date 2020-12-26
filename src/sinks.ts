@@ -1,3 +1,4 @@
+import { spawn } from "child_process";
 const ffp = () => {
   const { stdin, stderr, stdout } = spawn("ffplay", [
     "-i",

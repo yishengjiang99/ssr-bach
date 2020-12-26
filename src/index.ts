@@ -13,7 +13,7 @@ import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { createServer } from "http";
 import { initcache, produce } from "./sound-sprites";
 import { spawn } from "child_process";
-import { notelist } from "./list";
+import { notelist, renderlist } from "./filelist";
 export const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
 
 createServer(async (req, res) => {
@@ -36,6 +36,7 @@ createServer(async (req, res) => {
 
     case "samples":
       res.write("<html><head><style>  " + style + "</style><body>");
+      renderlist(res);
       notelist(res);
 
       res.end(
@@ -77,7 +78,7 @@ createServer(async (req, res) => {
         "Content-Type": "audio/raw",
         "Cache-Control": "no-cache",
       });
-      produce(file, res, null, "auto");
+      produce(file, res);
       break;
     case "notes":
       if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) res.writeHead(404);
