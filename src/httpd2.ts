@@ -1,4 +1,6 @@
+import { spawn } from "child_process";
 import { readFileSync, createReadStream, existsSync, openSync } from "fs";
+import { request, get } from "https";
 const domain = "dsp.grepawk.com";
 require("http2")
   .createSecureServer({
@@ -7,36 +9,33 @@ require("http2")
   })
   .on("stream", (stream, headers) => {
     stream.respond({
-      contentType: "text/html",
-      status: 200,
+      ":status": 200,
+      "content-type": "text/html",
     });
+    stream.on("error", (error) => console.error(error));
 
     stream.pushStream(
       { ":path": "./lib/ffplay-bundle.js" },
       (err, pushStream) => {
-        pushStream.respond({
-          ":status": 200,
-          "content-type": "application/javascript",
-        });
-        createReadStream("./ffplay-bundle.js").pipe(pushStream);
+        pushStream.respondWithFD(openSync("./js/build/playbundle.js", "r"));
       }
     );
-    stream.end(`
-	<html>
-		<head>
-		<body>
-		<button>click</button>
-		<script type='module'>
-		import {FF32Play} from './lib/ffplay-bundle.js';
-		document.querySelect("button").onclick=()=>{
-			const ffp=new FF32Play();
-			// ffp.on('load',()=>{
-			// 	ffp.queue("/pcm");
-			// })
-		}
-		</script>
-		</body>
-		</html>
-		`);
+    stream.end(html);
   })
-  .listen(443);
+
+  .listen(8443);
+const html = `<html>
+  <head>
+  <body>
+  <button>click</button>
+  <script type='module'>
+  import {FF32Play} from './lib/ffplay-bundle.js';
+  document.querySelect("button").onclick=()=>{
+    const ffp=new FF32Play();
+    ffp.on('load',()=>{
+      ffp.queue("/pcm");
+    })
+  }
+  </script>
+  </body>
+  </html>`;

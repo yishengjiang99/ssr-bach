@@ -13,7 +13,7 @@ import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { createServer } from "http";
 import { initcache, produce } from "./sound-sprites";
 import { spawn } from "child_process";
-
+import { notelist } from "./list";
 export const indexHtml = readFileSync(resolve(__dirname, "../index.html"));
 export const rrrun = () => {
   createServer(async (req, res) => {
@@ -25,11 +25,22 @@ export const rrrun = () => {
       (p2 && existsSync("./midi/" + p2) && "./midi/" + p2) || "./midi/song";
     switch (p1) {
       case "":
-      case "samples":
         res.writeHead(200, { contentType: "text/html" });
+        res.write(
+          `<!doctype html><html><head><style> ${style}</style><body>
+            <div id='header' class='mt-125'> <a class='mocha' href='/bach/pcm'>dot dot dot dash</a></div>
+            <script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js?v=33'></script> `
+        );
+        res.end("</body></html>");
+        break;
+
+      case "samples":
         res.write("<html><head><style>  " + style + "</style><body>");
         notelist(res);
-        res.end("</body></html>");
+
+        res.end(
+          "</div><script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js?v=33'></script></body></html>"
+        );
         break;
       case "js":
         let jsn;
@@ -94,53 +105,10 @@ export const rrrun = () => {
     }
   }).listen(8081);
 
-  const notelist = (res: Writable) => {
-    const sections = readdirSync("./midisf");
-    res.write(`
-  
-  <div id='header' class='mt-125'> <a class='mocha' href='/bach/pcm'>dot dot dot dash</a></div>`);
-
-    for (const section of sections) {
-      const links = readdirSync("midisf/" + section).filter((n) =>
-        n.endsWith(".pcm")
-      );
-      res.write(`<div><span>${section}</span>
-    ${links.map((n) => {
-      const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
-      return `<a class=samples href="/bach/notes/${section}/${nn}"> ${nn} </a>`;
-    })}
-    </div>`);
-    }
-
-    res.write(`  <div class="mocha">
-  <a href="https://grep32bit.blob.core.windows.net/pcm/billiebadguy.pcm"
-    >Billie Erish</a
-  >
-</div>
-<div class="mocha">
-  <a href="https://grep32bit.blob.core.windows.net/pcm/byebyebye.pcm"
-    >N'Sync</a
-  >
-</div>
-<div class="mocha">
-  <a href="https://grep32bit.blob.core.windows.net/pcm/song-f32le.pcm"
-    >Miami</a
-  >
-</div>
-<div class="mocha">
-  <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
-    >Gorillaz</a
-  >
-</div>
-<div class="mocha">
-  <a href="https://grep32bit.blob.core.windows.net/pcm/f32DARE.pcm"
-    >Start</a
-  >
-  <br /><a href="#stop">stop</a>
-</div>
-<script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js'></script>`);
-  };
-  const style = ` .mt-125{
+  const style = `
+  .samples{
+    display:none
+  }.mt-125{
   margin-top:215px;
   padding-bottom:215px;
 
@@ -168,7 +136,5 @@ canvas{
   z-index:-2;
 position:absolute;
 width:100vw;
-height:100vh;
-}`;
-  initcache("ro");
+height:100vh;}`;
 };

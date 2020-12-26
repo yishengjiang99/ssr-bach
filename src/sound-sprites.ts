@@ -69,9 +69,6 @@ export const produce = (
     sampleRate: 48000,
     fps: 375,
   });
-  const multicache = initcache("ro24");
-  // console.log(ctx.blockSize);
-  // return;
 
   const controller = convertMidi(songname);
 
@@ -84,15 +81,7 @@ export const produce = (
         let velocityshift = 0; //note.velocity * 8;
         const bytelength = ~~((spriteBytePeSecond * note.durationTime) / 4) * 4;
         const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
-        // let ob = loadBuffer(
-        //   path,
-        //   multicache,
-        //   note.durationTime * spriteBytePeSecond
-        // );
-        // if (!ob) {
-        //   console.error("ob not found for " + path);
-        //   return;
-        // }
+
         const fd = openSync(file, "r");
 
         const ob = Buffer.alloc(bytelength);
@@ -127,11 +116,7 @@ export const produce = (
     // console.log(d);
     output.write(d);
   });
-  //  ctx.pipe(output);
 
-  // ctx.on("data", (d) => {
-  //   output.write(d);
-  // });
   let debugloop = 0,
     idp = 0;
   process.stdin.on("data", (d) => {
@@ -214,3 +199,6 @@ const mp3c = () => {
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
 //produce("./song.mid", process.stdout, null, "auto");
+if (process.argv[2]) {
+  produce("./song.mid", process.stdout, null, "auto");
+}
