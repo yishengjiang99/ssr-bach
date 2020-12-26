@@ -6,8 +6,8 @@ export const start = () => {
   const mainlist = document.querySelector("ul#main");
   const ws = new WebSocket("ws://localhost:3333/song.mid");
 
-  function onopen(){
-	  this.addEventListener("message",handleFilelist,{once:true};)
+  function onopen() {
+    this.addEventListener("message", handleFilelist, { once: true });
   }
   function handleFilelist({ data }) {
     data.split("\n").map((item) => {
@@ -16,15 +16,14 @@ export const start = () => {
     this.addEventListener("message", handlePNG, { once: true });
   }
   function handlePNG({ data }) {
-
-	const canv=document.createElement<'canvas'>("canvas");
-	canv.getContext('2d').putImageData(new ImageData(data, 88),0,0);
-	document.body.append(canv);
+    const canv = document.createElement<"canvas">("canvas");
+    canv.getContext("2d").putImageData(new ImageData(data, 88), 0, 0);
+    document.body.append(canv);
     this.addEventListener("message", handleAudio, { once: true });
   }
-  function handleAudio(){
-	  console.log('..')
+  function handleAudio() {
+    console.log("..");
   }
-  ws.addEventListener('open',onopen);
+  ws.addEventListener("open", onopen);
 };
 start();
