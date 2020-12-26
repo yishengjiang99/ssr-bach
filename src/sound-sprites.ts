@@ -6,7 +6,6 @@ import { openSync, readSync, closeSync } from "fs";
 import { SSRContext, PulseSource } from "ssr-cxt";
 import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-import { Sequencer } from "./soundPNG";
 const spriteBytePeSecond = 48000 * 1 * 4;
 export const initcache = (preset) => {
   let multicache = tieredCache(preset, [
@@ -56,12 +55,7 @@ export function loadFile(ob: Buffer, file: string): Buffer {
   return ob;
 }
 
-export const produce = (
-  songname: string,
-  output: Writable,
-  pngOutput: Writable,
-  mode: "manual" | "auto" = "auto"
-) => {
+export const produce = (songname: string, output: Writable) => {
   const spriteBytePeSecond = 48000 * 1 * 4;
   const ctx = new SSRContext({
     nChannels: 1,
@@ -98,14 +92,7 @@ export const produce = (
       ctx.pump();
       const elapsed = process.uptime() - startloop;
 
-      if (mode === "manual") {
-        await new Promise<void>((r2) =>
-          process.stdin.on("data", (d) => {
-            d.toString().trim() === "p" && r2();
-          })
-        );
-      } else await sleep(ctx.secondsPerFrame * 1000 - elapsed);
-
+      await sleep(ctx.secondsPerFrame * 1000 - elapsed);
       return ctx.secondsPerFrame; // / 1000;
     }
   );
@@ -113,45 +100,7 @@ export const produce = (
   controller.start();
 
   ctx.on("data", (d) => {
-    // console.log(d);
     output.write(d);
-  });
-
-  let debugloop = 0,
-    idp = 0;
-  process.stdin.on("data", (d) => {
-    switch (d.toString().trim()) {
-      case "s":
-        controller.pause();
-        break;
-      case "r":
-        controller.resume();
-        break;
-      case "d":
-        console.log(controller.state);
-        break;
-      case "i":
-        console.log(ctx.inputs[idp++ % ctx.inputs.length]);
-        break;
-      case "p":
-        ctx.pump();
-        break;
-      case "l":
-        const debugs = [
-          [ctx.currentTime, ctx.playing],
-          [controller.state],
-          ctx.inputs.map(
-            (i) => i.isActive(),
-            ctx.inputs.map((i) => {
-              [i.start, i.end, i.read().byteLength];
-            })
-          ),
-        ];
-        console.log(debugs[debugloop++ % debugs.length]);
-        break;
-      default:
-        break;
-    }
   });
 };
 // //precache(process.argv[2], "");

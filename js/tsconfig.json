@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "es5",
+      "es2015.promise",
+      "dom",
+      "es2015",
+      "ESNext",
+      "ES2018",
+      "ES2020"
+    ],
+    "target": "es5",
+    "typeRoots": ["node_modules/@types"],
+    "outDir": "build",
+    "module": "es2015",
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": false,
+    "sourceMap": true,
+    "esModuleInterop": false
+  },
+  "include": ["src"],
+  "compileOnSave": true,
+  "exclude": ["node_modules"]
+}

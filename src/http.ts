@@ -11,7 +11,7 @@ import { Writable } from "stream";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 
 import { createServer } from "http";
-import { initcache, produce } from "./sound-sprites";
+import { produce } from "./sound-sprites";
 import { spawn } from "child_process";
 import { notelist } from "./list";
 export const indexHtml = readFileSync(resolve(__dirname, "../index.html"));

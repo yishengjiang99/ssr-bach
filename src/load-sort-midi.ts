@@ -16,12 +16,15 @@ export function convertMidi(
   cb?: CallbackFunction
 ): RemoteControl {
   const emitter = new EventEmitter();
-  const { tracks, header } = new Midi(require("fs").readFileSync(source));
+  const { duration, durationTicks, tracks, header } = new Midi(
+    require("fs").readFileSync(source)
+  );
   const tempos = JSON.parse(JSON.stringify(header.tempos));
   const state: ControllerState = {
     paused: true,
     time: 0,
     stop: false,
+    duration: durationTicks / header.ppq,
     midifile: source,
     tempo: tempos[0],
     timeSignature: header.timeSignatures[0],
@@ -113,7 +116,6 @@ export const convertMidiASAP = (file: MidiFile) => {
     await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return msPerBeat(controller.state.tempo.bpm) / 1000;
   });
-  controller.start();
 
   return controller;
 };
@@ -128,4 +130,3 @@ function format(str) {
     .replace(" ", "_")
     .replace(" ", "_");
 }
-//convertMidiRealTime("./midi/song").emitter.on("note", console.log);

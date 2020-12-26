@@ -1,5 +1,5 @@
 import { createWriteStream } from "fs";
-import { listContainerFiles, wsclient } from "grepupload";
+
 import { basename } from "path";
 import { Writable } from "stream";
 import { execSync } from "child_process";
@@ -11,25 +11,6 @@ export const midifiles = execSync("ls midi/*")
   .split("\n")
   .filter((n) => n);
 console.log("midifiles", midifiles);
-export const syncAZfs = () => {
-  const links = listContainerFiles("midi").then((files) => {
-    const blobitems = files
-      .filter((item) => {
-        return item.name.endsWith("mid");
-      })
-      .map((item) => {
-        const blobc = wsclient()
-          .getContainerClient("midi")
-          .getBlobClient(item.name)
-          .download()
-          .then((resp) => {
-            resp.readableStreamBody.pipe(
-              createWriteStream("./midi/" + item.name)
-            );
-          });
-      });
-  });
-};
 
 export const csvprep = () =>
   execSync("ls midi/*")
