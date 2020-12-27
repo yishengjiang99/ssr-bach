@@ -147,7 +147,3 @@ const mp3c = () => {
 
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
-//produce("./song.mid", process.stdout, null, "auto");
-if (process.argv[2]) {
-  produce("./song.mid", process.stdout, null, "auto");
-}

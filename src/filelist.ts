@@ -33,7 +33,7 @@ export const csvprep = () =>
         installNotesFromCsv(csv, "FatBoy");
       }, i * 20000);
     });
-
+csvprep();
 export const fileRow = (item) => {
   return `
   <tr>

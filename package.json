@@ -10,7 +10,8 @@
     "@tonejs/midi": "^2.0.25",
     "ff32bit": "^1.0.0",
     "flat-cached": "^1.0.1",
-    "grepupload": "^1.1.5",
+    "grepupload": "^1.2.0",
+    "mode": "^0.3.2",
     "ssr-cxt": "file:../ssr-ctx"
   },
   "devDependencies": {

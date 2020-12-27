@@ -6,12 +6,13 @@ const events_1 = require("events");
 const utils_1 = require("./utils");
 function convertMidi(source, cb) {
     const emitter = new events_1.EventEmitter();
-    const { tracks, header } = new midi_1.Midi(require("fs").readFileSync(source));
+    const { duration, durationTicks, tracks, header } = new midi_1.Midi(require("fs").readFileSync(source));
     const tempos = JSON.parse(JSON.stringify(header.tempos));
     const state = {
         paused: true,
         time: 0,
         stop: false,
+        duration: durationTicks / header.ppq,
         midifile: source,
         tempo: tempos[0],
         timeSignature: header.timeSignatures[0],
@@ -61,10 +62,11 @@ function convertMidi(source, cb) {
                     const noteEvent = {
                         ...note,
                         trackId: i,
+                        instId: tracks[i].instrument.number,
                         start: header.ticksToSeconds(note.ticks),
                         durationTime: exports.secondsPerTick(state.tempo.bpm) * note.durationTicks,
                         velocity: note.velocity * 0x7f,
-                        instrument: format(tracks[i].instrument.name),
+                        instrument: utils_1.std_inst_names[tracks[i].instrument.number],
                     };
                     notesstarting.push(noteEvent);
                     emitter.emit("note", noteEvent);
@@ -85,11 +87,12 @@ function convertMidi(source, cb) {
                 break;
         }
         emitter.emit("ended");
+        emitter.emit("end");
     };
     return controller;
 }
 exports.convertMidi = convertMidi;
-exports.convertMidiRealTime = (file) => {
+const convertMidiRealTime = (file) => {
     const controller = convertMidi(file, async function () {
         await utils_1.sleep(10); //achieves real tiem by asking 'is it next beat yet every 10 ms
         return 0.01;
@@ -97,7 +100,8 @@ exports.convertMidiRealTime = (file) => {
     controller.start();
     return controller;
 };
-exports.convertMidiASAP = (file) => {
+exports.convertMidiRealTime = convertMidiRealTime;
+const convertMidiASAP = (file) => {
     const controller = convertMidi(file, async function () {
         await utils_1.sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
         return exports.msPerBeat(controller.state.tempo.bpm) / 1000;
@@ -105,8 +109,11 @@ exports.convertMidiASAP = (file) => {
     controller.start();
     return controller;
 };
-exports.msPerBeat = (bpm) => 60000 / bpm;
-exports.secondsPerTick = (bpm) => 60 / bpm / 256;
+exports.convertMidiASAP = convertMidiASAP;
+const msPerBeat = (bpm) => 60000 / bpm;
+exports.msPerBeat = msPerBeat;
+const secondsPerTick = (bpm) => 60 / bpm / 256;
+exports.secondsPerTick = secondsPerTick;
 function format(str) {
     return str
         .replace(" ", "_")
@@ -114,5 +121,4 @@ function format(str) {
         .replace(" ", "_")
         .replace(" ", "_");
 }
-//convertMidiRealTime("./midi/song").emitter.on("note", console.log);
 //# sourceMappingURL=load-sort-midi.js.map

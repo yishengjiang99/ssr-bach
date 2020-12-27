@@ -4,20 +4,24 @@ import { basename, extname } from "path";
 import { createWriteStream } from "fs";
 import { readAsCSV } from "../dist/read-midi-sse-csv";
 import { installNotesFromCsv } from "../dist/install";
+
 async function run(midfile) {
-  const output = basename(midfile).replace(extname(midfile), ".csv");
-  await new Promise((resolve, reject) => {
-    try {
-      readAsCSV(midfile, false)
-        .pipe(createWriteStream(output))
-        .on("end", resolve);
-    } catch (e) {
-      reject(e);
-    }
+  const output = basename(midfile).replace(".mid", ".csv");
+  const rs = readAsCSV(midfile, false);
+  const wrcsv = createWriteStream(output);
+  rs.pipe(wrcsv);
+  await new Promise<void>((resolve) => {
+    rs.on("data", (d) => wrcsv.write(d));
+    rs.on("end", () => {
+      console.log("start on csv");
+      installNotesFromCsv(output, "FatBoy");
+      resolve();
+    });
   });
-  installNotesFromCsv(output);
 }
 
-if (process.argv[2]) {
-  run(process.argv[2]);
-}
+run("./song.mid")
+  .then((output) => {
+    installNotesFromCsv(output, "FatBoy");
+  })
+  .catch(console.log); //.emitter.on("note", console.log);

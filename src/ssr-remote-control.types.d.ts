@@ -31,6 +31,7 @@ export type ControllerState = {
   midifile: MidiFile;
   time: number;
   tempo: TempoEvent;
+  duration: number;
   timeSignature: TimeSignatureEvent;
 };
 export type RemoteControl = {

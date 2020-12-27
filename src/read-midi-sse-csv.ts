@@ -10,7 +10,7 @@ export const readMidiSSE = (
   midifile: string,
   realtime: boolean
 ) => {
-  const { emitter, ff, rwd, stop, pause, resume } = convertMidiRealTime(
+  const { emitter, ff, start, rwd, stop, pause, resume } = convertMidiRealTime(
     midifile
   );
   request.on("close", stop);
@@ -43,7 +43,8 @@ export const readMidiSSE = (
   });
 };
 export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
-  const { emitter } = convertMidiASAP(midifile);
+  const { emitter, start } = convertMidiASAP(midifile);
+
   const readable = new Readable({ read: () => "" });
   emitter.on("note", (event) => {
     const {
@@ -64,6 +65,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
         noteOffVelocity,
         instrument,
         trackId,
+        instrument,
       ].join(",") + "\n"
     );
   });
@@ -73,6 +75,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
   emitter.on("#tempo", (info) => {
     readable.push("#tempo, " + JSON.stringify(info) + "\n");
   });
-  emitter.on("done", () => readable.emit("ended"));
+  emitter.on("end", () => readable.emit("end"));
+  start();
   return readable;
 };

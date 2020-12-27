@@ -7,7 +7,7 @@ const read_midi_sse_csv_1 = require("./read-midi-sse-csv");
 const http_1 = require("http");
 const sound_sprites_1 = require("./sound-sprites");
 const child_process_1 = require("child_process");
-const list_1 = require("./list");
+const filelist_1 = require("./filelist");
 exports.indexHtml = fs_1.readFileSync(path_1.resolve(__dirname, "../index.html"));
 http_1.createServer(async (req, res) => {
     const parts = req.url.split("/");
@@ -25,7 +25,8 @@ http_1.createServer(async (req, res) => {
             break;
         case "samples":
             res.write("<html><head><style>  " + style + "</style><body>");
-            list_1.notelist(res);
+            filelist_1.renderlist(res);
+            filelist_1.notelist(res);
             res.end("</div><script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js?v=33'></script></body></html>");
             break;
         case "js":
@@ -64,7 +65,7 @@ http_1.createServer(async (req, res) => {
                 "Content-Type": "audio/raw",
                 "Cache-Control": "no-cache",
             });
-            sound_sprites_1.produce(file, res, null, "auto");
+            sound_sprites_1.produce(file, res);
             break;
         case "notes":
             if (!fs_1.existsSync("./midisf/" + p2 + "/" + p3 + ".pcm"))

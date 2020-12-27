@@ -9,7 +9,7 @@ import {
   CallbackFunction,
   Ticks,
 } from "./ssr-remote-control.types";
-import { sleep } from "./utils";
+import { sleep, std_inst_names } from "./utils";
 
 export function convertMidi(
   source: MidiFile,
@@ -74,10 +74,11 @@ export function convertMidi(
           const noteEvent = {
             ...note,
             trackId: i,
+            instId: tracks[i].instrument.number,
             start: header.ticksToSeconds(note.ticks),
             durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
             velocity: note.velocity * 0x7f,
-            instrument: format(tracks[i].instrument.name),
+            instrument: std_inst_names[tracks[i].instrument.number],
           };
           notesstarting.push(noteEvent);
           emitter.emit("note", noteEvent);
@@ -97,6 +98,7 @@ export function convertMidi(
       if (state.stop) break;
     }
     emitter.emit("ended");
+    emitter.emit("end");
   };
 
   return controller;
@@ -116,7 +118,7 @@ export const convertMidiASAP = (file: MidiFile) => {
     await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return msPerBeat(controller.state.tempo.bpm) / 1000;
   });
-
+  controller.start();
   return controller;
 };
 
