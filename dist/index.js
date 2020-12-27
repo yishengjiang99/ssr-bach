@@ -20,14 +20,15 @@ http_1.createServer(async (req, res) => {
             res.writeHead(200, { contentType: "text/html" });
             res.write(`<!doctype html><html><head><style> ${style}</style><body>
             <div id='header' class='mt-125'> <a class='mocha' href='/bach/pcm'>dot dot dot dash</a></div>
-            <script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js?v=33'></script> `);
+            <script type='module' src='https://www.grepawk.com/bach/js/bundle.js'></script> `);
             res.end("</body></html>");
             break;
         case "samples":
             res.write("<html><head><style>  " + style + "</style><body>");
             filelist_1.renderlist(res);
             filelist_1.notelist(res);
-            res.end("</div><script type='module' src='https://grep32bit.blob.core.windows.net/pcm/playsample.js?v=33'></script></body></html>");
+            res.end(`<script type='module' src='https://www.grepawk.com/bach/js/bundle.js'></script> ` +
+                "</body></html>");
             break;
         case "js":
             let jsn;
@@ -88,9 +89,7 @@ http_1.createServer(async (req, res) => {
     }
 }).listen(8081);
 const style = `
-  .samples{
-    display:none
-  }.mt-125{
+ .mt-125{
   margin-top:215px;
   padding-bottom:215px;
 
@@ -104,7 +103,7 @@ body{
   
 }
 .playing {
-  color:rgba(13,13,13,.4);
+  color:rgba(13,13,13,.1);
 }
 .playing a{
   color:rgba(13,13,13,.4);

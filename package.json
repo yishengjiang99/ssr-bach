@@ -11,6 +11,7 @@
     "ff32bit": "^1.0.0",
     "flat-cached": "^1.0.1",
     "grepupload": "^1.2.0",
+    "mime-types": "^2.1.27",
     "mode": "^0.3.2",
     "ssr-cxt": "file:../ssr-ctx"
   },
@@ -24,7 +25,7 @@
     "typescript": "^4.1.2"
   },
   "scripts": {
-    "dev": "sudo systemctl stop bachd;sudo systemctl disable bachd; nodemon ts-node/register src/index.ts",
+    "dev": "nodemon -w src/ -exec ts-node src/",
     "test": "mocha",
     "log": "sudo journalctl -u bachd >> server.log",
     "build": "tsc; sudo systemctl enable bachd; sudo systemctl start bachd"

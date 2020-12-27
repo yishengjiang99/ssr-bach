@@ -11,29 +11,6 @@ export const midifiles = execSync("ls midi/*")
   .split("\n")
   .filter((n) => n);
 
-export const csvprep = () =>
-  execSync("ls midi/*")
-    .toString()
-    .trim()
-    .split("\n")
-    .map((f) => {
-      try {
-        readAsCSV(f, true).pipe(
-          createWriteStream("./csv/" + basename(f) + ".csv")
-        );
-      } catch (e) {
-        console.log(f);
-        execSync(`mv ${f} junk`);
-        return;
-      }
-      return "./csv/" + basename(f) + ".csv";
-    })
-    .map((csv, i) => {
-      setTimeout(() => {
-        installNotesFromCsv(csv, "FatBoy");
-      }, i * 20000);
-    });
-csvprep();
 export const fileRow = (item) => {
   return `
   <tr>
@@ -44,6 +21,11 @@ export const fileRow = (item) => {
   </tr>`;
 };
 
+export const renderListStr = () =>
+  `<table>
+${midifiles.map((item) => fileRow({ name: basename(item) }))}
+</table>`;
+console.log(renderListStr());
 export const renderlist = async (res: Writable) => {
   res.write("<table>");
 
@@ -62,33 +44,13 @@ export const notelist = (res: Writable) => {
     const links = readdirSync("midisf/" + section).filter((n) =>
       n.endsWith(".pcm")
     );
-    res.write("<div class='mt-25'></div>");
-    res.write(`<div><span>${section}</span>
+
+    res.write(`<tr><td>${section}</td>`);
+    res.write(`
     ${links.map((n) => {
       const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
-      return `<a href="/bach/notes/${section}/${nn}"> ${nn} </a>`;
-    })}
-    </div>`);
+      return `<td><a class="samples" href="/bach/notes/${section}/${nn}"> 1${nn} </a></td>`;
+    })}</td>`);
   }
-  res.write(`
-     <style>
-     .mt-25{
-       margin-top:25px;
-     }
-     body{
-       background-color:black;
-       color:white;
-       
-     }
-     a{
-       color:white;
-     }
-     canvas{
-       top:0;left:0;
-       z-index:-2;
-    position:absolute;
-    width:100vw;
-    height:100vh;
-  }</style>
-  <script type='module' src='/js/playsample.js'></script>`);
+  res.write(`</table>`);
 };

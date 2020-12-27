@@ -92,7 +92,7 @@ function convertMidi(source, cb) {
     return controller;
 }
 exports.convertMidi = convertMidi;
-const convertMidiRealTime = (file) => {
+exports.convertMidiRealTime = (file) => {
     const controller = convertMidi(file, async function () {
         await utils_1.sleep(10); //achieves real tiem by asking 'is it next beat yet every 10 ms
         return 0.01;
@@ -100,8 +100,7 @@ const convertMidiRealTime = (file) => {
     controller.start();
     return controller;
 };
-exports.convertMidiRealTime = convertMidiRealTime;
-const convertMidiASAP = (file) => {
+exports.convertMidiASAP = (file) => {
     const controller = convertMidi(file, async function () {
         await utils_1.sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
         return exports.msPerBeat(controller.state.tempo.bpm) / 1000;
@@ -109,11 +108,8 @@ const convertMidiASAP = (file) => {
     controller.start();
     return controller;
 };
-exports.convertMidiASAP = convertMidiASAP;
-const msPerBeat = (bpm) => 60000 / bpm;
-exports.msPerBeat = msPerBeat;
-const secondsPerTick = (bpm) => 60 / bpm / 256;
-exports.secondsPerTick = secondsPerTick;
+exports.msPerBeat = (bpm) => 60000 / bpm;
+exports.secondsPerTick = (bpm) => 60 / bpm / 256;
 function format(str) {
     return str
         .replace(" ", "_")
