@@ -25,7 +25,7 @@ export const renderListStr = () =>
   `<table>
 ${midifiles.map((item) => fileRow({ name: basename(item) }))}
 </table>`;
-console.log(renderListStr());
+
 export const renderlist = async (res: Writable) => {
   res.write("<table>");
 

@@ -1,0 +1,29 @@
+.mt-125 {
+  margin-top: 215px;
+  padding-bottom: 215px;
+
+  align-content: center;
+  text-align: center;
+}
+body {
+  background-color: black;
+  color: white;
+  font-size: 1.1em;
+}
+.playing {
+  color: rgba(13, 13, 13, 0.1);
+}
+.playing a {
+  color: rgba(13, 13, 13, 0.4);
+}
+a {
+  color: white;
+}
+canvas {
+  top: 0;
+  left: 0;
+  z-index: -2;
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+}

@@ -1,59 +1,10 @@
 import { Writable } from "stream";
 import { spawn } from "child_process";
-import { convertMidi, convertMidiASAP } from "./load-sort-midi";
-import { FlatCache, tieredCache, Multicache } from "flat-cached";
+import { convertMidi } from "./load-sort-midi";
 import { openSync, readSync, closeSync } from "fs";
 import { SSRContext, PulseSource } from "ssr-cxt";
 import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-const spriteBytePeSecond = 48000 * 1 * 4;
-export const initcache = (preset) => {
-  let multicache = tieredCache(preset, [
-    spriteBytePeSecond / 4,
-    spriteBytePeSecond / 2,
-    spriteBytePeSecond,
-    spriteBytePeSecond * 3,
-  ]);
-  return multicache;
-};
-
-export const precache = (songname: string, preset: string = "") => {
-  const controller = convertMidi(songname);
-  const multicache = initcache(preset);
-  controller.setCallback(
-    async (notes: NoteEvent[]): Promise<number> => {
-      notes.map((data, i) => {
-        const path = `./midisf/${data.instrument}/${data.midi - 21}.pcm`;
-        console.log(path);
-        loadBuffer(path, multicache, data.durationTime * spriteBytePeSecond);
-      });
-      return 10;
-    }
-  );
-
-  controller.emitter.on("ended", () => {
-    console.log("ended");
-    multicache.persist();
-    controller.stop();
-  });
-  controller.start();
-};
-//precache("song.mid", "ro24");
-export function loadBuffer(file: string, noteCache: Multicache, size: number) {
-  if (noteCache.read(file, size)) {
-    return noteCache.read(file, size);
-  } else {
-    const ob = noteCache.malloc(file, size);
-    return loadFile(ob, file);
-  }
-}
-
-export function loadFile(ob: Buffer, file: string): Buffer {
-  const fd = openSync(file, "r");
-  readSync(fd, ob, 0, ob.byteLength, 1024);
-  closeSync(fd);
-  return ob;
-}
 
 export const produce = (songname: string, output: Writable) => {
   const spriteBytePeSecond = 48000 * 1 * 4;
@@ -102,44 +53,9 @@ export const produce = (songname: string, output: Writable) => {
   ctx.on("data", (d) => {
     output.write(d);
   });
+  return controller;
 };
-// //precache(process.argv[2], "");
 
-const ffp = () => {
-  const { stdin, stderr, stdout } = spawn("ffplay", [
-    "-i",
-    "pipe:0",
-    "-ac",
-    "2",
-    "-f",
-    "f32le",
-    "-ar",
-    "48000",
-  ]);
-  stderr.pipe(process.stderr);
-  stdout.pipe(process.stderr);
-  return stdin;
-};
-const mp3c = () => {
-  const { stdin, stderr, stdout } = spawn("ffmpeg", [
-    "-loglevel",
-    "debug",
-    "-i",
-    "pipe:0",
-    "-ac",
-    "2",
-    "-f",
-    "f32le",
-    "-ar",
-    "48000",
-    "-acodec",
-    "copy",
-    "-",
-  ]);
-  stderr.pipe(process.stderr);
-  stdout.pipe(process.stderr);
-  return stdin;
-};
 // //produce("./bach_846-mid.mid", createWriteStream("day32.pcm"), null, "auto");
 //produce("./song.mid", process.stdout, null, "auto");
 
