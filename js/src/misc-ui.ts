@@ -23,13 +23,23 @@ export const $ = document.querySelector;
 export const stdoutPanel = (parentDiv) => {
   parentDiv = parentDiv || document.body;
 
-  const rx1 = cdiv("pre", { id: "rx1" });
+  const std = cdiv("pre", { id: "std" });
+  const linkdiv = cdiv("span");
   function stdout(str: string) {
-    rx1.innerHTML = str + "\n" + rx1.innerHTML;
+    std.innerHTML = str + "\n" + std.innerHTML;
+  }
+  const rx1 = cdiv("span", { id: "rx1" });
+  function printrx(str: string) {
+    rx1.innerHTML = str;
   }
   parentDiv.append(rx1);
+  parentDiv.append(std);
   return {
     stdout,
-    rx1,
+    std,
+    printrx,
+    printlink: (href, name) => {
+      linkdiv.innerHTML += `<a href='${href}'>${name}</a>`;
+    },
   }; //
 };

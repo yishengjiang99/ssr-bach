@@ -61,6 +61,7 @@ function convertMidi(source, cb) {
                     const note = tracks[i].notes.shift();
                     const noteEvent = {
                         ...note,
+                        name: note.name,
                         trackId: i,
                         instId: tracks[i].instrument.number,
                         start: header.ticksToSeconds(note.ticks),

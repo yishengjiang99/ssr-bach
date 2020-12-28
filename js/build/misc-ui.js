@@ -1,31 +1,39 @@
-export var cdiv = function (tag, attributes, children) {
-    if (attributes === void 0) { attributes = {}; }
-    if (children === void 0) { children = []; }
-    var div = document.createElement(tag);
-    Object.keys(attributes).map(function (k) {
+export const cdiv = (tag, attributes = {}, children = []) => {
+    const div = document.createElement(tag);
+    Object.keys(attributes).map((k) => {
         div[k] = attributes[k];
     });
-    children.map(function (c) { return div.append(c); });
+    children.map((c) => div.append(c));
     return div;
 };
-export var startBtn = function (clickStart) {
-    var strtbtn = document.createElement("button");
+export const startBtn = (clickStart) => {
+    const strtbtn = document.createElement("button");
     strtbtn.innerHTML = "start";
     document.body.append(strtbtn);
     strtbtn.onclick = clickStart;
     return strtbtn;
 };
-export var $ = document.querySelector;
-export var stdoutPanel = function (parentDiv) {
+export const $ = document.querySelector;
+export const stdoutPanel = (parentDiv) => {
     parentDiv = parentDiv || document.body;
-    var rx1 = cdiv("pre", { id: "rx1" });
+    const std = cdiv("pre", { id: "std" });
+    const linkdiv = cdiv("span");
     function stdout(str) {
-        rx1.innerHTML = str + "\n" + rx1.innerHTML;
+        std.innerHTML = str + "\n" + std.innerHTML;
+    }
+    const rx1 = cdiv("span", { id: "rx1" });
+    function printrx(str) {
+        rx1.innerHTML = str;
     }
     parentDiv.append(rx1);
+    parentDiv.append(std);
     return {
-        stdout: stdout,
-        rx1: rx1,
+        stdout,
+        std,
+        printrx,
+        printlink: (href, name) => {
+            linkdiv.innerHTML += `<a href='${href}'>${name}</a>`;
+        },
     }; //
 };
 //# sourceMappingURL=misc-ui.js.map

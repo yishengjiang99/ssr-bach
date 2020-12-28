@@ -21,7 +21,6 @@ export const wsm = async (): Promise<any> => {
   const res = await fetch("../fifo.wasm");
 
   const ab = await res.arrayBuffer();
-  var memory = new WebAssembly.Memory({ initial: 10, maximum: 100 });
 
   const { instance } = await WebAssembly.instantiate(new Uint8Array(ab), {
     module: {

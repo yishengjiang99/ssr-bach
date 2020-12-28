@@ -13,12 +13,9 @@ export const midifiles = execSync("ls midi/*")
 
 export const fileRow = (item) => {
   return `
-  <tr>
-  <td>${item.name}</td><td>${item.name}</td>
-  <td><a class='mocha' href="/bach/pcm/${item.name}"> read</a>
-  <a class='opts' href="/edit/${item.name}"> edit</a>
-  </td>
-  </tr>`;
+  <ul>${item.name}<a class='mocha' href="/bach/pcm/${item.name}"> read</ul>
+ 
+`;
 };
 
 export const renderListStr = () =>
@@ -26,15 +23,19 @@ export const renderListStr = () =>
 ${midifiles.map((item) => fileRow({ name: basename(item) }))}
 </table>`;
 
-export const renderlist = async (res: Writable) => {
-  res.write("<table>");
+export const renderlist = async (res: Writable, who: string) => {
+  res.write("<div>");
 
   midifiles
     .filter((item) => {
       return item.endsWith("mid");
     })
-    .map((item) => res.write(fileRow({ name: basename(item) })));
-  res.write("</table>");
+    .map((item) =>
+      res.write(
+        `<ul><a class='mocha' href="/bach/pcm/${item}?cookie=${who}}">${item} read</a></ul>`
+      )
+    );
+  res.write("</div>");
 };
 
 export const notelist = (res: Writable) => {

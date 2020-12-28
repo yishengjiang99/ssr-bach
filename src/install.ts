@@ -1,10 +1,12 @@
+import { request } from "https";
+
 const execSync = require("child_process").execSync;
 const { existsSync, readdirSync, readFileSync } = require("fs");
 const { execFile, exec } = require("child_process");
 const sfUrl = (setname, fontname) =>
   `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
-
-const format = (str) =>
+//gleitz.github.io/midi-js-soundfonts/MusyngKite/
+https: const format = (str) =>
   str
     .replace(" ", "_")
     .replace(" ", "_")
@@ -16,6 +18,15 @@ const format = (str) =>
 
 const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
 "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
+
+const open = Buffer.from(":{},");
+function dl(soundfont, setname) {
+  request(sfUrl(soundfont, setname), (res) => {
+    res.on("data", (d) => {
+      while (d.shift() !== 0) {}
+    });
+  });
+}
 
 export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
   for (const name of execSync(
@@ -37,6 +48,7 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
     }
 
     mkfolder(`midisf/${fontname}`);
+
     const byteswrote = parseInt(
       execSync("wc -c " + localname)
         .toString()
@@ -102,4 +114,5 @@ for (const localname of readdirSync("./mp3")) {
       console.log(e);
     }
   }
+  execSync(`mv mp3/${localname} done`);
 }

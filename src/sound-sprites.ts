@@ -3,10 +3,10 @@ import { spawn } from "child_process";
 import { convertMidi } from "./load-sort-midi";
 import { openSync, readSync, closeSync } from "fs";
 import { SSRContext, PulseSource } from "ssr-cxt";
-import { NoteEvent } from "./ssr-remote-control.types";
+import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 
-export const produce = (songname: string, output: Writable) => {
+export const produce = (songname: string, output: Writable): RemoteControl => {
   const spriteBytePeSecond = 48000 * 1 * 4;
   const ctx = new SSRContext({
     nChannels: 1,
@@ -22,16 +22,16 @@ export const produce = (songname: string, output: Writable) => {
       const startloop = process.uptime();
 
       notes.map((note, i) => {
-        //if (i > 0) return;
         let velocityshift = 0; //note.velocity * 8;
-        const bytelength = ~~((spriteBytePeSecond * note.durationTime) / 4) * 4;
-        const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
+        const bytelength = spriteBytePeSecond * note.durationTime;
+        const file = `./midisf/${note.instrument}/${note.midi}.pcm`;
+        console.log(file);
 
         const fd = openSync(file, "r");
 
         const ob = Buffer.alloc(bytelength);
         if (note.durationTime < 1.0) {
-          velocityshift = note.velocity * 8;
+          velocityshift = note.velocity * 2048;
         }
         readSync(fd, ob, 0, bytelength, velocityshift);
         closeSync(fd);
@@ -42,16 +42,24 @@ export const produce = (songname: string, output: Writable) => {
 
       ctx.pump();
       const elapsed = process.uptime() - startloop;
-
+      if (notes && notes[0] && notes[0].start > 10) {
+        // controller.pause();
+      }
       await sleep(ctx.secondsPerFrame * 1000 - elapsed);
+
       return ctx.secondsPerFrame; // / 1000;
     }
   );
+  let closed = false;
 
   controller.start();
-
+  output.on("close", (d) => {
+    controller.stop();
+    closed = true;
+  });
   ctx.on("data", (d) => {
     output.write(d);
+    // if (controller.state.paused && !closed) output.write(d);
   });
   return controller;
 };
@@ -63,3 +71,4 @@ export const produce = (songname: string, output: Writable) => {
 
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
+// produce("./midi/song.mid", process.stdout);

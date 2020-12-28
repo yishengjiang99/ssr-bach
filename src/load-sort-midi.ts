@@ -1,4 +1,5 @@
 import { Header, Midi } from "@tonejs/midi";
+import { notEqual } from "assert";
 import { EventEmitter } from "events";
 import {
   Filename,
@@ -73,6 +74,7 @@ export function convertMidi(
           const note = tracks[i].notes.shift();
           const noteEvent = {
             ...note,
+            name: note.name,
             trackId: i,
             instId: tracks[i].instrument.number,
             start: header.ticksToSeconds(note.ticks),

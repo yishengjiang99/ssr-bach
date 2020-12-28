@@ -17,6 +17,7 @@ export const midifiles = execSync("ls midi/*")
   .trim()
   .split("\n")
   .filter((n) => n);
+const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
 
 export const fileRow = (item) => {
   return `

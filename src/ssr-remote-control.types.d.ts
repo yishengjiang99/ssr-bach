@@ -11,6 +11,7 @@ export type NoteEvent = {
   durationTime: seconds;
   instrument: string;
   midi: number;
+  name: string;
 };
 
 export type Ticks = number;
