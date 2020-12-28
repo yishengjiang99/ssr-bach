@@ -34,3 +34,4 @@ const mp3c = () => {
   stdout.pipe(process.stderr);
   return stdin;
 };
+ffmpeg -re  -f f32le -ac 2 -ar 48000 -i pipe:0 -f WAV -f rtsp rtsp://localhost:8554
