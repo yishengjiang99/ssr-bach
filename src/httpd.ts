@@ -1,16 +1,15 @@
 import { resolve, basename } from "path";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { WsSocket, WsServer, handleWsRequest } from "grep-wss";
 import { createServer } from "https";
 import { produce } from "./sound-sprites";
 import { spawn, execSync, ChildProcess } from "child_process";
-import { notelist, renderlist, midifiles, renderListStr } from "./filelist";
+
 import { httpsTLS } from "./tls";
 import { parseQuery, handlePost, queryFs, parseCookies } from "./fsr";
 import { RemoteControl } from "./ssr-remote-control.types";
 import { IncomingMessage } from "http";
-import { info } from "console";
 
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -44,42 +43,60 @@ function idUser(req: IncomingMessage): SessionContext {
     who,
     parts,
     query,
+    file: existsSync("midi/" + parts[2]) ? "midi/" + parts[2] : "midi/song.mid",
   };
 }
-
-const indexHtml = readFileSync(resolve(__dirname, "../index.view.html"))
-  .toString()
-  .split(/\${}/);
 const style = readFileSync("./style.css");
-const wepbackJS = execSync("cat ./js/dist/main/*.js");
+const midifiles = readdirSync("./midi");
 
 const server = createServer(httpsTLS, async (req, res) => {
-  const {
-    who,
-    parts,
-    wsRef,
-    rc,
-    parts: [p1, p2, p3],
-  } = idUser(req);
+  console.log(req.url, req.headers);
+  const { who, parts, wsRef, rc, file } = idUser(req);
+  if (parts[0] === "bach") parts.shift();
 
   handlePost(req, res);
-  queryFs(req, res);
 
-  const file = resolve("midi", parts.shift());
   try {
-    const preJS = "";
-    switch (p1) {
+    switch (parts[1]) {
       case "":
       case "samples":
-        res.write(indexHtml[0]);
-        res.write(style);
-        res.write(preJS);
-        res.write(indexHtml[1]);
-        res.write(renderListStr());
-        res.write(indexHtml[2]);
-        res.write(wepbackJS);
-        res.write(indexHtml[3]);
+        res.end(/* html */ `<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      ${style}
+    </style>
+  </head>
+  <body>
+  <video src='colorsrc.mp4' ></video>
+  <ul style='display:none;'>      
+  ${midifiles.map(
+    (item) =>
+      `<li  style='display:none;'>${item}<a style='cursor:pointer' href='/pcm/${item}'> read</a></li>`
+  )}
+</ul>
+  <script type='module' src='./js/build/index.js'>
+
+  </script>
+  </body>
+</html>
+`);
         break;
+      case "js":
+      // console.log(req.url);
+      // if (basename(req.url) === "ws-worker.js") {
+      //   res.writeHead(200, {
+      //     "Content-Type": "application/javascript",
+      //   });
+      //   res.end(workerjs.replace("{who}", who));
+      // } else if (basename(req.url) === "proc2.js") {
+      //   res.writeHead(200, {
+      //     "Content-Type": "application/javascript",
+      //   });
+      //   res.end(procjs);
+      // }
+      // break;
+
       case "rt":
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
@@ -89,18 +106,19 @@ const server = createServer(httpsTLS, async (req, res) => {
         });
         readMidiSSE(req, res, file, true);
         break;
-
       case "pcm":
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "audio/raw",
           "Cache-Control": "no-cache",
         });
+
         const rc: RemoteControl = produce(file, res);
         activeSessions[who].rc = rc;
         if (wsRef && wsRefs[wsRef]) {
           wsRefs[wsRef].prependListener("data", (d) => {
             const cmd = d.toString().split();
+            console.log("cmd", cmd);
             switch (cmd.shift()) {
               case "play":
                 rc.resume();
@@ -179,7 +197,8 @@ const server = createServer(httpsTLS, async (req, res) => {
         break;
 
       default:
-        res.end(p1);
+        queryFs(req, res) || res.writeHead(404);
+
         break;
     }
   } catch (e) {
@@ -194,6 +213,7 @@ handleWsRequest(server, (uri: string) => {
     wsRefs[ws.webSocketKey] = ws;
 
     const activeSession = idUser(req);
+    console.log("in ws, user id is", activeSession.who);
     activeSession.wsRef = ws.webSocketKey;
 
     ws.send("welcome");

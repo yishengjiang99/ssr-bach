@@ -41,7 +41,7 @@ const server = require("http2")
     console.log(headers);
     stream.pushStream({ ":path": "/list" }, (err, pushStream, headers) => {
       if (err) console.error(err);
-      pushStream.write(renderListStr());
+      pushStream.write(renderListStr("wme"));
     });
 
     stream.respond({

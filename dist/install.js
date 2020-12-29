@@ -6,8 +6,7 @@ const execSync = require("child_process").execSync;
 const { existsSync, readdirSync, readFileSync } = require("fs");
 const { execFile, exec } = require("child_process");
 const sfUrl = (setname, fontname) => `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
-//gleitz.github.io/midi-js-soundfonts/MusyngKite/
-https: const format = (str) => str
+const format = (str) => str
     .replace(" ", "_")
     .replace(" ", "_")
     .replace(" ", "_")
@@ -26,10 +25,12 @@ function dl(soundfont, setname) {
     });
 }
 exports.installNotesFromCsv = (csvfile, setname = "FatBoy") => {
-    for (const name of execSync("cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq")
+    for (const name of execSync("cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq|grep -v ^$")
         .toString()
         .trim()
         .split("\n")) {
+        if (name === "")
+            continue;
         const fontname = format(name).replace("\t", "");
         if (!fontname)
             continue;

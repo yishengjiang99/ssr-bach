@@ -24,14 +24,13 @@ export const produce = (songname: string, output: Writable): RemoteControl => {
       notes.map((note, i) => {
         let velocityshift = 0; //note.velocity * 8;
         const bytelength = spriteBytePeSecond * note.durationTime;
-        const file = `./midisf/${note.instrument}/${note.midi}.pcm`;
-        console.log(file);
+        const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
 
         const fd = openSync(file, "r");
 
         const ob = Buffer.alloc(bytelength);
         if (note.durationTime < 1.0) {
-          velocityshift = note.velocity * 2048;
+          velocityshift = note.velocity * 1028;
         }
         readSync(fd, ob, 0, bytelength, velocityshift);
         closeSync(fd);
@@ -58,8 +57,9 @@ export const produce = (songname: string, output: Writable): RemoteControl => {
     closed = true;
   });
   ctx.on("data", (d) => {
+    controller.state.paused = false;
+
     output.write(d);
-    // if (controller.state.paused && !closed) output.write(d);
   });
   return controller;
 };

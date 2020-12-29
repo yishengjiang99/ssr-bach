@@ -1,6 +1,4 @@
-import { worker } from "cluster";
-
-const wss: WebSocket = new WebSocket("wss://grepawk.com?cookie={who}");
+const wss: WebSocket = new WebSocket("wss://www.grepawk.com");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore
@@ -67,4 +65,3 @@ onmessage = (e) => {
     //  procPort.postMessage({ readable }, [readable]);
   }
 };
-//# sourceMappingURL=wsworke2r.js.map

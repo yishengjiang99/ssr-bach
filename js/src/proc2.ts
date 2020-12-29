@@ -42,11 +42,8 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               }
             }
             that.leftPartialFrame = value;
-            if (that.total % 1010 == 1) that.report();
+            if (that.total % 134 == 1) that.report();
             reader.read().then(process);
-          })
-          .then(() => {
-            that.port.postMessage("cts");
           })
           .catch((e) => {
             that.port.postMessage({ msg: e.message });
@@ -64,7 +61,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   report() {
     this.port.postMessage({
       stats: {
-        rms: this.rms.toFixed(20),
+        rms: this.rms.toFixed(3),
         downloaded: (this.total * 128 * 4) / 1024,
         buffered: (this.buffers.length * 128 * 4) / 1024,
         lossPercent: ((this.loss / this.total) * 100).toFixed(2),
@@ -73,8 +70,6 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   }
   process(inputs, outputs, parameters) {
     if (this.started === false) {
-      this.loss++;
-      //  this.port.postMessage("cts");
       return true;
     }
     if (this.buffers.length === 0) {

@@ -36,4 +36,3 @@ export const stdoutPanel = (parentDiv) => {
         },
     }; //
 };
-//# sourceMappingURL=misc-ui.js.map

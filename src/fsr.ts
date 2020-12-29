@@ -1,5 +1,5 @@
 import { existsSync, statSync, createReadStream, mkdirSync } from "fs";
-import { resolve, basename } from "path";
+import { resolve, basename, extname } from "path";
 import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 import { cspawn } from "./utils";
@@ -47,14 +47,22 @@ export function parseCookies(request) {
   return list;
 }
 export const queryFs = (req: IncomingMessage, res) => {
-  let filename = resolve(__dirname, "..", req.url.substring(1));
-  if (statSync(filename).isDirectory()) {
-    filename = resolve(filename, "index.js");
-  }
-  if (existsSync(filename)) {
-    res.writeHead(200, {
-      ContentType: lookup(basename(filename)) as string,
-    });
-    return createReadStream(filename).pipe(res);
-  }
+  if (req.url === "") return false;
+  if (!extname(req.url)) return false;
+  const filename = resolve(__dirname, "..", req.url.substring(1));
+
+  const mimetypes = {
+    js: "application/javascript",
+    css: "text/css",
+    html: "text/html",
+    pcm: "audio/raw",
+    mp4: "video/mp4",
+    ico: "image/x-icon",
+  };
+  if (existsSync(filename) && statSync(filename).isFile())
+    console.log(mimetypes[extname(filename).substring(1)]);
+  res.writeHead(200, {
+    "Content-Type": require("mime-types").lookup(filename),
+  });
+  return createReadStream(filename).pipe(res);
 };

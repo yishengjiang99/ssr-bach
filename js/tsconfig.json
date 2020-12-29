@@ -4,7 +4,7 @@
     "module": "esnext",
     "strict": false,
     "outDir": "build",
-    "sourceMap": true,
+    "sourceMap": false,
     "lib": ["esnext", "dom"]
   }
 }

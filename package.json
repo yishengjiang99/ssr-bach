@@ -12,7 +12,6 @@
     "flat-cached": "^1.0.1",
     "grep-fifo": "^1.0.5",
     "grep-wss": "^1.1.6",
-    "grepupload": "^1.2.0",
     "mime-types": "^2.1.27",
     "mode": "^0.3.2",
     "ssr-cxt": "file:../ssr-ctx"
@@ -30,7 +29,7 @@
     "dev": "nodemon -w src/ --exec ts-node src/httpd.ts",
     "test": "mocha",
     "log": "sudo journalctl -u bachd >> server.log",
-    "build": "tsc; sudo systemctl enable bachd; sudo systemctl start bachd"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
