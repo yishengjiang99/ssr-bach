@@ -1,3 +1,5 @@
+import { spawn } from "child_process";
+
 export const sleep = (ms: number) => {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -133,3 +135,7 @@ export const std_inst_names = [
   "applause",
   "gunshot",
 ];
+export function cspawn(str) {
+  let t = str.split(" ");
+  return spawn(t.shift(), t);
+}
