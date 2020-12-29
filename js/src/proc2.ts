@@ -1,4 +1,4 @@
-const chunk = 128 * 4;
+const chunk = 128 * 4 * 2;
 
 /* @ts-ignore */
 class PlaybackProcessor extends AudioWorkletProcessor {
@@ -37,7 +37,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               value = value.slice(chunk);
               that.total++;
 
-              if (that.started === false && that.buffers.length > 52) {
+              if (that.started === false && that.buffers.length > 54) {
                 that.started = true;
               }
             }
@@ -75,7 +75,6 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     if (this.buffers.length === 0) {
       this.loss++;
       this.report();
-      this.port.postMessage("cts");
       return true;
     }
     this.total++;

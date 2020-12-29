@@ -83,19 +83,27 @@ const server = createServer(httpsTLS, async (req, res) => {
 `);
         break;
       case "js":
-      // console.log(req.url);
-      // if (basename(req.url) === "ws-worker.js") {
-      //   res.writeHead(200, {
-      //     "Content-Type": "application/javascript",
-      //   });
-      //   res.end(workerjs.replace("{who}", who));
-      // } else if (basename(req.url) === "proc2.js") {
-      //   res.writeHead(200, {
-      //     "Content-Type": "application/javascript",
-      //   });
-      //   res.end(procjs);
-      // }
-      // break;
+        console.log(req.url);
+        if (basename(req.url) === "ws-worker.js") {
+          res.writeHead(200, {
+            "Content-Type": "application/javascript",
+          });
+
+          res.end(readFileSync("./js/build/ws-worker.js"));
+        } else if (basename(req.url) === "proc2.js") {
+          res.writeHead(200, {
+            "Content-Type": "application/javascript",
+          });
+          res.end(readFileSync("./js/build/proc2.js"));
+        } else {
+          res.writeHead(200, {
+            "Content-Type": "application/javascript",
+          });
+          res.end(
+            readFileSync(resolve(__dirname, "../js/build/" + basename(req.url)))
+          );
+        }
+        break;
 
       case "rt":
         res.writeHead(200, {

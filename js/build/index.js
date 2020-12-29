@@ -13,7 +13,6 @@ const startBtn = (clickStart) => {
     strtbtn.onclick = clickStart;
     return strtbtn;
 };
-const $ = document.querySelector;
 const stdoutPanel = (parentDiv) => {
     parentDiv = parentDiv || document.body;
     const std = cdiv("pre", { id: "std" });
@@ -116,13 +115,13 @@ startBtn(async function (e) {
             const b2 = document.createElement("button");
             b2.innerHTML = "play";
             b2.onclick = () => {
-                worker.postMessage({ url: "/pcm" });
+                worker.postMessage({ url: "/pcm/song.mid" });
             };
             const b3 = document.createElement("button");
             b3.onclick = () => {
                 worker.postMessage({ cmd: "pause" });
             };
-            b2.innerHTML = "pause";
+            b3.innerHTML = "pause";
             b3.disabled = true;
             document.body.append(b2);
             document.body.append(b3);
