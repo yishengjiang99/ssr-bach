@@ -2,7 +2,7 @@ const wss: WebSocket = new WebSocket("wss://www.grepawk.com");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore
-  postMessage("ws open");
+  postMessage({ msg: "ws open" });
   wss.onmessage = ({ data }) => {
     if (data[0] == "{") {
       //@ts-ignore
@@ -10,7 +10,7 @@ wss.onopen = () => {
     } else {
       //@ts-ignore
 
-      postMessage(data);
+      postMessage({ msg: "Server: " + data });
     }
   };
 };
