@@ -14,9 +14,11 @@
     "grep-wss": "^1.1.6",
     "mime-types": "^2.1.27",
     "mode": "^0.3.2",
-    "ssr-cxt": "file:../ssr-ctx"
+    "ssr-cxt": "file:../ssr-ctx",
+    "wrtc": "^0.4.6"
   },
   "devDependencies": {
+    "@babel/core": "^7.12.10",
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
     "chai": "^4.2.0",
@@ -26,7 +28,7 @@
     "typescript": "^4.1.2"
   },
   "scripts": {
-    "dev": "nodemon -w src/ --exec ts-node src/httpd.ts",
+    "dev": "sudo systemctl stop bachd; sh kk.sh; nodemon --exec ts-node src/httpd.ts",
     "test": "mocha",
     "log": "sudo journalctl -u bachd >> server.log",
     "build": "tsc"

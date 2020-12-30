@@ -21,6 +21,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.readqueue.push(data.readable);
       if (!this.reading) readloop();
     };
+
     let that = this;
     async function readloop() {
       that.reading = true;
@@ -37,12 +38,12 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               value = value.slice(chunk);
               that.total++;
 
-              if (that.started === false && that.buffers.length > 54) {
+              if (that.started === false && that.buffers.length > 43) {
                 that.started = true;
               }
             }
             that.leftPartialFrame = value;
-            if (that.total % 134 == 1) that.report();
+
             reader.read().then(process);
           })
           .catch((e) => {
@@ -62,8 +63,8 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.port.postMessage({
       stats: {
         rms: this.rms.toFixed(3),
-        downloaded: (this.total * 128 * 4) / 1024,
-        buffered: (this.buffers.length * 128 * 4) / 1024,
+        downloaded: (this.total * chunk) / 1024,
+        buffered: (this.buffers.length * chunk) / 1024,
         lossPercent: ((this.loss / this.total) * 100).toFixed(2),
       },
     });
@@ -89,6 +90,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       }
     }
     this.rms = Math.sqrt(sum / 256);
+    if (this.total % 150 == 50) this.report();
     return true;
   }
 }

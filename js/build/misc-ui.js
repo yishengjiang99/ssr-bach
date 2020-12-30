@@ -16,12 +16,12 @@ export const startBtn = (clickStart) => {
 export const $ = document.querySelector;
 export const stdoutPanel = (parentDiv) => {
     parentDiv = parentDiv || document.body;
-    const std = cdiv("pre", { id: "std" });
+    const std = parentDiv.querySelector("#stdout") || cdiv("pre", { id: "stdout" });
     const linkdiv = cdiv("span");
     function stdout(str) {
         std.innerHTML = str + "\n" + std.innerHTML;
     }
-    const rx1 = cdiv("span", { id: "rx1" });
+    const rx1 = parentDiv.querySelector("#rx1") || cdiv("span", { id: "rx1" });
     function printrx(str) {
         rx1.innerHTML = str;
     }

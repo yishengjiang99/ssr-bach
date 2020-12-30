@@ -46,4 +46,5 @@ export type RemoteControl = {
   stop: () => void;
   emitter: EventEmitter;
   setCallback: (cb: CallbackFunction) => void;
+  meta: any;
 };

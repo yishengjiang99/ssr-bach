@@ -25,6 +25,7 @@ function convertMidi(source, cb) {
     const controller = {
         pause: () => setState({ paused: true }),
         resume: () => {
+            console.log("resume");
             emitter.emit("resume");
             setState({ paused: false });
         },
@@ -39,10 +40,14 @@ function convertMidi(source, cb) {
         },
         setCallback,
         state,
+        meta: {
+            name: header.name,
+            seconds: Math.floor(duration),
+            ...(header.meta[0] || {}),
+        },
     };
     const pullMidiTrack = async (tracks, _cb) => {
         let done = 0;
-        console.log("start");
         let doneSet = new Set();
         setState({ t0: process.uptime() });
         // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;

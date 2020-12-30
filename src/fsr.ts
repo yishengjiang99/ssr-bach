@@ -1,4 +1,10 @@
-import { existsSync, statSync, createReadStream, mkdirSync } from "fs";
+import {
+  existsSync,
+  statSync,
+  readdirSync,
+  createReadStream,
+  mkdirSync,
+} from "fs";
 import { resolve, basename, extname } from "path";
 import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
@@ -66,3 +72,5 @@ export const queryFs = (req: IncomingMessage, res) => {
   });
   return createReadStream(filename).pipe(res);
 };
+const midifiles = () => readdirSync("./midi");
+console.log(midifiles());

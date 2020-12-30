@@ -1,5 +1,6 @@
 import { convertMidi, convertMidiASAP } from "./load-sort-midi";
 import { Writable } from "stream";
+import { header } from "grep-wss";
 
 export const bitmapget = async (
   midifile,
@@ -51,6 +52,7 @@ export const bitmapget = async (
     }
   });
   start();
+
   return await new Promise((resolve, reject) =>
     emitter.on("end", () => {
       console.log(bitmapp);

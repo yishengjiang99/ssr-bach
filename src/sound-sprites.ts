@@ -5,8 +5,13 @@ import { openSync, readSync, closeSync } from "fs";
 import { SSRContext, PulseSource } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
+import { Readable } from "stream";
 
-export const produce = (songname: string, output: Writable): RemoteControl => {
+export const produce = (
+  songname: string,
+  output: Writable,
+  interrupt?: Readable
+): RemoteControl => {
   const spriteBytePeSecond = 48000 * 1 * 4;
   const ctx = new SSRContext({
     nChannels: 1,
@@ -14,16 +19,23 @@ export const produce = (songname: string, output: Writable): RemoteControl => {
     sampleRate: 48000,
     fps: 375,
   });
-
+  let intervalAdjust = 0;
   const controller = convertMidi(songname);
-
+  interrupt &&
+    interrupt.on("data", (d) => {
+      switch (d) {
+        case "backpressure":
+          intervalAdjust += 1;
+      }
+    });
   controller.setCallback(
     async (notes: NoteEvent[]): Promise<number> => {
       const startloop = process.uptime();
 
       notes.map((note, i) => {
         let velocityshift = 0; //note.velocity * 8;
-        const bytelength = spriteBytePeSecond * note.durationTime;
+        const bytelength =
+          spriteBytePeSecond * Math.max(note.durationTime, 0.25);
         const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
 
         const fd = openSync(file, "r");
@@ -44,7 +56,7 @@ export const produce = (songname: string, output: Writable): RemoteControl => {
       if (notes && notes[0] && notes[0].start > 10) {
         // controller.pause();
       }
-      await sleep(ctx.secondsPerFrame * 1000 - elapsed);
+      await sleep(ctx.secondsPerFrame * 1000 - elapsed + intervalAdjust);
 
       return ctx.secondsPerFrame; // / 1000;
     }
@@ -57,9 +69,7 @@ export const produce = (songname: string, output: Writable): RemoteControl => {
     closed = true;
   });
   ctx.on("data", (d) => {
-    controller.state.paused = false;
-
-    output.write(d);
+    if (controller.state.paused == false) output.write(d);
   });
   return controller;
 };

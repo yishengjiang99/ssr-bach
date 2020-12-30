@@ -31,6 +31,7 @@ export function convertMidi(
     timeSignature: header.timeSignatures[0],
   };
   emitter.emit("#tempo", state.tempo.bpm, state.timeSignature.timeSignature);
+
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);
   const setState = (update: { [key: string]: string | boolean | number }) => {
     Object.keys(update).forEach((k) => (state[k] = update[k]));
@@ -38,6 +39,7 @@ export function convertMidi(
   const controller: RemoteControl = {
     pause: () => setState({ paused: true }),
     resume: () => {
+      console.log("resume");
       emitter.emit("resume");
       setState({ paused: false });
     },
@@ -52,13 +54,18 @@ export function convertMidi(
     },
     setCallback,
     state,
+    meta: {
+      name: header.name,
+      seconds: Math.floor(duration),
+      ...(header.meta[0] || {}),
+    },
   };
 
   const pullMidiTrack = async (tracks, _cb: CallbackFunction) => {
     let done = 0;
-    console.log("start");
     let doneSet = new Set();
     setState({ t0: process.uptime() });
+
     // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;
     while (tracks.length > done) {
       const notesstarting: NoteEvent[] = [];
