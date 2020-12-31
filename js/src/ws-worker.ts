@@ -1,3 +1,4 @@
+import { abort } from "process";
 import { Transform } from "stream";
 
 const wss: WebSocket = new WebSocket("wss://www.grepawk.com?cookie=WHO");
@@ -15,14 +16,15 @@ wss.onopen = () => {
     }
   };
 };
+let controller = new AbortController();
 const queue: { from: number; to: number; url: string }[] = [];
 /* @ts-ignore */
 onmessage = (e) => {
   const { data } = e;
   const { cmd, msg, port, url } = data;
   //@ts-ignore
-  postMessage("act" + [cmd, msg, port, url].join(" "));
-  console.log(e.data);
+  // postMessage("act" + [cmd, msg, port, url].join(" "));
+  //console.log(e.data);
   if (port) {
     procPort = port;
   }
@@ -30,6 +32,9 @@ onmessage = (e) => {
     wss.send(cmd);
   }
   if (url && procPort) {
+    if (controller !== null) {
+      controller.abort();
+    }
     procPort.onmessage = (e) => {
       //@ts-ignore
       postMessage(e.data);
@@ -38,11 +43,14 @@ onmessage = (e) => {
     queue.push({ from: 0 * 1024 * 1024, to: 1 * 1024 * 1024, url });
     offset = offset + 1 * 1024 * 1024;
     const transform = new TransformStream();
-    async function loop() {
+    controller = new AbortController();
+
+    async function loop(controller) {
       try {
         if (queue.length == 0) return;
         const { url, from, to } = queue.shift();
         const resp = await fetch(url, {
+          signal: controller.signal,
           headers: { "if-range": "bytes=" + from + "-" + to },
         });
         if (transform.writable.locked) {
@@ -58,9 +66,9 @@ onmessage = (e) => {
         console.log(e);
       }
     }
-    loop();
+    loop(controller);
     // @ts-ignore
-    procPort.postMessage({ readable: transform.readable }, [
+    procPort.postMessage({ url, readable: transform.readable }, [
       transform.readable,
     ]);
   }

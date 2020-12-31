@@ -23,7 +23,7 @@ import { PassThrough } from "stream";
     2. @wsServer WsServer  WebSocket server for interactivity with the stream (like a remote control)
 */
 type WebSocketRefStr = string;
-type SessionContext = {
+export type SessionContext = {
   t?: any;
   wsRef?: WebSocketRefStr; //used to message user via ws during playback
   rc?: RemoteControl; //this controls active playback + the data channel actively piping to their browser
@@ -55,10 +55,11 @@ const style = readFileSync("./style.css");
 const midifiles = readdirSync("./midi");
 
 const server = createServer(httpsTLS, async (req, res) => {
-  const { who, parts, wsRef, rc, file } = idUser(req);
+  const session = idUser(req);
+  const { who, parts, wsRef, rc, file } = session;
   if (parts[0] === "bach") parts.shift();
 
-  handlePost(req, res);
+  if (req.method === "POST") return handlePost(req, res, session);
 
   try {
     switch (parts[1]) {
@@ -96,30 +97,46 @@ const server = createServer(httpsTLS, async (req, res) => {
       <use x="5" y="5" href="#play" fill="currentColor" />
     </svg>
     </button></span>
-    <span id='stats' width=50%>
-    <div><label for='buffered'>Downloaded (kb): </label>
-    <progress id='buffered' max='100'><span></span></div>
-    <div> <label for='played'>Played (kb): </label><progress id='played' max='100'><span></span></div>
-    <div> <label for='inmemory'>in memory: </label><meter id='inmemory' min='0' max='1000'><span></span></div>
-    <div> <label for='loss'>Packet Loss (%): </label><meter id='loss' max='100'><span></span></div>
+
+    <span id="stats" width="50%">
+      <div>
+        <label for="buffered">Downloaded (kb): </label>
+        <progress id="buffered" max="100"></progress>
+        <span></span>
+      </div>
+      <div>
+        <label for="played">Played (kb): </label>
+        <progress id="played" max="100"></progress>
+        <span></span>
+      </div>
+      <div>
+        <label for="inmemory">in memory: </label>
+        <meter id="inmemory" min="0" max="1000"></meter><span></span>
+      </div>
+      <div>
+        <label for="loss">percent loss </label>
+        <meter id="loss" min="0" max="100"></meter><span></span>
+      </div>
     </span>
+
     <div id='rx1'></div>
     <div id='log'></div>
 </div>
 <pre id='stdout'></pre>
 
-  <ul style='display:none;background-color:rgba(0,0,0,0)'>      
+  <ul style='display:block;background-color:rgba(0,0,0,0)'>      
   ${midifiles
     .map(
       (item) =>
-        `<li>${item}<a style='cursor:pointer' href='#${item}'> read</a></li>`
+        `<li>${item}<a style='cursor:pointer' href='#/pcm/${item}'> read</a></li>`
     )
     .join("")}
 </ul>
 <div class='canvas_container'>
   <canvas></canvas>
 </div>
-  <script type='module' src="./js/build/index.js">  </script>
+  <script type='module' src="./js/build/index.js">  
+  </script>
   </body>
 </html>
 `);
@@ -216,10 +233,12 @@ const server = createServer(httpsTLS, async (req, res) => {
         break;
       case "csv":
         res.writeHead(200, {
-          "Content-Type": "text/csv",
-          "Content-Disposition": `inline; filename="${file}.csv"`,
+          "Content-Type": "plain/text",
+          // "Content-Disposition": `inline; filename="${file}.csv"`,
         });
+        res.write("<html><body><pre>");
         readAsCSV(file, false).pipe(res);
+        res.write("</pre></body></html>");
         break;
       case "mp3":
         let p2 = parts.shift(),

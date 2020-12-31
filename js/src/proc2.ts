@@ -11,14 +11,22 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   leftPartialFrame: any;
   loss: number;
   rms: number;
+  abortSignal: boolean;
   constructor() {
     super();
     this.buffers = [];
     this.readqueue = [];
     this.started = false;
+    this.abortSignal = false;
     this.port.postMessage({ msg: "initialized" });
-    this.port.onmessage = ({ data }) => {
-      this.readqueue.push(data.readable);
+    this.port.onmessage = ({ data: { readable, url } }) => {
+      if (url) {
+        this.buffers = [];
+        this.started = false;
+        this.readqueue = [];
+        if (this.reading) this.abortSignal = true;
+      }
+      this.readqueue.push(readable);
       if (!this.reading) readloop();
     };
 
@@ -43,6 +51,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               }
             }
             that.leftPartialFrame = value;
+            if (that.abortSignal) {
+              that.abortSignal = false;
+              return;
+            }
 
             reader.read().then(process);
           })
@@ -62,6 +74,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   report() {
     this.port.postMessage({
       stats: {
+        running: this.started,
         rms: this.rms.toFixed(3),
         downloaded: (this.total * chunk) / 1024,
         buffered: (this.buffers.length * chunk) / 1024,

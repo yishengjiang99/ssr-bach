@@ -9,6 +9,7 @@ import { resolve, basename, extname } from "path";
 import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 import { cspawn } from "./utils";
+import { SessionContext } from "./httpd";
 
 export const parseQuery = (
   req: IncomingMessage
@@ -24,7 +25,11 @@ export const parseQuery = (
 };
 const mkfolder = (folder) => existsSync(folder) || mkdirSync(folder);
 
-export const handlePost = (req: IncomingMessage, res: ServerResponse) => {
+export const handlePost = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  session: SessionContext
+) => {
   if (req.method === "POST") {
     let parts = (req.url[0] || "").split("/");
     let i = 0;
