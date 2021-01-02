@@ -1,4 +1,4 @@
-export const wsm = async () => {
+export const wsm = async (path) => {
     // const memory = new WebAssembly.Memory({ initial: 256 });
     // @ts-ignore
     let memory = new WebAssembly.Memory({
@@ -7,12 +7,9 @@ export const wsm = async () => {
         // @ts-ignore
         shared: true,
     });
-    const res = await fetch("../fifo.wasm");
+    const res = await fetch("path");
     const ab = await res.arrayBuffer();
     const { instance } = await WebAssembly.instantiate(new Uint8Array(ab), {
-        module: {
-            fifo: console.log,
-        },
         env: {
             memory: memory,
             table: new WebAssembly.Table({
@@ -26,17 +23,13 @@ export const wsm = async () => {
             __table_base: 0,
         },
     });
-    const { fifo, fifo_init, fifo_read, fifo_write, fifo_size, } = instance.exports;
     const HEAP8 = new Uint8Array(memory.buffer);
     const HEAP32 = new Uint32Array(memory.buffer);
     //@ts-ignore
     return {
         HEAP8,
         HEAP32,
-        fifo,
-        fifo_init,
-        fifo_read,
-        fifo_write,
-        fifo_size,
+        ...instance.exports,
     };
 };
+export const fishwasm = wsm("./fish.wasm");

@@ -1,7 +1,7 @@
 import { abort } from "process";
 import { Transform } from "stream";
 
-const wss: WebSocket = new WebSocket("wss://www.grepawk.com?cookie=WHO");
+const wss: WebSocket = new WebSocket("ws://localhost:3000?cookie=WHO");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore

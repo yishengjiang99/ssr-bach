@@ -22,7 +22,6 @@ describe("48000hz/32bit/2", () => {
       assert(d instanceof Buffer);
       for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
         assert(!isNaN(f));
-        console.log(f);
       }
     });
     ctx.pump();
@@ -31,7 +30,7 @@ describe("48000hz/32bit/2", () => {
     const pt = new PassThrough();
 
     pt.on("data", (d) => {
-      console.log(d.byteLength);
+      // console.log(d.byteLength);
       for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
         expect(!isNaN(f)).to.be.true;
         // console.log(f);

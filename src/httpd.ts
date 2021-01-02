@@ -53,8 +53,7 @@ function idUser(req: IncomingMessage): SessionContext {
 }
 const style = readFileSync("./style.css");
 const midifiles = readdirSync("./midi");
-
-const server = createServer(httpsTLS, async (req, res) => {
+const handler = async (req, res) => {
   const session = idUser(req);
   const { who, parts, wsRef, rc, file } = session;
   if (parts[0] === "bach") parts.shift();
@@ -292,7 +291,9 @@ const server = createServer(httpsTLS, async (req, res) => {
     res.end(e.message);
     console.log(e);
   }
-}).on("upgrade", (req: IncomingMessage, _socket: Socket) => {
+};
+
+const wshand = (req: IncomingMessage, _socket: Socket) => {
   shakeHand(_socket, req.headers);
   const activeSession = idUser(req);
   const wsSocket: WsSocket = new WsSocket(_socket, req);
@@ -304,10 +305,11 @@ const server = createServer(httpsTLS, async (req, res) => {
     const msg = decodeWsMessage(d);
     wsSocket.emit("data", msg);
   });
-});
+};
 
-server.listen(443);
-
+const server = require("http").createServer(handler);
+server.on("upgrade", wshand);
+server.listen(3000);
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
 });

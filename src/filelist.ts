@@ -37,20 +37,69 @@ export const renderlist = async (res: Writable, who: string) => {
   res.write("</div>");
 };
 
-export const notelist = (res: Writable) => {
+export const notelist = (res: Writable, format = "pcm") => {
   const sections = readdirSync("./midisf");
 
   for (const section of sections) {
     const links = readdirSync("midisf/" + section).filter((n) =>
       n.endsWith(".pcm")
     );
-
-    res.write(`<tr><td>${section}</td>`);
-    res.write(`
-    ${links.map((n) => {
-      const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
-      return `<td><a class="samples" href="/bach/notes/${section}/${nn}"> 1${nn} </a></td>`;
-    })}</td>`);
+    res.write("<div class='mt-25'></div>");
+    res.write(`<div><span>${section}</span>
+      ${links.map((n) => {
+        const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
+        return `<a class='samples' href="/${format}/${section}/${nn}.${format}"> ${nn} </a>`;
+      })}
+      </div>`);
   }
-  res.write(`</table>`);
+  res.write(/* html */ `
+       <style>
+       .mt-25{
+         margin-top:25px;
+       }
+       body{
+         background-color:black;
+         color:white;
+         
+       }
+       a{
+         color:white;
+       }
+       canvas{
+         top:0;left:0;
+         z-index:-2;
+      position:absolute;
+      width:100vw;
+      height:100vh;
+    }</style>
+    <script type='module'>
+    import {AnalyzerView} from './js/build/analyserView.js';
+    let ctx, gainNode, av;
+    document.querySelectorAll(".samples").forEach(
+      (a) =>
+        (a.onclick = async (e) => {
+          const url = a.href;
+          e.preventDefault();
+          if (!ctx) ctx= new AudioContext();
+          const dv = await fetch(url)
+            .then((resp) => resp.blob())
+            .then((blob) => blob.arrayBuffer())
+            .then((ab) => new DataView(ab))
+            .catch(console.log);
+          if (!dv) return;
+          const audb = ctx.createBuffer(2, dv.buffer.byteLength / 4, 48000);
+          const buffer = audb.getChannelData(0);
+          for (let i = 0; i < audb.length; i++) {
+            buffer[i] = dv.getFloat32(i * 4, true);
+          }
+          const abs = new AudioBufferSourceNode(ctx, { buffer: audb });
+          abs.connect(ctx.destination);
+          abs.starrst();
+        })
+    );
+    const init = () => {
+      ctx = new AudioContext();
+      gainNode = new GainNode(ctx);
+    
+    };</script>`);
 };

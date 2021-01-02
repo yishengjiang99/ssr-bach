@@ -9,7 +9,7 @@ globalThis.worker = worker;
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 stdout("loaded");
 let gainNode, av, canvas;
-const start = async function () {
+const start = async function (url = "/pcm/song.mid") {
     ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
     if (!proc) {
         try {
@@ -27,14 +27,17 @@ const start = async function () {
             gainNode = new GainNode(ctx);
             av = new AnalyserNode(ctx);
             gainNode.connect(av).connect(ctx.destination);
-            const { canvas, start } = AnalyzerView(av);
-            start();
+            const avcanvas = AnalyzerView(av);
+            setTimeout(avcanvas.start, 1000);
             proc.connect(gainNode);
             return { gainNode, ctx };
         }
         catch (e) {
             alert(e.message);
         }
+    }
+    if (url) {
+        worker.postMessage({ url });
     }
 };
 const play = (file = "") => worker.postMessage({ cmd: "play " + file }); ///pcm" + file });
@@ -105,10 +108,8 @@ worker.onmessage = ({ data }) => {
         }
     });
 };
-document.querySelectorAll("a").forEach((a) => {
-    a.onclick = () => {
-        if (a.href !== "") {
-            play(a.href);
-        }
-    };
-});
+window.onhashchange = () => {
+    start().then(() => {
+        worker.postMessage({ url: window.location.hash.substring(1) });
+    });
+};

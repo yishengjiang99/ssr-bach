@@ -46,7 +46,19 @@ export const handlePost = (
     });
   }
 };
-
+export function idUser(req: IncomingMessage, activeSessions): SessionContext {
+  const [parts, query] = parseQuery(req);
+  var cookies = parseCookies(req);
+  const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
+  return (activeSessions[who + ""] = {
+    t: new Date(),
+    ...activeSessions[who + ""],
+    who,
+    parts,
+    query,
+    file: existsSync("midi/" + parts[2]) ? "midi/" + parts[2] : "midi/song.mid",
+  });
+}
 export function parseCookies(request) {
   var list = {},
     rc = request.headers.cookie;
@@ -59,7 +71,6 @@ export function parseCookies(request) {
 }
 export const queryFs = (req: IncomingMessage, res) => {
   if (req.url === "") return false;
-  if (!extname(req.url)) return false;
   const filename = resolve(__dirname, "..", req.url.substring(1));
 
   const mimetypes = {
@@ -70,12 +81,17 @@ export const queryFs = (req: IncomingMessage, res) => {
     mp4: "video/mp4",
     ico: "image/x-icon",
   };
-  if (existsSync(filename) && statSync(filename).isFile())
-    console.log(mimetypes[extname(filename).substring(1)]);
-  res.writeHead(200, {
-    "Content-Type": require("mime-types").lookup(filename),
-  });
-  return createReadStream(filename).pipe(res);
+  if (existsSync(filename)) {
+    if (statSync(filename).isFile()) {
+      res.writeHead(200, {
+        "Content-Type": require("mime-types").lookup(filename),
+        "Access-Control-Allow-Origin": "*",
+      });
+      return createReadStream(filename).pipe(res);
+    } else {
+      res.end(`<html><body><pre>
+      ${readdirSync(filename).join("\n")}</pre></body></html>`);
+    }
+  } else {
+  }
 };
-const midifiles = () => readdirSync("./midi");
-console.log(midifiles());

@@ -1,37 +1,28 @@
-import { convertMidi, convertMidiASAP } from "./load-sort-midi";
+import { convertMidi, convertMidiASAP, msPerBeat } from "./load-sort-midi";
 import { Writable } from "stream";
 import { header } from "grep-wss";
+import { cspawn, sleep } from "./utils";
 
 export const bitmapget = async (
   midifile,
   output: Writable
 ): Promise<Buffer> => {
   const { state, emitter, start } = convertMidiASAP(midifile);
-  //
-  console.log(state);
+
   const url = `js/runtime-${(Math.random() * 33333) >> 3}.png`;
-  const proc = require("child_process").spawn(
-    `ffmpeg`,
-    `-f rawvideo -pixel_format rgba -video_size 88x${
+  const proc = cspawn(
+    `ffmpeg -f rawvideo -pixel_format rgba -video_size 88x${
       Math.ceil(state.duration) * 3
-    } -i pipe:0 -frames:v 1 ${url}`.split(" ")
+    } -i pipe:0 -frames:v 1`
   );
-  proc.stdout.on("error", console.error);
+
+  proc.stdout.on("error", (d) => console.error(d.toString()));
 
   output.write(url);
-  //emitter.on("#tempo", console.log);
   let lastsent = 0;
   const bitmapp = Buffer.alloc(88 * Math.ceil(state.duration) * 3).fill(0);
   emitter.on("note", (e) => {
-    let {
-      midi,
-      instrument,
-      ticks,
-      durationTicks,
-      velocity,
-      noteOffVelocity,
-      trackId,
-    } = e;
+    let { midi, ticks, durationTicks } = e;
     midi = midi - 21;
     const ticks_ = ~~(ticks / 256);
 
@@ -42,7 +33,6 @@ export const bitmapget = async (
 
     for (let inc = Math.ceil(durationTicks / 256); inc > 0; inc--) {
       if (midi * ticks_ * 3 + 88 * 3 * inc > bitmapp.byteLength) {
-        console.log(midi, ticks_, inc);
         continue;
       }
       // console.log(midi * ticks_ * 3 + 88 * 3 + inc * 3);
@@ -51,13 +41,11 @@ export const bitmapget = async (
       bitmapp.writeUInt8(0x99, midi * ticks_ * 3 + 88 * 3 * inc + 2);
     }
   });
+
   start();
 
   return await new Promise((resolve, reject) =>
-    emitter.on("end", () => {
-      console.log(bitmapp);
-      resolve(bitmapp);
-    })
+    emitter.on("end", () => resolve(bitmapp))
   );
 };
 bitmapget("./song.mid", process.stdout);

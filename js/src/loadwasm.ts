@@ -1,14 +1,4 @@
-export type Ptr = number;
-export interface GrepFIFO {
-  HEAP8: Uint8Array;
-  HEAP32: Uint32Array;
-  fifo_init: (ptr: Ptr, size: number) => void;
-  fifo_read: (ptr: Ptr, buf: Uint8Array) => void;
-  fifo_write: (ptr: Ptr, buf: Uint8Array) => void;
-  fifo_size: (fifo: Ptr) => number;
-  fifo: () => Ptr;
-}
-export const wsm = async (): Promise<any> => {
+export const wsm = async (path: string): Promise<any> => {
   // const memory = new WebAssembly.Memory({ initial: 256 });
   // @ts-ignore
   let memory = new WebAssembly.Memory({
@@ -18,14 +8,11 @@ export const wsm = async (): Promise<any> => {
     shared: true,
   });
 
-  const res = await fetch("../fifo.wasm");
+  const res = await fetch("path");
 
   const ab = await res.arrayBuffer();
 
   const { instance } = await WebAssembly.instantiate(new Uint8Array(ab), {
-    module: {
-      fifo: console.log,
-    },
     env: {
       memory: memory,
       table: new WebAssembly.Table({
@@ -39,23 +26,15 @@ export const wsm = async (): Promise<any> => {
       __table_base: 0,
     },
   });
-  const {
-    fifo,
-    fifo_init,
-    fifo_read,
-    fifo_write,
-    fifo_size,
-  } = instance.exports;
+
   const HEAP8 = new Uint8Array(memory.buffer);
   const HEAP32 = new Uint32Array(memory.buffer);
   //@ts-ignore
   return {
     HEAP8,
     HEAP32,
-    fifo,
-    fifo_init,
-    fifo_read,
-    fifo_write,
-    fifo_size,
+    ...instance.exports,
   };
 };
+
+export const fishwasm = wsm("./fish.wasm");
