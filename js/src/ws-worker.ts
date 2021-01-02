@@ -1,7 +1,7 @@
 import { abort } from "process";
 import { Transform } from "stream";
 
-const wss: WebSocket = new WebSocket("ws://localhost:3000?cookie=WHO");
+const wss: WebSocket = new WebSocket("wss://www.grepawk.com?cookie=WHO");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore
@@ -38,6 +38,9 @@ onmessage = (e) => {
     procPort.onmessage = (e) => {
       //@ts-ignore
       postMessage(e.data);
+      if (e.data.stats.buffered > 500) {
+        wss.send("backpressure");
+      }
     };
     let offset = 0;
     queue.push({ from: 0 * 1024 * 1024, to: 1 * 1024 * 1024, url });

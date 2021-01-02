@@ -79,15 +79,7 @@ worker.onmessage = ({ data }) => {
     } else if (data.stats) {
       onStats(data);
     } else if (data.playback) {
-      const { bpm, name, seconds, text } = data.playback;
-
-      if (bpm) {
-        printrx("BPM: " + Math.floor(data.playback.bpm));
-        //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
-      }
-      if (data.playback.meta) {
-        debugger;
-      }
+      onPlayback(data);
     }
   });
 };
@@ -99,7 +91,6 @@ window.onhashchange = () => {
 
 const html_play = " play ";
 const html_pause = "pause";
-ttt();
 function playPauseBtn2(url) {
   const btn: HTMLButtonElement = document.createElement("button"); //#playpause");
   btn.innerHTML = html_play;
@@ -138,15 +129,19 @@ function playPauseBtn2(url) {
   };
   return btn;
 }
-
+debugger;
 fetch("/midi?format=json")
   .then((res) => res.json())
   .then((json) => {
+    debugger;
     const div = cdiv("div");
-    json.map((row) => {
-      div.append(cdiv("span", { textContent: row.name || row.filename }, []));
-      div.append(playPauseBtn2("/pcm/" + row.filename));
-      div.append(cdiv("br"));
+    json.map((name, s) => {
+      div.append(
+        cdiv("li", { innerHTML: name }, [
+          cdiv("span", {}, [name]),
+          playPauseBtn2("/pcm/" + name),
+        ])
+      );
     });
     document.body.append(div);
   })
