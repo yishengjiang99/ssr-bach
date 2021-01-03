@@ -1,7 +1,4 @@
-import { abort } from "process";
-import { Transform } from "stream";
-
-const wss: WebSocket = new WebSocket("wss://www.grepawk.com?cookie=WHO");
+const wss: WebSocket = new WebSocket("%WSHOST%?cookie=WHO");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore
@@ -19,6 +16,7 @@ wss.onopen = () => {
 let controller = new AbortController();
 const queue: { from: number; to: number; url: string }[] = [];
 /* @ts-ignore */
+
 onmessage = (e) => {
   const { data } = e;
   const { cmd, msg, port, url } = data;
@@ -32,22 +30,15 @@ onmessage = (e) => {
     wss.send(cmd);
   }
   if (url && procPort) {
-    if (controller !== null) {
-      controller.abort();
-    }
     procPort.onmessage = (e) => {
-      //@ts-ignore
+      // @ts-ignore
       postMessage(e.data);
-      if (e.data.stats.buffered > 500) {
-        wss.send("backpressure");
-      }
     };
     let offset = 0;
     queue.push({ from: 0 * 1024 * 1024, to: 1 * 1024 * 1024, url });
     offset = offset + 1 * 1024 * 1024;
     const transform = new TransformStream();
     controller = new AbortController();
-
     async function loop(controller) {
       try {
         if (queue.length == 0) return;

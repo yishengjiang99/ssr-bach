@@ -1,12 +1,14 @@
 import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
+
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
 let worker = new Worker("js/build/ws-worker.js", {
   type: "module",
 });
 globalThis.worker = worker;
+
 const { printrx, printlink, stdout } = stdoutPanel(
   document.querySelector("#root")
 );
@@ -44,18 +46,20 @@ const start = async function (url: string = "/pcm/song.mid") {
     worker.postMessage({ url });
   }
 };
-const play = (file: string = "") => worker.postMessage({ cmd: "play " + file }); ///pcm" + file });
-const FF = () => worker.postMessage({ cmd: "FF" });
 const pause = () => worker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn"); //#playpause");
 let paused = true;
 let init = false;
-playPauseBtn.onclick = (e) => {
+function handleBtnClick(e, url: string) {
   e.preventDefault();
+
   if (!init) {
     stdout("[User]: Clicked Start");
     start().then(() => {
-      worker.postMessage({ url: "/pcm/song.mid" });
+      debugger;
+      worker.postMessage({
+        url,
+      });
     });
     init = true;
     playPauseBtn.querySelector("use").setAttribute("href", "#pause");
@@ -70,7 +74,9 @@ playPauseBtn.onclick = (e) => {
   playPauseBtn
     .querySelector("use")
     .setAttribute("href", paused ? "#play" : "#pause");
-};
+}
+
+playPauseBtn.onclick = handleBtnClick;
 const { onStats, onPlayback } = ttt();
 worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
@@ -79,7 +85,15 @@ worker.onmessage = ({ data }) => {
     } else if (data.stats) {
       onStats(data);
     } else if (data.playback) {
-      onPlayback(data);
+      const { bpm, name, seconds, text } = data.playback;
+
+      if (bpm) {
+        printrx("BPM: " + Math.floor(data.playback.bpm));
+        //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
+      }
+      if (data.playback.meta) {
+        debugger;
+      }
     }
   });
 };
@@ -91,57 +105,23 @@ window.onhashchange = () => {
 
 const html_play = " play ";
 const html_pause = "pause";
-function playPauseBtn2(url) {
-  const btn: HTMLButtonElement = document.createElement("button"); //#playpause");
-  btn.innerHTML = html_play;
-  let state = 0;
-  btn.onclick = (e) => {
-    e.preventDefault();
-    switch (state) {
-      case 0: //not playing
-        if (!proc) {
-          //this is a global state, first song played in sesion.
-          //need to init processor
-          stdout("[User]: Clicked Start");
-          start().then(() => {
-            worker.postMessage({ url: url });
-          });
-        } else {
-          worker.postMessage({ url: url });
-        }
-        state = 1;
-        btn.innerHTML = html_play;
-        break;
-      case 1: //playing
-        worker.postMessage({ cmd: "pause" });
-        btn.innerHTML = html_pause;
-        gainNode.gain.linearRampToValueAtTime(0.001, 0.2);
-        state = 2;
-        break;
-      case 2: //playing
-        worker.postMessage({ cmd: "resume" });
-        gainNode.gain.exponentialRampToValueAtTime(1, 0.1);
-        state = 1;
-        btn.innerHTML = html_play;
 
-        break;
-    }
-  };
-  return btn;
-}
-debugger;
 fetch("/midi?format=json")
   .then((res) => res.json())
   .then((json) => {
-    debugger;
     const div = cdiv("div");
+
     json.map((name, s) => {
-      div.append(
-        cdiv("li", { innerHTML: name }, [
-          cdiv("span", {}, [name]),
-          playPauseBtn2("/pcm/" + name),
-        ])
-      );
+      const btn = document.createElement("button");
+      btn.innerHTML = name;
+      btn.dataset.url = "/pcm/" + encodeURI(name);
+      btn.addEventListener("click", (e) =>
+        handleBtnClick(e, "/pcm/" + encodeURI(name))
+      ); // = handleBtnClick();
+      const li = document.createElement("li");
+      li.innerHTML = name;
+      li.append(btn);
+      div.append(li); //document.createElement("li"));
     });
     document.body.append(div);
   })
