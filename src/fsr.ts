@@ -8,9 +8,9 @@ import {
 import { resolve, basename, extname } from "path";
 import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
-import { cspawn } from "./utils";
+import { cspawn, resjson } from "./utils";
 import { SessionContext } from "./httpd";
-
+const dbfsroot = "../dbfs";
 export const parseQuery = (
   req: IncomingMessage
 ): [string[], Map<string, string>] => {
@@ -30,35 +30,18 @@ export const handlePost = (
   res: ServerResponse,
   session: SessionContext
 ) => {
-  if (req.method === "POST") {
-    let parts = (req.url[0] || "").split("/");
-    let i = 0;
+  let parts = (req.url[0] || "").split("/");
+  const path = resolve(dbfsroot, session.who, basename(req.url));
+  mkfolder(path);
 
-    let bss = cspawn("base64 --decode");
-    mkfolder("./midisf/" + parts[0]);
-    const fnm = "./midisf/" + parts.shift() + "/" + parts.shift();
-    bss.stdout.pipe(require("fs").createReadStream(fnm));
-    req.pipe(bss.stdin);
+  req.pipe(require("fs").createReadStream(path));
 
-    req.on("end", () => {
-      res.writeHead(200);
-      return res.end("ty");
-    });
-  }
-};
-export function idUser(req: IncomingMessage, activeSessions): SessionContext {
-  const [parts, query] = parseQuery(req);
-  var cookies = parseCookies(req);
-  const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
-  return (activeSessions[who + ""] = {
-    t: new Date(),
-    ...activeSessions[who + ""],
-    who,
-    parts,
-    query,
-    file: existsSync("midi/" + parts[2]) ? "midi/" + parts[2] : "midi/song.mid",
+  req.on("end", () => {
+    res.writeHead(200);
+    return res.end("ty");
   });
-}
+};
+
 export function parseCookies(request) {
   var list = {},
     rc = request.headers.cookie;
@@ -71,16 +54,9 @@ export function parseCookies(request) {
 }
 export const queryFs = (req: IncomingMessage, res) => {
   if (req.url === "") return false;
-  const filename = resolve(__dirname, "..", req.url.substring(1));
-
-  const mimetypes = {
-    js: "application/javascript",
-    css: "text/css",
-    html: "text/html",
-    pcm: "audio/raw",
-    mp4: "video/mp4",
-    ico: "image/x-icon",
-  };
+  const [parts, query] = parseQuery(req);
+  const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
+  console.log(filename);
   if (existsSync(filename)) {
     if (statSync(filename).isFile()) {
       res.writeHead(200, {
@@ -89,9 +65,15 @@ export const queryFs = (req: IncomingMessage, res) => {
       });
       return createReadStream(filename).pipe(res);
     } else {
-      res.end(`<html><body><pre>
-      ${readdirSync(filename).join("\n")}</pre></body></html>`);
+      if (query["format"] === "json") {
+        resjson(res, readdirSync(filename));
+        res.end();
+      } else {
+        res.end(`<html><body><pre>
+        ${readdirSync(filename).join("\n")}</pre></body></html>`);
+      }
     }
   } else {
+    res.end(404);
   }
 };

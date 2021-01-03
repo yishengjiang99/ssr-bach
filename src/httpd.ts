@@ -11,7 +11,7 @@ import { parseQuery, handlePost, queryFs, parseCookies } from "./fsr";
 import { RemoteControl } from "./ssr-remote-control.types";
 import { IncomingMessage } from "http";
 import { Socket } from "net";
-import { decodeWsMessage } from "grep-wss/dist/decoder.js";
+import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { PassThrough } from "stream";
 
 /*
@@ -51,6 +51,7 @@ function idUser(req: IncomingMessage): SessionContext {
     file: existsSync("midi/" + parts[2]) ? "midi/" + parts[2] : "midi/song.mid",
   });
 }
+const idx = readFileSync("./index.html");
 const style = readFileSync("./style.css");
 const midifiles = readdirSync("./midi");
 const handler = async (req, res) => {
@@ -68,77 +69,8 @@ const handler = async (req, res) => {
           "Content-Type": "text/HTML",
           "set-cookie": "who=" + who,
         });
-        res.end(/* html */ `<!DOCTYPE html>
-<html>
-  <head>
-    <style>
-      ${style}
-    </style>
-  </head>
-  <body>
- 
-      <div id='root' style='display:grid;grid-template-columns:1fr 1fr'>
-    <span>  
-    <button id='btn'>
-      <svg id="playpause" width="100" height="100" viewBox="0 0 500 500">
-      <defs>
-        <path
-          id="play"
-          fill="currentColor"
-          d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"
-        ></path>
-        <path
-          fill="currentColor"
-          d="M144 479H48c-26.5 0-48-21.5-48-48V79c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v352c0 26.5-21.5 48-48 48zm304-48V79c0-26.5-21.5-48-48-48h-96c-26.5 0-48 21.5-48 48v352c0 26.5 21.5 48 48 48h96c26.5 0 48-21.5 48-48z"
-          id="pause"
-        ></path>
-      </defs>
-      <use x="5" y="5" href="#play" fill="currentColor" />
-    </svg>
-    </button></span>
+        res.end(idx);
 
-    <span id="stats" width="50%">
-      <div>
-        <label for="buffered">Downloaded (kb): </label>
-        <progress id="buffered" max="100"></progress>
-        <span></span>
-      </div>
-      <div>
-        <label for="played">Played (kb): </label>
-        <progress id="played" max="100"></progress>
-        <span></span>
-      </div>
-      <div>
-        <label for="inmemory">in memory: </label>
-        <meter id="inmemory" min="0" max="1000"></meter><span></span>
-      </div>
-      <div>
-        <label for="loss">percent loss </label>
-        <meter id="loss" min="0" max="100"></meter><span></span>
-      </div>
-    </span>
-
-    <div id='rx1'></div>
-    <div id='log'></div>
-</div>
-<pre id='stdout'></pre>
-
-  <ul style='display:block;background-color:rgba(0,0,0,0)'>      
-  ${midifiles
-    .map(
-      (item) =>
-        `<li>${item}<a style='cursor:pointer' href='#/pcm/${item}'> read</a></li>`
-    )
-    .join("")}
-</ul>
-<div class='canvas_container'>
-  <canvas></canvas>
-</div>
-  <script type='module' src="./js/build/index.js">  
-  </script>
-  </body>
-</html>
-`);
         break;
       case "js":
         console.log(req.url);
@@ -148,7 +80,8 @@ const handler = async (req, res) => {
           });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
-            .replace("WHO", who);
+            .replace("WHO", who)
+            .replace("%WSHOST%", "ws://localhost:3000/?");
           res.end(str);
         } else if (basename(req.url) === "proc2.js") {
           res.writeHead(200, {
@@ -191,10 +124,9 @@ const handler = async (req, res) => {
           wsRefs[wsRef].write(JSON.stringify(rc.meta));
           wsRefs[wsRef].on("data", (d) => {
             const cmd = d.toString().split("/");
-
             switch (cmd.shift()) {
               case "resume":
-                rc.resume();
+                rc.start();
                 break;
               case "backpressure":
                 pt.write("backpressure");
@@ -202,12 +134,12 @@ const handler = async (req, res) => {
               case "play":
                 const url = basename(cmd[cmd.length - 1]);
                 if (url !== file) {
+                  rc.stop();
+
                   ws.write("new song " + url);
                   let newrc = produce(url, res, pt);
                   newrc.start();
                   rc = newrc;
-                  //todo: crossfade this.
-                  rc.stop();
                 } else {
                   rc.resume();
                 }
@@ -215,7 +147,7 @@ const handler = async (req, res) => {
                 break;
               case "stop":
               case "pause":
-                rc.stop();
+                rc.pause();
                 ws.write("paused");
                 break;
               case "morebass":
@@ -314,10 +246,53 @@ process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
 });
 process.stdin.on("data", (d) => {
-  const cmd = d.toString().trim();
-  cmd === "r" &&
-    process.stdout.write(Buffer.from(JSON.stringify(activeSessions)));
-  wsRefs[cmd] && wsRefs[cmd].write("HI");
-
-  cmd === "p" && Object.values(activeSessions)[0].controller.pause();
+  const cmd = d.toString().trim().split(" ");
+  console.log(
+    activeSessions.forEach((ses) => {
+      const { rc, who, query, parts } = ses;
+      console.log(rc);
+      console.log(who, query, parts);
+    })
+  );
+  if (cmd[0] === "g") {
+    Object.values(activeSessions).map((ses) => {
+      const { rc, who, query, parts } = ses;
+      console.log(rc);
+      console.log(who, query, parts);
+    });
+  }
+  let proxyUser;
+  if (proxyUser !== null) {
+    switch (cmd.shift()) {
+      case "r":
+      case "resume":
+        proxyUser.rc.resume();
+        break;
+      case "backpressure":
+        proxyUser.rt.write("backpressure");
+        break;
+      case "p":
+      case "play":
+        const url = basename(cmd[cmd.length - 1]);
+        if (url !== proxyUser.rt.filename) {
+          proxyUser.rc.stop();
+        } else {
+          proxyUser.rc.resume();
+        }
+        (wsRefs[cmd[0]] && wsRefs[cmd.join("")]).write("play");
+        break;
+      case "stop":
+      case "pause":
+        proxyUser.rc.pause();
+        proxyUser.rc.ws.write("paused");
+        break;
+      case "morebass":
+        break;
+    }
+  }
+  if (activeSessions[cmd.join("")]) {
+    let proxyUser = activeSessions[cmd.join("")];
+    console.log("sudo for ", proxyUser);
+  }
+  wsRefs[cmd[0]] && wsRefs[cmd.join("")].write("HI");
 });

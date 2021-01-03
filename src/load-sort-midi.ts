@@ -30,7 +30,11 @@ export function convertMidi(
     tempo: tempos[0],
     timeSignature: header.timeSignatures[0],
   };
-  emitter.emit("#tempo", state.tempo.bpm, state.timeSignature.timeSignature);
+  emitter.emit(
+    "#tempo",
+    state.tempo.bpm,
+    state.timeSignature?.timeSignature || [4, 4]
+  );
 
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);
   const setState = (update: { [key: string]: string | boolean | number }) => {
@@ -40,8 +44,8 @@ export function convertMidi(
     pause: () => setState({ paused: true }),
     resume: () => {
       console.log("resume");
-      emitter.emit("resume");
       setState({ paused: false });
+      emitter.emit("resume");
     },
     stop: () => setState({ stop: true }),
     ff: () => setState({ time: state.time + 15 }),
