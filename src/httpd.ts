@@ -50,36 +50,29 @@ function idUser(req: IncomingMessage): SessionContext {
     who,
     parts,
     query,
-    file: existsSync("midi/" + parts[2]) ? "midi/" + parts[2] : "midi/song.mid",
   });
 }
 const idx = readFileSync("./index.html");
 
 const handler = async (req: IncomingMessage, res) => {
-  const session = idUser(req);
-  const { who, parts, wsRef, rc, file } = session;
-  if (parts[0] === "bach") parts.shift();
-
-  if (req.method === "POST") return handlePost(req, res, session);
-
   try {
+    const session = idUser(req);
+    const { who, parts, wsRef, rc } = session;
+    if (parts[0] === "bach") parts.shift();
+
+    if (req.method === "POST") return handlePost(req, res, session);
+    const [_, p1, p2, p3] = parts;
+    const file = existsSync("midi/" + decodeURIComponent(parts[2]))
+      ? "midi/" + decodeURIComponent(parts[2])
+      : "midi/song.mid";
     switch (parts[1]) {
       case "":
         res.writeHead(200, {
           "Content-Type": "text/HTML",
           "set-cookie": "who=" + who,
         });
-
         res.write(idx.toString().split("</body>")[0]);
         res.end("<body></html>");
-        break;
-      case "samples":
-        res.writeHead(200, {
-          "Content-Type": "text/HTML",
-          "set-cookie": "who=" + who,
-        });
-
-        notelist(res);
         break;
 
       case "js":
@@ -182,30 +175,32 @@ const handler = async (req: IncomingMessage, res) => {
         res.write("</pre></body></html>");
         break;
 
-      case "mp3":
-        let p2 = parts.shift(),
-          p3 = parts.shift();
-        let ffc;
-        if (p2.endsWith(".mp3")) {
-          let t = parseInt(p3.replace(".mp3", "")) * 123;
-          ffc = "./mp3/FatBoy_" + p2 + ".js";
+      case "samples":
+        const instment = parts[2];
+        const note = parts[3];
+        console.log(parts);
+        if (
+          parts[2] &&
+          parts[3] &&
+          existsSync("./midisf/" + instment + "/" + note + ".pcm")
+        ) {
+          res.writeHead(200, { "Content-Type": "audio/mp3" });
           const proc = spawn(
             "ffmpeg",
-            `-f mp3 -i ${ffc} -ss ${t} -d 2 -f mp3 -`.split(" ")
+            `-f f32le -ar 48000 -ac 1 -i ${
+              "./midisf/" + instment + "/" + note + ".pcm"
+            } -f mp3 -`.split(" ")
           );
-
-          proc.stdout.on("error", (d) => console.error(d.toString()));
+          proc.on("error", (d) => console.error(d.toString()));
           proc.stdout.pipe(res);
-        } else if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) {
-          res.writeHead(404);
-        } else ffc = "./midisf/" + p2 + "/" + p3 + ".pcm";
+        } else {
+          res.writeHead(200, {
+            "Content-Type": "text/HTML",
+            "set-cookie": "who=" + who,
+          });
 
-        res.writeHead(200, { "Content-Type": "audio/mp3" });
-
-        spawn(
-          "ffmpeg",
-          `-f f32le -ar 48000 -ac 1 -i ${ffc} -af volume=0.5 -f mp3 -`.split(" ")
-        ).stdout.pipe(res);
+          notelist(res);
+        }
 
         break;
       case "notes":

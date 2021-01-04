@@ -71,9 +71,8 @@ function handleBtnClick(e, url: string) {
     e.target.innerHTML = html_pause;
   }
   paused = !paused;
-  playPauseBtn.querySelector("use").setAttribute("href", paused ? "#play" : "#pause");
 }
-
+const menu = document.querySelector("#menu");
 playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowplaying);
 const { onStats, onPlayback } = ttt();
 worker.onmessage = ({ data }) => {
@@ -83,12 +82,14 @@ worker.onmessage = ({ data }) => {
     } else if (data.stats) {
       onStats(data);
     } else if (data.playback) {
+      menu.classList.add("playing");
       const { bpm, name, seconds, text } = data.playback;
 
       if (bpm) {
         printrx("BPM: " + Math.floor(data.playback.bpm));
         //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
       }
+      onPlayback(data);
       if (data.playback.meta) {
         debugger;
       }
@@ -119,7 +120,7 @@ fetch("/midi?format=json")
       li.append(btn);
       div.append(li); //document.createElement("li"));
     });
-    document.body.append(div);
+    menu.append(div);
   })
   .catch((e) => {
     alert(e.message);

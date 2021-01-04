@@ -1,6 +1,7 @@
 import { Header, Midi } from "@tonejs/midi";
 import { notEqual } from "assert";
 import { EventEmitter } from "events";
+import { installOnServerIfNeeded } from "./installone";
 import {
   Filename,
   RemoteControl,
@@ -12,14 +13,12 @@ import {
 } from "./ssr-remote-control.types";
 import { sleep, std_inst_names } from "./utils";
 
-export function convertMidi(
-  source: MidiFile,
-  cb?: CallbackFunction
-): RemoteControl {
+export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteControl {
   const emitter = new EventEmitter();
   const { duration, durationTicks, tracks, header } = new Midi(
     require("fs").readFileSync(source)
   );
+
   const tempos = JSON.parse(JSON.stringify(header.tempos));
   const state: ControllerState = {
     paused: true,
@@ -30,10 +29,7 @@ export function convertMidi(
     tempo: tempos[0],
     timeSignature: header.timeSignatures[0],
   };
-  emitter.emit(
-    "#tempo",
-    state.tempo.bpm
-  );
+  emitter.emit("#tempo", state.tempo.bpm);
 
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);
   const setState = (update: { [key: string]: string | boolean | number }) => {
@@ -138,9 +134,5 @@ export const msPerBeat = (bpm) => 60000 / bpm;
 export const secondsPerTick = (bpm) => 60 / bpm / 256;
 
 function format(str) {
-  return str
-    .replace(" ", "_")
-    .replace(" ", "_")
-    .replace(" ", "_")
-    .replace(" ", "_");
+  return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 }

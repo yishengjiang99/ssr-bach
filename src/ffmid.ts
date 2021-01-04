@@ -14,7 +14,7 @@ async function run(midfile) {
     rs.on("data", (d) => wrcsv.write(d));
     rs.on("end", () => {
       console.log("start on csv");
-      installNotesFromCsv(output, "FatBoy");
+      installNotesFromCsv(wrcsv.path, "FatBoy");
       resolve();
     });
   });

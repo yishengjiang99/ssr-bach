@@ -19,15 +19,6 @@ const format = (str) =>
 const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
 "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
 
-const open = Buffer.from(":{},");
-function dl(soundfont, setname) {
-  request(sfUrl(soundfont, setname), (res) => {
-    res.on("data", (d) => {
-      while (d.shift() !== 0) {}
-    });
-  });
-}
-
 export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
   for (const name of execSync(
     "cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq|grep -v ^$"
@@ -58,16 +49,8 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
         .split(/\s+/)[0]
     );
     const bytesPerNote = ~~(byteswrote / 88 / 4) * 4;
-    const uniqnotes = execSync(
-      `grep ${fontname} ${csvfile} |grep -v '#'|cut -f2 -d','|sort |uniq`
-    )
-      .toString()
-      .trim()
-      .split("\n");
-    for (const midi of uniqnotes) {
-      if (!midi) continue;
-      mkfolder(`midisf/${fontname}`);
-      const index = midi - 21;
+
+    for (let index = 0; index < 88; index++) {
       const pcmname = `midisf/${fontname}/${index}.pcm`;
       try {
         if (!existsSync(pcmname)) {
@@ -83,38 +66,3 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
     }
   }
 };
-// installNotesFromCsv("/home/AzureUser/ssr-bach/csv/serenade_k361_3rd-mid.csv");
-
-// if (process.argv[2]) {
-//   const csvfile = process.argv[2] || "";
-
-//   const setname = process.argv[3] || "FatBoy";
-//   installNotesFromCsv(csvfile, setname);
-// }
-// for (const localname of readdirSync("./mp3")) {
-//   const byteswrote = parseInt(
-//     execSync("wc -c mp3/" + localname)
-//       .toString()
-//       .trim()
-//       .split(/\s+/)[0]
-//   );
-//   const bytesPerNote = ~~(byteswrote / 88 / 4) * 4;
-//   const fontname = localname.replace("FatBoy_", "").replace(".js", "");
-//   for (let index = 0; index < 88; index++) {
-//     //  mkfolder(`midisf/${fontname}`);
-
-//     const pcmname = `midisf/${fontname}/${index}.pcm`;
-//     console.log(pcmname);
-//     try {
-//       console.log(
-//         `dd if=mp3/${localname} bs=${bytesPerNote} skip=${index} count=1 of=pipe:1|ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
-//       );
-//       execSync(
-//         `dd if=mp3/${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
-//       );
-//     } catch (e) {
-//       console.log(e);
-//     }
-//   }
-//   execSync(`mv mp3/${localname} done`);
-// }

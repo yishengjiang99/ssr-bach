@@ -1,3 +1,5 @@
+import { execSync } from "child_process";
+
 const { expect } = require("chai");
 const { exec } = require("child_process");
 const { readdirSync } = require("fs");

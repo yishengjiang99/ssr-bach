@@ -1,31 +1,37 @@
-onmessage = (soundfonts) =>
-  fetch(
-    "https://gleitz.github.io/midi-js-soundfonts/MusyngKite/" +
-      soundfonts +
-      "-mp3.js"
-  )
-    .then((res) => res.text())
-    .then(async (t) => {
-      let midi = 0;
-      let g = t.substring(skip).split('",');
-      for await (const _ of (async function* () {
-        while (g.length) {
-          let b = g.shift().split("data:audio/mp3;base64,")[1];
+import { spawn } from "child_process";
+import { Readable, Writable } from "stream";
+export const ffp = () => {
+  const { stdin, stderr, stdout } = spawn("ffplay", [
+    "-i",
+    "pipe:0",
+    "-ac",
+    "2",
+    "-f",
+    "f32le",
+    "-ar",
+    "48000",
+  ]);
+  stderr.pipe(process.stderr);
+  stdout.pipe(process.stderr);
+  return stdin;
+};
+export const mp3c = (): [Writable, Readable, Readable] => {
+  const { stdin, stderr, stdout } = spawn("ffmpeg", [
+    "-loglevel",
+    "debug",
+    "-i",
+    "pipe:0",
+    "-ac",
+    "2",
+    "-f",
+    "f32le",
+    "-ar",
+    "48000",
+    "-acodec",
+    "copy",
+    "-",
+  ]);
+  stderr.pipe(process.stderr);
 
-          await fetch(
-            "https://www.grepawk.com/stdin/" +
-              soundfonts +
-              "/" +
-              midi++ +
-              ".mp3",
-            {
-              method: "POST",
-              body: b,
-            }
-          );
-        }
-      })());
-    });
-const skip = `if (typeof(MIDI) === 'undefined') var MIDI = {};
-if (typeof(MIDI.Soundfont) === 'undefined') MIDI.Soundfont = {};
-MIDI.Soundfont.clarinet = `.length;
+  return [stdin, stdout, stderr];
+};

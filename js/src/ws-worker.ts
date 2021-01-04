@@ -62,8 +62,6 @@ onmessage = (e) => {
     }
     loop(controller);
     // @ts-ignore
-    procPort.postMessage({ url, readable: transform.readable }, [
-      transform.readable,
-    ]);
+    procPort.postMessage({ url, readable: transform.readable }, [transform.readable]);
   }
 };

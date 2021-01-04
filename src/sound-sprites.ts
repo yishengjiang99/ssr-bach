@@ -4,7 +4,7 @@ import { convertMidi } from "./load-sort-midi";
 import { openSync, readSync, closeSync } from "fs";
 import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
-import { sleep } from "./utils";
+import { cspawn, sleep } from "./utils";
 import { Readable } from "stream";
 
 export const produce = (
@@ -88,4 +88,4 @@ export const produce = (
 
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
-// produce("./midi/song.mid", process.stdout);
+// produce("./midi/all_hell_billie.mid", cspawn("nc -l -p 8000").stdin);

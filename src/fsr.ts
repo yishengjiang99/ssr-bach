@@ -12,9 +12,7 @@ import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 import { cspawn, resjson } from "./utils";
 import { SessionContext } from "./httpd";
 const dbfsroot = "../dbfs";
-export const parseQuery = (
-  req: IncomingMessage
-): [string[], Map<string, string>] => {
+export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] => {
   const meparts = req.url && req.url.split("?");
   const parts = meparts[0].split("/");
   const query = (meparts[1] || "").split("&").reduce((queries, p) => {
@@ -74,7 +72,7 @@ export const queryFs = (req: IncomingMessage, res) => {
         ${readdirSync(filename).join("\n")}</pre></body></html>`);
       }
     }
-  } else {
-    res.end(readFileSync("index.html"));
+    return true;
   }
+  return false;
 };
