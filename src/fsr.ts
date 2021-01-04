@@ -4,6 +4,7 @@ import {
   readdirSync,
   createReadStream,
   mkdirSync,
+  readFileSync,
 } from "fs";
 import { resolve, basename, extname } from "path";
 import { lookup } from "mime-types";
@@ -14,7 +15,7 @@ const dbfsroot = "../dbfs";
 export const parseQuery = (
   req: IncomingMessage
 ): [string[], Map<string, string>] => {
-  const meparts = req.url.split("?");
+  const meparts = req.url && req.url.split("?");
   const parts = meparts[0].split("/");
   const query = (meparts[1] || "").split("&").reduce((queries, p) => {
     const [k, v] = p.split("=");
@@ -74,6 +75,6 @@ export const queryFs = (req: IncomingMessage, res) => {
       }
     }
   } else {
-    res.end(404);
+    res.end(readFileSync("index.html"));
   }
 };

@@ -32,8 +32,7 @@ export function convertMidi(
   };
   emitter.emit(
     "#tempo",
-    state.tempo.bpm,
-    state.timeSignature?.timeSignature || [4, 4]
+    state.tempo.bpm
   );
 
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);

@@ -9,11 +9,9 @@ let worker = new Worker("js/build/ws-worker.js", {
 });
 globalThis.worker = worker;
 
-const { printrx, printlink, stdout } = stdoutPanel(
-  document.querySelector("#root")
-);
+const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 stdout("loaded");
-
+let nowplaying = "";
 let gainNode, av, canvas;
 const start = async function (url: string = "/pcm/song.mid") {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
@@ -56,27 +54,27 @@ function handleBtnClick(e, url: string) {
   if (!init) {
     stdout("[User]: Clicked Start");
     start().then(() => {
-      debugger;
       worker.postMessage({
         url,
       });
     });
     init = true;
     playPauseBtn.querySelector("use").setAttribute("href", "#pause");
+    e.target.innerHTML = html_pause;
   } else if (init && !paused) {
     pause();
     playPauseBtn.querySelector("use").setAttribute("href", "#play");
+    e.target.innerHTML = html_play;
   } else {
     worker.postMessage({ cmd: "resume" });
     playPauseBtn.querySelector("use").setAttribute("href", "#pause");
+    e.target.innerHTML = html_pause;
   }
   paused = !paused;
-  playPauseBtn
-    .querySelector("use")
-    .setAttribute("href", paused ? "#play" : "#pause");
+  playPauseBtn.querySelector("use").setAttribute("href", paused ? "#play" : "#pause");
 }
 
-playPauseBtn.onclick = handleBtnClick;
+playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowplaying);
 const { onStats, onPlayback } = ttt();
 worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
@@ -113,11 +111,9 @@ fetch("/midi?format=json")
 
     json.map((name, s) => {
       const btn = document.createElement("button");
-      btn.innerHTML = name;
+      btn.innerHTML = html_play;
       btn.dataset.url = "/pcm/" + encodeURI(name);
-      btn.addEventListener("click", (e) =>
-        handleBtnClick(e, "/pcm/" + encodeURI(name))
-      ); // = handleBtnClick();
+      btn.addEventListener("click", (e) => handleBtnClick(e, "/pcm/" + encodeURI(name))); // = handleBtnClick();
       const li = document.createElement("li");
       li.innerHTML = name;
       li.append(btn);

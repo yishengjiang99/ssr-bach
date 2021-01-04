@@ -1,4 +1,4 @@
-const wss: WebSocket = new WebSocket("%WSHOST%?cookie=WHO");
+const wss: WebSocket = new WebSocket("%WSHOST%");
 let procPort: MessagePort;
 wss.onopen = () => {
   //@ts-ignore

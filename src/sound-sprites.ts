@@ -2,7 +2,7 @@ import { Writable } from "stream";
 import { spawn } from "child_process";
 import { convertMidi } from "./load-sort-midi";
 import { openSync, readSync, closeSync } from "fs";
-import { SSRContext, PulseSource } from "ssr-cxt";
+import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { Readable } from "stream";
@@ -34,8 +34,9 @@ export const produce = (
 
       notes.map((note, i) => {
         let velocityshift = 0; //note.velocity * 8;
+        const fadeoutTime = note.velocity / 1000;
         const bytelength =
-          spriteBytePeSecond * Math.max(note.durationTime, 0.25);
+          spriteBytePeSecond * Math.max(note.durationTime + fadeoutTime, 0.25);
         const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
 
         const fd = openSync(file, "r");
@@ -48,6 +49,12 @@ export const produce = (
         closeSync(fd);
         new PulseSource(ctx, {
           buffer: ob,
+          envelope: new Envelope(ctx.sampleRate, [
+            0.1 / note.velocity,
+            note.durationTime,
+            0.1,
+            note.durationTime / 3,
+          ]),
         });
       });
 

@@ -13,6 +13,7 @@ import { IncomingMessage } from "http";
 import { Socket } from "net";
 import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { PassThrough } from "stream";
+import { notelist } from "./filelist";
 
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -38,6 +39,7 @@ const activeSessions = new Map<string, SessionContext>();
 const wsRefs = new Map<WebSocketRefStr, WsSocket>();
 
 function idUser(req: IncomingMessage): SessionContext {
+  //not actual session. place holder for while server under 50 ppl.
   const [parts, query] = parseQuery(req);
   var cookies = parseCookies(req);
   console.log(cookies);
@@ -52,9 +54,8 @@ function idUser(req: IncomingMessage): SessionContext {
   });
 }
 const idx = readFileSync("./index.html");
-const style = readFileSync("./style.css");
-const midifiles = readdirSync("./midi");
-const handler = async (req, res) => {
+
+const handler = async (req: IncomingMessage, res) => {
   const session = idUser(req);
   const { who, parts, wsRef, rc, file } = session;
   if (parts[0] === "bach") parts.shift();
@@ -64,14 +65,23 @@ const handler = async (req, res) => {
   try {
     switch (parts[1]) {
       case "":
+        res.writeHead(200, {
+          "Content-Type": "text/HTML",
+          "set-cookie": "who=" + who,
+        });
+
+        res.write(idx.toString().split("</body>")[0]);
+        res.end("<body></html>");
+        break;
       case "samples":
         res.writeHead(200, {
           "Content-Type": "text/HTML",
           "set-cookie": "who=" + who,
         });
-        res.end(idx);
 
+        notelist(res);
         break;
+
       case "js":
         console.log(req.url);
         if (basename(req.url) === "ws-worker.js") {
@@ -80,8 +90,7 @@ const handler = async (req, res) => {
           });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
-            .replace("WHO", who)
-            .replace("%WSHOST%", "ws://localhost:3000/?");
+            .replace("%WSHOST%", "wss://www.grepawk.com/?cookie=" + who);
           res.end(str);
         } else if (basename(req.url) === "proc2.js") {
           res.writeHead(200, {
@@ -92,9 +101,7 @@ const handler = async (req, res) => {
           res.writeHead(200, {
             "Content-Type": "application/javascript",
           });
-          res.end(
-            readFileSync(resolve(__dirname, "../js/build/" + basename(req.url)))
-          );
+          res.end(readFileSync(resolve(__dirname, "../js/build/" + basename(req.url))));
         }
         break;
 
@@ -162,6 +169,9 @@ const handler = async (req, res) => {
           });
         }
         break;
+      case "rfc":
+        require("./grep-rfc").rfcGet(req, res, session);
+        break;
       case "csv":
         res.writeHead(200, {
           "Content-Type": "plain/text",
@@ -171,11 +181,12 @@ const handler = async (req, res) => {
         readAsCSV(file, false).pipe(res);
         res.write("</pre></body></html>");
         break;
+
       case "mp3":
         let p2 = parts.shift(),
           p3 = parts.shift();
         let ffc;
-        if (parts.shift().endsWith(".mp3")) {
+        if (p2.endsWith(".mp3")) {
           let t = parseInt(p3.replace(".mp3", "")) * 123;
           ffc = "./mp3/FatBoy_" + p2 + ".js";
           const proc = spawn(
@@ -193,15 +204,12 @@ const handler = async (req, res) => {
 
         spawn(
           "ffmpeg",
-          `-f f32le -ar 48000 -ac 1 -i ${ffc} -af volume=0.5 -f mp3 -`.split(
-            " "
-          )
+          `-f f32le -ar 48000 -ac 1 -i ${ffc} -af volume=0.5 -f mp3 -`.split(" ")
         ).stdout.pipe(res);
 
         break;
       case "notes":
-        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm"))
-          res.writeHead(404);
+        if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) res.writeHead(404);
         res.writeHead(200, { "Content-Type": "audio/raw" });
         const filename = "./midisf/" + p2 + "/" + p3 + ".pcm";
         spawn(
@@ -239,9 +247,9 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
   });
 };
 
-const server = require("http").createServer(handler);
+const server = createServer(httpsTLS, handler);
 server.on("upgrade", wshand);
-server.listen(3000);
+server.listen(443); //3000);
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
 });

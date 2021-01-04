@@ -20,8 +20,19 @@ async function run(midfile) {
   });
 }
 
-run("./song.mid")
-  .then((output) => {
-    installNotesFromCsv(output, "FatBoy");
-  })
-  .catch(console.log); //.emitter.on("note", console.log);
+// let filename;
+// process.argv.shift();
+// while ((filename = process.argv.shift())) {
+//   run(filename)
+//     .then((output) => {
+//       installNotesFromCsv(output, "FatBoy");
+//     })
+//     .catch(console.log); //.emitter.on("note", console.log);
+// }
+for (const f of require("fs").readdirSync("midi")) {
+  try {
+    run("midi/" + f);
+  } catch (e) {
+    require("fs").mv("midi/" + f, "junk");
+  }
+}

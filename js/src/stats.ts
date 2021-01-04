@@ -25,7 +25,7 @@ export const ttt = function () {
     spans[0].innerHTML = "" + buffM.value;
 
     spans[1].innerHTML = "" + playedM.value;
-    spans[2].innerHTML = "" + buffM.value;
+    spans[2].innerHTML = "" + inmem.value;
     spans[3].innerHTML = "" + loss.value;
   };
   const onPlayback = (data) => {
