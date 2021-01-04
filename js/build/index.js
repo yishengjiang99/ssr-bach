@@ -1,5 +1,6 @@
 import { AnalyzerView } from "./analyserView.js";
-import { stdoutPanel } from "./misc-ui.js";
+import { stdoutPanel, cdiv } from "./misc-ui.js";
+import { ttt } from "./stats.js";
 let ctx;
 let proc;
 let worker = new Worker("js/build/ws-worker.js", {
@@ -22,7 +23,7 @@ const start = async function (url = "/pcm/song.mid") {
                     resolve();
                 };
             });
-            document.querySelector("ul").style.display = "block";
+            // document.querySelector("ul").style.display = "block";
             worker.postMessage({ port: proc.port }, [proc.port]);
             gainNode = new GainNode(ctx);
             av = new AnalyserNode(ctx);
@@ -40,18 +41,19 @@ const start = async function (url = "/pcm/song.mid") {
         worker.postMessage({ url });
     }
 };
-const play = (file = "") => worker.postMessage({ cmd: "play " + file }); ///pcm" + file });
-const FF = () => worker.postMessage({ cmd: "FF" });
 const pause = () => worker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector("button#btn"); //#playpause");
 let paused = true;
 let init = false;
-playPauseBtn.onclick = (e) => {
+function handleBtnClick(e, url) {
     e.preventDefault();
     if (!init) {
         stdout("[User]: Clicked Start");
         start().then(() => {
-            worker.postMessage({ url: "/pcm/song.mid" });
+            debugger;
+            worker.postMessage({
+                url,
+            });
         });
         init = true;
         playPauseBtn.querySelector("use").setAttribute("href", "#pause");
@@ -68,36 +70,19 @@ playPauseBtn.onclick = (e) => {
     playPauseBtn
         .querySelector("use")
         .setAttribute("href", paused ? "#play" : "#pause");
-};
-const buffM = document.querySelector("progress#buffered");
-buffM.value = 0;
-const playedM = document.querySelector("progress#played");
-playedM.value = 0;
-const loss = document.querySelector("meter#loss");
-const inmem = document.querySelector("meter#inmemory");
-if (window.BroadcastChannel) {
-    globalThis.rfc = new BroadcastChannel("rfc");
-    globalThis.rfc.onmessage = ({ data }) => {
-        worker.postMessage(data);
-    };
 }
+playPauseBtn.onclick = handleBtnClick;
+const { onStats, onPlayback } = ttt();
 worker.onmessage = ({ data }) => {
     //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
     requestAnimationFrame(() => {
         if (data.msg) {
         }
         else if (data.stats) {
-            buffM.value = data.stats.downloaded;
-            playedM.value = data.stats.downloaded - data.stats.buffered;
-            loss.value = data.stats.lossPercent;
-            inmem.value = data.stats.buffered;
+            onStats(data);
         }
         else if (data.playback) {
             const { bpm, name, seconds, text } = data.playback;
-            if (seconds) {
-                buffM.setAttribute("max", `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2));
-                playedM.setAttribute("max", `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2));
-            }
             if (bpm) {
                 printrx("BPM: " + Math.floor(data.playback.bpm));
                 //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
@@ -113,3 +98,24 @@ window.onhashchange = () => {
         worker.postMessage({ url: window.location.hash.substring(1) });
     });
 };
+const html_play = " play ";
+const html_pause = "pause";
+fetch("/midi?format=json")
+    .then((res) => res.json())
+    .then((json) => {
+    const div = cdiv("div");
+    json.map((name, s) => {
+        const btn = document.createElement("button");
+        btn.innerHTML = name;
+        btn.dataset.url = "/pcm/" + encodeURI(name);
+        btn.addEventListener("click", (e) => handleBtnClick(e, "/pcm/" + encodeURI(name))); // = handleBtnClick();
+        const li = document.createElement("li");
+        li.innerHTML = name;
+        li.append(btn);
+        div.append(li); //document.createElement("li"));
+    });
+    document.body.append(div);
+})
+    .catch((e) => {
+    alert(e.message);
+});

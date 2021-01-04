@@ -1,40 +1,74 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.4.5/pixi.min.js"
-      integrity="sha512-P8gDaMAlo6/WKF67KsF0VdiwGZygvnWi55J42E8mLgD8FGgJRw6wCaC/QlRAH3BlRodzF362lde42KkqoEBeyg=="
-      crossorigin="anonymous"
-    ></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100&display=swap');
+</style>
     <meta charset="utf-8" />
     <title>Hello World</title>
-    <style>
-      * {
-        padding: 0;
-        margin: 0;
-      }
-    </style>
-  </head>
+<link href='style.css' rel='stylesheet' />
+    <body>
+    <nav class="crumbs">
+    <ol>
+        <li class="crumb"><a href="#">midi</a></li>
+        <li class="crumb"><a href="#">sound fonts</a></li>
+        <li class="crumb">Jump Bike 3000</li>
+    </ol>
+</nav>
+      <div id="root" style="display: grid; grid-template-columns: 1fr 1fr">
+    <a href='/#pcm/file.pcm'>fuke</a>
+       <span>
+          <button id="btn">
+            <svg id="playpause" width="100" height="100" viewBox="0 0 500 500">
+              <defs>
+                <path
+                  id="play"
+                  fill="currentColor"
+                  d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"
+                ></path>
+                <path
+                  fill="currentColor"
+                  d="M144 479H48c-26.5 0-48-21.5-48-48V79c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v352c0 26.5-21.5 48-48 48zm304-48V79c0-26.5-21.5-48-48-48h-96c-26.5 0-48 21.5-48 48v352c0 26.5 21.5 48 48 48h96c26.5 0 48-21.5 48-48z"
+                  id="pause"
+                ></path>
+              </defs>
+              <use x="5" y="5" href="#play" fill="currentColor" />
+            </svg></button
+        ></span>
 
-  <body>
-    <script async type="text/javascript">
-      //Create a Pixi Application
+        <span id="stats" width="50%">
+          <div>
+            <label for="buffered">Downloaded (kb): </label>
+            <progress id="buffered" max="100"></progress>
+            <span></span>
+          </div>
+          <div>
+            <label for="played">Played (kb): </label>
+            <progress id="played" max="100"></progress>
+            <span></span>
+          </div>
+          <div>
+            <label for="inmemory">in memory: </label>
+            <meter id="inmemory" min="0" max="1000"></meter><span></span>
+          </div>
+          <div>
+            <label for="loss">percent loss </label>
+            <meter id="loss" min="0" max="100"></meter><span></span>
+          </div>
+        </span>
 
-      const evt = new EventSource("https://www.grepawk.com/bach/rt");
-      evt.onopen = () => {
-        evt.addEventListener("time", (d) => {
-          console.log(d);
-        });
-      };
-      let app = new PIXI.Application({ width: 256, height: 256 });
-      app.renderer.autoResize = true;
-      app.renderer.resize(512, 512);
-      app.renderer.view.style.position = "absolute";
-      app.renderer.view.style.display = "block";
-      app.renderer.autoResize = true;
-      app.renderer.resize(window.innerWidth, window.innerHeight);
-      //Add the canvas that Pixi automatically created for you to the HTML document
-      document.body.appendChild(app.view);
-    </script>
-  </body>
+        <div id="rx1"></div>
+      
+      </div>
+
+
+<aside id=menu>
+</aside>
+
+      <div class="canvas_container">
+        <canvas></canvas>
+      </div>
+      <script type="module" src="./js/build/index.js"></script>
+    </body>
+  </html>
 </html>
