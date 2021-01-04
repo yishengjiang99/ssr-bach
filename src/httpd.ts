@@ -81,7 +81,7 @@ const handler = async (req, res) => {
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
             .replace("WHO", who)
-            .replace("%WSHOST%", "ws://localhost:3000/?");
+            .replace("%WSHOST%", "ws://localhost:443/?");
           res.end(str);
         } else if (basename(req.url) === "proc2.js") {
           res.writeHead(200, {
@@ -239,9 +239,9 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
   });
 };
 
-const server = require("http").createServer(handler);
+const server = createServer(httpsTLS, handler);
 server.on("upgrade", wshand);
-server.listen(3000);
+server.listen(443);
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
 });
