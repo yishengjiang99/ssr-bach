@@ -13,7 +13,10 @@ import { cspawn, resjson } from "./utils";
 import { SessionContext } from "./httpd";
 const dbfsroot = "../dbfs";
 export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] => {
-  const meparts = req.url && req.url.split("?");
+  return parseUrl(req.url);
+};
+export const parseUrl = (url: string): [string[], Map<string, string>] => {
+  const meparts = url.split("?");
   const parts = meparts[0].split("/");
   const query = (meparts[1] || "").split("&").reduce((queries, p) => {
     const [k, v] = p.split("=");

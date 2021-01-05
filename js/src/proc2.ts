@@ -19,12 +19,19 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.started = false;
     this.abortSignal = false;
     this.port.postMessage({ msg: "initialized" });
-    this.port.onmessage = ({ data: { readable, url } }) => {
+    this.port.onmessage = ({ data: { readable, url, cmd } }) => {
       if (url) {
         this.buffers = [];
         this.started = false;
         this.readqueue = [];
         if (this.reading) this.abortSignal = true;
+      }
+      if (cmd) {
+        if (cmd === "pause") {
+          this.started = false;
+        } else if (cmd === "resume") {
+          this.started = true;
+        }
       }
       this.readqueue.push(readable);
       if (!this.reading) readloop();
@@ -46,7 +53,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               value = value.slice(chunk);
               that.total++;
 
-              if (that.started === false && that.buffers.length > 43) {
+              if (that.started === false && that.buffers.length > 13) {
                 that.started = true;
               }
             }

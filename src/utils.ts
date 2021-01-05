@@ -1,8 +1,7 @@
 import { Midi } from "@tonejs/midi";
 import { spawn } from "child_process";
 import { existsSync, readFileSync } from "fs";
-export const change_ext = (file, ext) =>
-  file.slice(0, file.lastIndexOf(".")) + "." + ext;
+export const change_ext = (file, ext) => file.slice(0, file.lastIndexOf(".")) + "." + ext;
 
 export function tagResponse(res, templateFn) {
   function tag(str: TemplateStringsArray, ...args: string[]) {
@@ -22,9 +21,7 @@ export const midiMeta = (midiFile: string) => {
     instruments: tracks.map((t) => {
       const json = t.instrument.toJSON();
       const stdname = std_inst_names[t.instrument.number];
-      const onserver = existsSync(
-        "midisf/" + std_inst_names[t.instrument.number]
-      );
+      const onserver = existsSync("midisf/" + std_inst_names[t.instrument.number]);
       return { ...json, stdname, onserver };
     }),
     name: header.name,
@@ -175,7 +172,16 @@ export const std_inst_names = [
   "applause",
   "gunshot",
 ];
-export function cspawn(str) {
+export function cspawn(
+  str,
+  { debug }: { debug: boolean } = { debug: false }
+): { stdout; stdin; stderr } {
   let t = str.split(" ");
-  return spawn(t.shift(), t);
+
+  const { stdin, stdout, stderr } = spawn(t.shift(), t);
+  if (debug) {
+    stdout.on("error", (e) => console.log(e.toString()));
+    stderr.pipe(process.stderr);
+  }
+  return { stdin, stdout, stderr };
 }

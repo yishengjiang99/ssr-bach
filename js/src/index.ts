@@ -1,18 +1,59 @@
 import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
+import { ParamController } from "./param-controller.js";
 
+const slid = new ParamController(
+  "root",
+  (val: string) => {
+    stdout("slid change val " + val);
+  },
+  {}
+);
+const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
 let worker = new Worker("js/build/ws-worker.js", {
   type: "module",
 });
+worker.onmessage = ({ data }) => {
+  //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
+  requestAnimationFrame(() => {
+    if (data.msg) {
+      printrx(data.msg);
+    } else if (data.stats) {
+      onStats(data);
+    } else if (data.playback) {
+      menu.classList.add("playing");
+      const { bpm, name, seconds, text } = data.playback;
+
+      if (bpm) {
+        printrx("BPM: " + Math.floor(data.playback.bpm));
+        //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
+      }
+      onPlayback(data);
+      if (data.playback.meta) {
+        debugger;
+      }
+    }
+  });
+};
+
+window.onhashchange = () => {
+  start().then(() => {
+    worker.postMessage({ url: window.location.hash.substring(1) });
+  });
+};
+
 globalThis.worker = worker;
 
-const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 stdout("loaded");
-let nowplaying = "";
-let gainNode, av, canvas;
+let nowPlaying = {
+  div: null,
+  url: "",
+};
+
+let gainNode: AudioNode, av: AnalyserNode, canvas: any;
 const start = async function (url: string = "/pcm/song.mid") {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
   if (!proc) {
@@ -48,9 +89,10 @@ const pause = () => worker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn"); //#playpause");
 let paused = true;
 let init = false;
-function handleBtnClick(e, url: string) {
-  e.preventDefault();
 
+function handleBtnClick(e: MouseEvent, url: string) {
+  e.preventDefault();
+  let caller: HTMLButtonElement = e.target as HTMLButtonElement;
   if (!init) {
     stdout("[User]: Clicked Start");
     start().then(() => {
@@ -59,48 +101,40 @@ function handleBtnClick(e, url: string) {
       });
     });
     init = true;
-    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
-    e.target.innerHTML = html_pause;
-  } else if (init && !paused) {
-    pause();
-    playPauseBtn.querySelector("use").setAttribute("href", "#play");
-    e.target.innerHTML = html_play;
+    0;
+  }
+
+  if (nowPlaying.url === "") {
+    worker.postMessage({ url });
+    nowPlaying = { url, div: caller };
+    caller.innerHTML = html_pause;
+    paused = false;
+  } else if (nowPlaying !== null && nowPlaying.url === url) {
+    if (paused) {
+      caller.innerHTML = html_pause;
+
+      worker.postMessage({ cmd: "resume" });
+      paused = false;
+    } else {
+      caller.innerHTML = html_play;
+      worker.postMessage({ cmd: "pause" });
+      paused = true;
+    }
+  } else if (nowPlaying.url !== "" && nowPlaying.url !== url) {
+    nowPlaying.div.innerHTML = html_play;
+    worker.postMessage({ cmd: "stop" });
+    worker.postMessage({ url });
+    paused = false;
+    nowPlaying = { div: caller, url: url };
   } else {
     worker.postMessage({ cmd: "resume" });
-    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
-    e.target.innerHTML = html_pause;
+    //    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
+    caller.innerHTML = html_pause;
   }
-  paused = !paused;
 }
 const menu = document.querySelector("#menu");
 playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowplaying);
 const { onStats, onPlayback } = ttt();
-worker.onmessage = ({ data }) => {
-  //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
-  requestAnimationFrame(() => {
-    if (data.msg) {
-    } else if (data.stats) {
-      onStats(data);
-    } else if (data.playback) {
-      menu.classList.add("playing");
-      const { bpm, name, seconds, text } = data.playback;
-
-      if (bpm) {
-        printrx("BPM: " + Math.floor(data.playback.bpm));
-        //  bpmview.innerHTML = Math.floor(data.bpm) + "bpm";
-      }
-      onPlayback(data);
-      if (data.playback.meta) {
-        debugger;
-      }
-    }
-  });
-};
-window.onhashchange = () => {
-  start().then(() => {
-    worker.postMessage({ url: window.location.hash.substring(1) });
-  });
-};
 
 const html_play = " play ";
 const html_pause = "pause";
@@ -110,7 +144,7 @@ fetch("/midi?format=json")
   .then((json) => {
     const div = cdiv("div");
 
-    json.map((name, s) => {
+    json.map((name: string, s: any) => {
       const btn = document.createElement("button");
       btn.innerHTML = html_play;
       btn.dataset.url = "/pcm/" + encodeURI(name);

@@ -28,6 +28,7 @@ onmessage = (e) => {
   }
   if (cmd) {
     wss.send(cmd);
+    procPort.postMessage({ cmd: cmd });
   }
   if (url && procPort) {
     procPort.onmessage = (e) => {
