@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100&display=swap');
+@import url('/style.css');
+</style>
+
+    <meta charset="utf-8" />
+    <title>jp</title>
+    </head>
+    <body>
+    <div id="root">
+      <div style="display: grid; grid-template-columns: 1fr 1fr">
+       
+          <span>
+               <canvas></canvas>
+          </span>
+        <span id="stats" width="50%">
+          <div>
+            <label for="buffered">Downloaded (kb):<span></span></label>
+            <progress id="buffered" value="0" max="101230"></progress>
+    
+          </div>
+          <div>
+            <label for="played">Played (kb):<span></span> </label>
+            <progress id="played" value="0" max="1023200"></progress>
+   
+          </div>
+          <div>
+            <label for="inmemory">in memory: <span></span></label>
+            <meter id="inmemory" min="0" value="0" max="1023200i"></meter>
+          </div>
+          <div>
+            <label for="loss">percent loss <span></span></label>
+            <meter id="loss" min="0" value="0" max="100"></meter>
+          </div>
+        </span>
+              <pre id="stdout"><pre>
+
+      <main id=menu>
+      </main>
+      </div>
+
+        
+           <script type="module" src="./js/build/index.js"></script>
+    </div>
+  </body>
+</html>
+
+
+ 
