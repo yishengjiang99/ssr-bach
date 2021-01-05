@@ -33,15 +33,19 @@ class PlaybackProcessor extends AudioWorkletProcessor {
           this.started = true;
         }
       }
-      this.readqueue.push(readable);
-      if (!this.reading) readloop();
+      if (readable) {
+        this.readqueue.push(readable);
+        if (!this.reading) readloop();
+      }
     };
 
     let that = this;
     async function readloop() {
       that.reading = true;
       while (that.readqueue.length > 0) {
-        const reader = that.readqueue.shift().getReader();
+        const next = that.readqueue.shift();
+        if (typeof next === "undefined") break;
+        const reader = next.getReader();
         await reader
           .read()
           .then(function process(result) {
