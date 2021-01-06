@@ -52,14 +52,22 @@ function idUser(req: IncomingMessage): SessionContext {
     query,
   });
 }
-const idx = readFileSync("./index.html");
-
+function hotreloadOrPreload() {
+  let idx = readFileSync("./index.html").toString();
+  let idx1 = idx.split("<style></style>")[0];
+  let idx2 = idx.substr(idx1.length).split("</body>")[0];
+  let idx3 = "</body></html>";
+  let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
+  return [idx, idx1, idx2, idx3, css];
+}
+let [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
 const handler = async (req: IncomingMessage, res) => {
   try {
     const session = idUser(req);
     const { who, parts, wsRef, rc } = session;
-    if (parts[0] === "bach") parts.shift();
-
+    if (req.url.includes("refresh")) {
+      [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
+    }
     if (req.method === "POST") return handlePost(req, res, session);
     const [_, p1, p2, p3] = parts;
     const file = existsSync("midi/" + decodeURIComponent(parts[2]))
@@ -71,8 +79,10 @@ const handler = async (req: IncomingMessage, res) => {
           "Content-Type": "text/HTML",
           "set-cookie": "who=" + who,
         });
-        res.write(idx.toString().split("</body>")[0]);
-        res.end("<body></html>");
+        res.write(idx1);
+        res.write(css);
+        res.write(idx2);
+        res.end(idx3);
         break;
 
       case "js":

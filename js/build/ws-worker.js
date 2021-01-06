@@ -1,4 +1,4 @@
-const wss = new WebSocket("ws://localhost:3000?cookie=WHO");
+const wss = new WebSocket("%WSHOST%");
 let procPort;
 wss.onopen = () => {
     //@ts-ignore
@@ -28,13 +28,11 @@ onmessage = (e) => {
     }
     if (cmd) {
         wss.send(cmd);
+        procPort.postMessage({ cmd: cmd });
     }
     if (url && procPort) {
-        if (controller !== null) {
-            controller.abort();
-        }
         procPort.onmessage = (e) => {
-            //@ts-ignore
+            // @ts-ignore
             postMessage(e.data);
         };
         let offset = 0;
@@ -67,9 +65,6 @@ onmessage = (e) => {
         }
         loop(controller);
         // @ts-ignore
-        procPort.postMessage({ url, readable: transform.readable }, [
-            transform.readable,
-        ]);
+        procPort.postMessage({ url, readable: transform.readable }, [transform.readable]);
     }
 };
-export {};

@@ -8,7 +8,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
         this.started = false;
         this.abortSignal = false;
         this.port.postMessage({ msg: "initialized" });
-        this.port.onmessage = ({ data: { readable, url } }) => {
+        this.port.onmessage = ({ data: { readable, url, cmd } }) => {
             if (url) {
                 this.buffers = [];
                 this.started = false;
@@ -16,15 +16,28 @@ class PlaybackProcessor extends AudioWorkletProcessor {
                 if (this.reading)
                     this.abortSignal = true;
             }
-            this.readqueue.push(readable);
-            if (!this.reading)
-                readloop();
+            if (cmd) {
+                if (cmd === "pause") {
+                    this.started = false;
+                }
+                else if (cmd === "resume") {
+                    this.started = true;
+                }
+            }
+            if (readable) {
+                this.readqueue.push(readable);
+                if (!this.reading)
+                    readloop();
+            }
         };
         let that = this;
         async function readloop() {
             that.reading = true;
             while (that.readqueue.length > 0) {
-                const reader = that.readqueue.shift().getReader();
+                const next = that.readqueue.shift();
+                if (typeof next === "undefined")
+                    break;
+                const reader = next.getReader();
                 await reader
                     .read()
                     .then(function process(result) {
@@ -36,7 +49,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
                         that.buffers.push(b);
                         value = value.slice(chunk);
                         that.total++;
-                        if (that.started === false && that.buffers.length > 43) {
+                        if (that.started === false && that.buffers.length > 13) {
                             that.started = true;
                         }
                     }

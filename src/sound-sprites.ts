@@ -6,6 +6,7 @@ import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { cspawn, sleep } from "./utils";
 import { Readable } from "stream";
+import { Piano } from "@tonejs/piano";
 
 export const produce = (
   songname: string,
@@ -49,12 +50,6 @@ export const produce = (
         closeSync(fd);
         new PulseSource(ctx, {
           buffer: ob,
-          envelope: new Envelope(ctx.sampleRate, [
-            0.1 / note.velocity,
-            note.durationTime,
-            0.1,
-            note.durationTime / 3,
-          ]),
         });
       });
 
@@ -89,3 +84,6 @@ export const produce = (
 //produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
 //precache("./song.mid", "ro2");
 // produce("./midi/all_hell_billie.mid", cspawn("nc -l -p 8000").stdin);
+/*
+
+*/

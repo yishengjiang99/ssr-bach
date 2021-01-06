@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.25",
+    "@tonejs/piano": "^0.2.1",
     "ejs": "^3.1.5",
     "ff32bit": "^1.0.0",
     "flat-cached": "^1.0.1",

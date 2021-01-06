@@ -20,7 +20,7 @@ worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
   requestAnimationFrame(() => {
     if (data.msg) {
-      printrx(data.msg);
+      stdout(data.msg);
     } else if (data.stats) {
       onStats(data);
     } else if (data.playback) {

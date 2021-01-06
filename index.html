@@ -1,40 +1,44 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.4.5/pixi.min.js"
-      integrity="sha512-P8gDaMAlo6/WKF67KsF0VdiwGZygvnWi55J42E8mLgD8FGgJRw6wCaC/QlRAH3BlRodzF362lde42KkqoEBeyg=="
-      crossorigin="anonymous"
-    ></script>
-    <meta charset="utf-8" />
-    <title>Hello World</title>
     <style>
-      * {
-        padding: 0;
-        margin: 0;
-      }
+      @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100&display=swap");
     </style>
+
+    <meta charset="utf-8" />
+    <title>jsp</title>
   </head>
 
+  <style></style>
   <body>
-    <script async type="text/javascript">
-      //Create a Pixi Application
+    <div id="root">
+      <button id="btn">On/off</button>
+      <div style="display: grid; height: 250px; grid-template-columns: 1fr 1fr">
+        <span width="50%">
+          <div height="420"><canvas></canvas></div>
+        </span>
+        <span id="stats" width="50%">
+          <div>
+            <label for="buffered">Downloaded (kb):<span></span></label>
+            <progress id="buffered" value="0" max="101230"></progress>
+          </div>
+          <div>
+            <label for="played">Played (kb):<span></span> </label>
+            <progress id="played" value="0" max="1023200"></progress>
+          </div>
+          <div>
+            <label for="inmemory">in memory: <span></span></label>
+            <meter id="inmemory" min="0" value="0" max="1023200"></meter>
+          </div>
+          <div>
+            <label for="loss">percent loss <span></span></label>
+            <meter id="loss" min="0" value="0" max="100"></meter>
+          </div>
+        </span>
+      </div>
 
-      const evt = new EventSource("https://www.grepawk.com/bach/rt");
-      evt.onopen = () => {
-        evt.addEventListener("time", (d) => {
-          console.log(d);
-        });
-      };
-      let app = new PIXI.Application({ width: 256, height: 256 });
-      app.renderer.autoResize = true;
-      app.renderer.resize(512, 512);
-      app.renderer.view.style.position = "absolute";
-      app.renderer.view.style.display = "block";
-      app.renderer.autoResize = true;
-      app.renderer.resize(window.innerWidth, window.innerHeight);
-      //Add the canvas that Pixi automatically created for you to the HTML document
-      document.body.appendChild(app.view);
-    </script>
+      <main id="menu"></main>
+    </div>
+    <script type="module" src="./js/build/index.js"></script>
   </body>
 </html>

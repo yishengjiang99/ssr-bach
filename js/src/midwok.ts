@@ -1,31 +1,149 @@
-onmessage = (soundfonts) =>
-  fetch(
-    "https://gleitz.github.io/midi-js-soundfonts/MusyngKite/" +
-      soundfonts +
-      "-mp3.js"
-  )
-    .then((res) => res.text())
-    .then(async (t) => {
-      let midi = 0;
-      let g = t.substring(skip).split('",');
-      for await (const _ of (async function* () {
-        while (g.length) {
-          let b = g.shift().split("data:audio/mp3;base64,")[1];
+import { readdirSync, statSync } from "fs";
+import { readdir } from "fs/promises";
+import * as fetch from "node-fetch";
+import { cspawn } from "../../node_modules/grep-wss/dist/index";
+const notes = [
+  "A0",
+  "Bb0",
+  "B0",
+  "C1",
+  "Db1",
+  "D1",
+  "Eb1",
+  "E1",
+  "F1",
+  "Gb1",
+  "G1",
+  "Ab1",
+  "A1",
+  "Bb1",
+  "B1",
+  "C2",
+  "Db2",
+  "D2",
+  "Eb2",
+  "E2",
+  "F2",
+  "Gb2",
+  "G2",
+  "Ab2",
+  "A2",
+  "Bb2",
+  "B2",
+  "C3",
+  "Db3",
+  "D3",
+  "Eb3",
+  "E3",
+  "F3",
+  "Gb3",
+  "G3",
+  "Ab3",
+  "A3",
+  "Bb3",
+  "B3",
+  "C4",
+  "Db4",
+  "D4",
+  "Eb4",
+  "E4",
+  "F4",
+  "Gb4",
+  "G4",
+  "Ab4",
+  "A4",
+  "Bb4",
+  "B4",
+  "C5",
+  "Db5",
+  "D5",
+  "Eb5",
+  "E5",
+  "F5",
+  "Gb5",
+  "G5",
+  "Ab5",
+  "A5",
+  "Bb5",
+  "B5",
+  "C6",
+  "Db6",
+  "D6",
+  "Eb6",
+  "E6",
+  "F6",
+  "Gb6",
+  "G6",
+  "Ab6",
+  "A6",
+  "Bb6",
+  "B6",
+  "C7",
+  "Db7",
+  "D7",
+  "Eb7",
+  "E7",
+  "F7",
+  "Gb7",
+  "G7",
+  "Ab7",
+  "A7",
+  "Bb7",
+  "B7",
+  "C8",
+];
 
-          await fetch(
-            "https://www.grepawk.com/stdin/" +
-              soundfonts +
-              "/" +
-              midi++ +
-              ".mp3",
-            {
-              method: "POST",
-              body: b,
-            }
-          );
-        }
-      })());
+const installf = async (soundfonts) => {
+  new Promise((resolve) => {
+    const skip =
+      `if (typeof(MIDI) === 'undefined') var MIDI = {}; ` +
+      `if (typeof(MIDI.Soundfont) === 'undefined') MIDI.Soundfont = {}; ` +
+      `MIDI.Soundfont.${soundfonts} = `;
+
+    let chunks = "";
+
+    let res = cspawn(
+      `curl -s https://gleitz.github.io/midi-js-soundfonts/FatBoy/${soundfonts}-mp3.js -o -`
+    ).stdout;
+    res.on("data", (d) => {
+      chunks += d.toString();
     });
-const skip = `if (typeof(MIDI) === 'undefined') var MIDI = {};
-if (typeof(MIDI.Soundfont) === 'undefined') MIDI.Soundfont = {};
-MIDI.Soundfont.clarinet = `.length;
+    res.on("end", () => {
+      console.log(chunks.substring(0, skip.length));
+      console.log(chunks.substring(chunks.length - 30, chunks.length - 5) + "}");
+      let json;
+      try {
+        json = JSON.parse(chunks.substring(skip.length, chunks.length - 5) + "}");
+      } catch (e) {
+        console.log(e);
+        console.log(soundfonts + "failed");
+        return;
+      }
+      notes.map((n, i) => {
+        const proc = cspawn(
+          "ffmpeg -y -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48k midisf/" +
+            soundfonts +
+            "/" +
+            i +
+            ".pcm"
+        );
+        resolve(soundfonts + "/" + i);
+
+        proc.stdin.end(Buffer.from(json[n], "base64"));
+      });
+    });
+  });
+};
+
+async function run() {
+  async function* ss() {
+    let dd = readdirSync("./midisf/");
+    while (dd.length) {
+      await installf(dd.shift());
+      yield;
+    }
+  }
+  for await (const _ of ss()) {
+  }
+}
+run();

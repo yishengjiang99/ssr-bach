@@ -2,9 +2,8 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "strict": false,
     "outDir": "build",
-    "sourceMap": false,
     "lib": ["esnext", "dom"]
-  }
+  },
+  "include": ["src"]
 }

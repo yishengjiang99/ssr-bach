@@ -17,7 +17,7 @@ function convertMidi(source, cb) {
         tempo: tempos[0],
         timeSignature: header.timeSignatures[0],
     };
-    emitter.emit("#tempo", state.tempo.bpm, state.timeSignature.timeSignature);
+    emitter.emit("#tempo", state.tempo.bpm);
     const setCallback = (_cb) => (cb = _cb);
     const setState = (update) => {
         Object.keys(update).forEach((k) => (state[k] = update[k]));
@@ -26,8 +26,8 @@ function convertMidi(source, cb) {
         pause: () => setState({ paused: true }),
         resume: () => {
             console.log("resume");
-            emitter.emit("resume");
             setState({ paused: false });
+            emitter.emit("resume");
         },
         stop: () => setState({ stop: true }),
         ff: () => setState({ time: state.time + 15 }),
@@ -71,7 +71,7 @@ function convertMidi(source, cb) {
                         instId: tracks[i].instrument.number,
                         start: header.ticksToSeconds(note.ticks),
                         durationTime: exports.secondsPerTick(state.tempo.bpm) * note.durationTicks,
-                        velocity: note.velocity * 0x7f,
+                        velocity: note.velocity,
                         instrument: utils_1.std_inst_names[tracks[i].instrument.number],
                     };
                     notesstarting.push(noteEvent);
@@ -117,10 +117,6 @@ exports.convertMidiASAP = (file) => {
 exports.msPerBeat = (bpm) => 60000 / bpm;
 exports.secondsPerTick = (bpm) => 60 / bpm / 256;
 function format(str) {
-    return str
-        .replace(" ", "_")
-        .replace(" ", "_")
-        .replace(" ", "_")
-        .replace(" ", "_");
+    return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 }
 //# sourceMappingURL=load-sort-midi.js.map
