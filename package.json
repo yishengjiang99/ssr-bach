@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.25",
-    "@tonejs/piano": "^0.2.1",
     "ejs": "^3.1.5",
     "ff32bit": "^1.0.0",
     "flat-cached": "^1.0.1",
@@ -19,13 +18,6 @@
     "ssr-cxt": "file:../ssr-ctx"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.10",
-    "@babel/plugin-transform-typescript": "^7.12.1",
-    "@types/chai": "^4.2.14",
-    "@types/mocha": "^8.2.0",
-    "chai": "^4.2.0",
-    "commander": "^6.2.1",
-    "mocha": "^8.2.1",
     "ts-node": "^9.1.1",
     "typescript": "^4.1.2"
   },
