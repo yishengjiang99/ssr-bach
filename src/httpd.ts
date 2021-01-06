@@ -119,7 +119,8 @@ const handler = async (req: IncomingMessage, res) => {
         break;
       case "pcm":
         const pt = new PassThrough();
-        let rc: RemoteControl = produce(file, res, pt);
+        let rc: RemoteControl =
+          (activeSessions[who] && activeSessions[who].rc) || produce(file, res, pt);
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "audio/raw",
@@ -135,6 +136,13 @@ const handler = async (req: IncomingMessage, res) => {
           wsRefs[wsRef].on("data", (d) => {
             const cmd = d.toString().split("/");
             switch (cmd.shift()) {
+              case "config":
+                pt.write(`config ${cmd.shift()} ${cmd.shift()}`);
+                break;
+              case "seek":
+                rc.seek(parseInt(cmd.shift()));
+                break;
+
               case "resume":
                 rc.start();
                 break;
@@ -145,6 +153,7 @@ const handler = async (req: IncomingMessage, res) => {
                 const url = basename(cmd[cmd.length - 1]);
                 if (url !== file) {
                   rc.stop();
+                  rc = null;
 
                   ws.write("new song " + url);
                   let newrc = produce(url, res, pt);
@@ -156,6 +165,9 @@ const handler = async (req: IncomingMessage, res) => {
                 ws.write("play");
                 break;
               case "stop":
+                rc.stop();
+
+                break;
               case "pause":
                 rc.pause();
                 ws.write("paused");
@@ -167,7 +179,7 @@ const handler = async (req: IncomingMessage, res) => {
           const ws: WsSocket = wsRefs[wsRef];
           ["#tempo", "#meta", "#time"].map((event) => {
             rc.emitter.on(event, (info) => {
-              ws.write(JSON.stringify(info));
+              ws.write(JSON.stringify({ event, info }));
             });
           });
         }

@@ -40,6 +40,7 @@ export type RemoteControl = {
   resume: () => void;
   ff: () => void;
   rwd: () => void;
+  seek: (time: number) => void;
   next: () => void;
   start: () => void;
   state: ControllerState;

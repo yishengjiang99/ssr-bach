@@ -12,18 +12,21 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   loss: number;
   rms: number;
   abortSignal: boolean;
+  threshold: number;
   constructor() {
     super();
     this.buffers = [];
     this.readqueue = [];
     this.started = false;
     this.abortSignal = false;
+    this.threshold = 30;
     this.port.postMessage({ msg: "initialized" });
-    this.port.onmessage = ({ data: { readable, url, cmd } }) => {
-      if (url) {
+    this.port.onmessage = ({ data: { reset, readable, url, cmd } }) => {
+      if (url || reset) {
         this.buffers = [];
         this.started = false;
         this.readqueue = [];
+        this.threshold = 50;
         if (this.reading) this.abortSignal = true;
       }
       if (cmd) {
@@ -57,13 +60,14 @@ class PlaybackProcessor extends AudioWorkletProcessor {
               value = value.slice(chunk);
               that.total++;
 
-              if (that.started === false && that.buffers.length > 13) {
+              if (that.started === false && that.buffers.length > that.threshold) {
                 that.started = true;
               }
             }
             that.leftPartialFrame = value;
             if (that.abortSignal) {
               that.abortSignal = false;
+              that.buffers = [];
               return;
             }
 

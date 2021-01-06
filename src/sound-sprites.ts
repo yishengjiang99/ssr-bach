@@ -6,7 +6,6 @@ import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { cspawn, sleep } from "./utils";
 import { Readable } from "stream";
-import { Piano } from "@tonejs/piano";
 
 export const produce = (
   songname: string,

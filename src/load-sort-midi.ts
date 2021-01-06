@@ -1,7 +1,6 @@
 import { Header, Midi } from "@tonejs/midi";
-import { notEqual } from "assert";
 import { EventEmitter } from "events";
-import { installOnServerIfNeeded } from "./installone";
+
 import {
   Filename,
   RemoteControl,
@@ -38,10 +37,10 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
   const controller: RemoteControl = {
     pause: () => setState({ paused: true }),
     resume: () => {
-      console.log("resume");
       setState({ paused: false });
       emitter.emit("resume");
     },
+    seek: (_time: number) => setState({ time: _time }),
     stop: () => setState({ stop: true }),
     ff: () => setState({ time: state.time + 15 }),
     next: () => {},
@@ -49,18 +48,18 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     emitter: emitter,
     start: () => {
       setState({ paused: false });
-      pullMidiTrack(tracks, cb);
+      pullMidiTrack({ tracks, _cb: cb });
     },
     setCallback,
     state,
     meta: {
       name: header.name,
       seconds: Math.floor(duration),
-      ...(header.meta[0] || {}),
+      ...(Object.values(header.meta) || {}),
     },
   };
 
-  const pullMidiTrack = async (tracks, _cb: CallbackFunction) => {
+  const pullMidiTrack = async ({ tracks, _cb }: { tracks; _cb: CallbackFunction }) => {
     let done = 0;
     let doneSet = new Set();
     setState({ t0: process.uptime() });
@@ -97,10 +96,14 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
           emitter.emit("#tempo", { bpm: state.tempo.bpm });
         }
       }
+      let intval = Math.floor(state.time);
       state.time += await _cb(notesstarting);
+      if (Math.floor(state.time) > intval) {
+        emitter.emit("#time", { seconds: state.time });
+      }
       if (state.paused) {
         await new Promise((resolve) => {
-          emitter.on("resume", resolve);
+          emitter.once("resume", resolve);
         });
       }
       if (state.stop) break;

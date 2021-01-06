@@ -7,9 +7,7 @@ export const ttt = function () {
     "progress#played"
   );
   playedM.value = 0;
-  const loss: HTMLMeterElement = document.querySelector<HTMLMeterElement>(
-    "meter#loss"
-  );
+  const loss: HTMLMeterElement = document.querySelector<HTMLMeterElement>("meter#loss");
   const inmem: HTMLMeterElement = document.querySelector<HTMLMeterElement>(
     "meter#inmemory"
   );
@@ -31,14 +29,8 @@ export const ttt = function () {
   const onPlayback = (data) => {
     const { bpm, name, seconds, text } = data.playback;
     if (seconds) {
-      buffM.setAttribute(
-        "max",
-        `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2)
-      );
-      playedM.setAttribute(
-        "max",
-        `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2)
-      );
+      buffM.setAttribute("max", `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2));
+      playedM.setAttribute("max", `` + ((seconds * 48000 * 2 * 4) / 1024).toFixed(2));
     }
 
     if (data.playback.meta) {
