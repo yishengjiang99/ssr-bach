@@ -40,7 +40,7 @@ export const notelist = (res: Writable, format = "pcm") => {
   const sections = readdirSync("./midisf");
   res.write("<iframe name=_w1></iframe>");
   for (const section of sections) {
-    const links = readdirSync("midisf/" + section).filter((n) => n.endsWith(".pcm"));
+    const links = readdirSync("midisf/" + section).filter((n) => n);
     res.write("<div class='mt-25'></div>");
     res.write(`<div><span>${section}</span>
       ${links.map((n) => {

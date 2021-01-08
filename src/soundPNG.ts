@@ -1,12 +1,19 @@
 import { convertMidi, convertMidiASAP, msPerBeat } from "./load-sort-midi";
-import { Writable } from "stream";
+import { Transform, Writable } from "stream";
 import { header } from "grep-wss";
 import { cspawn, sleep } from "./utils";
+import { createReadStream, existsSync, readSync, statSync, write, open } from "fs";
+export const sampleSelect = async (file: string, offset: number) => {
+  if (!existsSync(file)) return;
 
-export const bitmapget = async (
-  midifile,
-  output: Writable
-): Promise<Buffer> => {
+  createReadStream(file).pipe(
+    new Transform({
+      transform: (chunk, enc, cb) => {},
+    })
+  );
+};
+
+export const bitmapget = async (midifile, output: Writable): Promise<Buffer> => {
   const { state, emitter, start } = convertMidiASAP(midifile);
 
   const url = `js/runtime-${(Math.random() * 33333) >> 3}.png`;
@@ -48,4 +55,28 @@ export const bitmapget = async (
     emitter.on("end", () => resolve(bitmapp))
   );
 };
-bitmapget("./song.mid", process.stdout);
+
+export const peeks = (sampleFile: string, output: Writable) => {
+  const sab = new SharedArrayBuffer(1024);
+  const Uint32 = new Uint32Array(sab);
+  Atomics.add(Uint32, 0, 1);
+const f  openSync(sampleFile, "rb");
+
+
+
+  if (err) throw err;
+  const ob = Buffer.alloc(1024);
+  let offset = 0;
+
+  while (true) {
+    readSync(fd, ob, 0, 1024, (offset += 1024));
+    for (let i = 0; i < 1024; i += 4) {
+      const dv: DataView = new DataView(ob.buffer);
+      Atomics.add(Uint32, dv.getUint32(i, true), 1);
+    }
+  }
+  output.write(Uint32.buffer):
+});
+
+
+};

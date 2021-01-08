@@ -2,6 +2,7 @@ import {
   existsSync,
   statSync,
   readdirSync,
+  open,
   createReadStream,
   mkdirSync,
   readFileSync,
@@ -11,6 +12,8 @@ import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 import { cspawn, resjson } from "./utils";
 import { SessionContext } from "./httpd";
+import { ServerHttp2Stream } from "http2";
+import { Readable } from "stream";
 const dbfsroot = "../dbfs";
 export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] => {
   return parseUrl(req.url);
@@ -54,11 +57,15 @@ export function parseCookies(request) {
     });
   return list;
 }
-export const queryFs = (req: IncomingMessage, res) => {
-  if (req.url === "") return false;
-  const [parts, query] = parseQuery(req);
+export const queryFs = (req, res) => {
+  return queryFsUrl(req.url, res);
+};
+
+export const queryFsUrl = (url: string, res) => {
+  if (url === "") return false;
+  const [parts, query] = parseUrl(url);
   const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
-  console.log(filename);
+
   if (existsSync(filename)) {
     if (statSync(filename).isFile()) {
       res.writeHead(200, {
@@ -71,11 +78,69 @@ export const queryFs = (req: IncomingMessage, res) => {
         resjson(res, readdirSync(filename));
         res.end();
       } else {
-        res.end(`<html><body><pre>
-        ${readdirSync(filename).join("\n")}</pre></body></html>`);
+        res.end(`<html><body>
+
+        <pre>
+        ${readdirSync(filename)
+          .map((f) => {
+            if (statSync(resolve(filename, f)).isDirectory()) {
+              return `<a href='${url}/${f}'>${f}</a>`;
+            } else if (f.endsWith(".pcm") || f.endsWith(".wav")) {
+              return ` <a href='${url}/${f}'>${f}</a>`;
+            } else {
+              return `<a href='${url}/${f}'>${f}</a>`;
+            }
+          })
+          .join("\n")}</pre></body></html>`);
       }
     }
     return true;
   }
   return false;
+};
+
+export function hotreloadOrPreload() {
+  let idx = readFileSync("./index.html").toString();
+  let idx1 = idx.split("<style></style>")[0];
+  let idx2 = idx.substr(idx1.length).split("</body>")[0];
+  let idx3 = "</body></html>";
+  let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
+  return [idx, idx1, idx2, idx3, css];
+}
+
+type FD = number;
+export const pushFile = (
+  stream: ServerHttp2Stream,
+  file: string | FD | Buffer | ReadableStream,
+  path: string
+) => {
+  stream.pushStream({ ":path": path }, (err, pushStream, headers) => {
+    if (err) throw err;
+    headers = {
+      "content-type": lookup(basename(path)),
+      ":status": 200,
+    };
+    switch (typeof file) {
+      case "number":
+        pushStream.respondWithFD(file, headers);
+        break;
+      case "string":
+        open(resolve(file), "r", (err, fd) => {
+          if (err) throw err;
+          pushStream.respondWithFD(fd, headers);
+        });
+        break;
+      case "object":
+        if (file instanceof Buffer) {
+          pushStream.respond(headers);
+          pushStream.end(file);
+        } else if (file instanceof Readable) {
+          pushStream.respond(headers);
+          file.pipe(pushStream);
+        }
+        break;
+      default:
+        throw "dont know how to handle " + file;
+    }
+  });
 };

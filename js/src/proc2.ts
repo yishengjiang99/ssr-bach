@@ -19,14 +19,14 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.readqueue = [];
     this.started = false;
     this.abortSignal = false;
-    this.threshold = 30;
+    this.threshold = 333;
     this.port.postMessage({ msg: "initialized" });
     this.port.onmessage = ({ data: { reset, readable, url, cmd } }) => {
       if (url || reset) {
         this.buffers = [];
         this.started = false;
         this.readqueue = [];
-        this.threshold = 50;
+        this.threshold = 5440;
         if (this.reading) this.abortSignal = true;
       }
       if (cmd) {
@@ -99,6 +99,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   }
   process(inputs, outputs, parameters) {
     if (this.started === false) {
+      this.report();
       return true;
     }
     if (this.buffers.length === 0) {

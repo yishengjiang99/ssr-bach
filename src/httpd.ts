@@ -7,14 +7,16 @@ import { produce } from "./sound-sprites";
 import { spawn, execSync, ChildProcess } from "child_process";
 
 import { httpsTLS } from "./tls";
-import { parseQuery, handlePost, queryFs, parseCookies } from "./fsr";
+import { parseQuery, handlePost, queryFs, parseCookies, parseUrl, pushFile } from "./fsr";
 import { RemoteControl } from "./ssr-remote-control.types";
 import { IncomingMessage } from "http";
 import { Socket } from "net";
 import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { PassThrough } from "stream";
 import { notelist } from "./filelist";
-
+import { Http2Stream, createSecureServer, ServerHttp2Stream } from "http2";
+import { handleSamples } from "./id2";
+import { midiMeta } from "./utils";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
 
@@ -61,7 +63,7 @@ function hotreloadOrPreload() {
   return [idx, idx1, idx2, idx3, css];
 }
 let [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
-const handler = async (req: IncomingMessage, res) => {
+export const handler = async (req, res) => {
   try {
     const session = idUser(req);
     const { who, parts, wsRef, rc } = session;
@@ -81,10 +83,13 @@ const handler = async (req: IncomingMessage, res) => {
         });
         res.write(idx1);
         res.write(css);
+        res.write(
+          `<iframe  src='https://www.grepawk.com:8443/rcstate?cookie=${who}'></iframe>`
+        );
         res.write(idx2);
         res.end(idx3);
-        break;
 
+        break;
       case "js":
         console.log(req.url);
         if (basename(req.url) === "ws-worker.js") {
@@ -119,8 +124,14 @@ const handler = async (req: IncomingMessage, res) => {
         break;
       case "pcm":
         const pt = new PassThrough();
-        let rc: RemoteControl =
-          (activeSessions[who] && activeSessions[who].rc) || produce(file, res, pt);
+        if (activeSessions[who] && activeSessions[who].rc) {
+          const rc = activeSessions[who].rc;
+          rc.state.stop = false;
+          rc.state.paused = false;
+          rc.time = 0;
+        }
+        activeSessions[who].rc = activeSessions[who].rc || produce(file, res, pt);
+        const rc = activeSessions[who].rc;
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "audio/raw",
@@ -153,12 +164,12 @@ const handler = async (req: IncomingMessage, res) => {
                 const url = basename(cmd[cmd.length - 1]);
                 if (url !== file) {
                   rc.stop();
-                  rc = null;
 
                   ws.write("new song " + url);
                   let newrc = produce(url, res, pt);
                   newrc.start();
-                  rc = newrc;
+                  rc.state.stop = false;
+                  rc.state.paused = false; // = newrc;
                 } else {
                   rc.resume();
                 }
@@ -178,8 +189,9 @@ const handler = async (req: IncomingMessage, res) => {
           });
           const ws: WsSocket = wsRefs[wsRef];
           ["#tempo", "#meta", "#time"].map((event) => {
+            let eventName = event;
             rc.emitter.on(event, (info) => {
-              ws.write(JSON.stringify({ event, info }));
+              ws.write(JSON.stringify({ event: eventName, info }));
             });
           });
         }
@@ -187,43 +199,9 @@ const handler = async (req: IncomingMessage, res) => {
       case "rfc":
         require("./grep-rfc").rfcGet(req, res, session);
         break;
-      case "csv":
-        res.writeHead(200, {
-          "Content-Type": "plain/text",
-          // "Content-Disposition": `inline; filename="${file}.csv"`,
-        });
-        res.write("<html><body><pre>");
-        readAsCSV(file, false).pipe(res);
-        res.write("</pre></body></html>");
-        break;
 
       case "samples":
-        const instment = parts[2];
-        const note = parts[3];
-        console.log(parts);
-        if (
-          parts[2] &&
-          parts[3] &&
-          existsSync("./midisf/" + instment + "/" + note + ".pcm")
-        ) {
-          res.writeHead(200, { "Content-Type": "audio/mp3" });
-          const proc = spawn(
-            "ffmpeg",
-            `-f f32le -ar 48000 -ac 1 -i ${
-              "./midisf/" + instment + "/" + note + ".pcm"
-            } -f mp3 -`.split(" ")
-          );
-          proc.on("error", (d) => console.error(d.toString()));
-          proc.stdout.pipe(res);
-        } else {
-          res.writeHead(200, {
-            "Content-Type": "text/HTML",
-            "set-cookie": "who=" + who,
-          });
-
-          notelist(res);
-        }
-
+        handleSamples(session, res);
         break;
       case "notes":
         if (!existsSync("./midisf/" + p2 + "/" + p3 + ".pcm")) res.writeHead(404);
@@ -266,19 +244,12 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
 
 const server = createServer(httpsTLS, handler);
 server.on("upgrade", wshand);
-server.listen(443); //3000);
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
 });
 process.stdin.on("data", (d) => {
   const cmd = d.toString().trim().split(" ");
-  console.log(
-    activeSessions.forEach((ses) => {
-      const { rc, who, query, parts } = ses;
-      console.log(rc);
-      console.log(who, query, parts);
-    })
-  );
+
   if (cmd[0] === "g") {
     Object.values(activeSessions).map((ses) => {
       const { rc, who, query, parts } = ses;
@@ -321,3 +292,29 @@ process.stdin.on("data", (d) => {
   }
   wsRefs[cmd[0]] && wsRefs[cmd.join("")].write("HI");
 });
+
+server.on("upgrade", wshand);
+server.listen(443); //3000);
+
+const server2 = createSecureServer({
+  key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
+  cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
+});
+server2.on("stream", (stream: ServerHttp2Stream, headers) => {
+  const [parts, query] = parseUrl(headers[":path"]);
+  const [_, p1, p2, p3] = parts;
+  const file =
+    parts[1] !== "" && existsSync("midi/" + decodeURIComponent(parts[1]))
+      ? "midi/" + decodeURIComponent(parts[1])
+      : "midi/song.mid";
+  // stream is a Duplex
+  stream.respond({
+    "content-type": "text/html; charset=utf-8",
+    ":status": 200,
+  });
+  stream.write(idx1);
+  stream.write(css);
+  stream.write(`<body><pre>HI</pre>`);
+  stream.write(`</body></html>`);
+});
+server2.listen(8443);

@@ -14,6 +14,26 @@ export function tagResponse(res, templateFn) {
 
   tag(templateFn);
 }
+const redis = require("redis");
+let client = redis.createClient();
+export function db_get(key: string) {
+  const redis = require("redis");
+  client = client || redis.createClient();
+
+  client.on("error", function (error) {
+    console.error(error);
+  });
+  return client.get(key).buffer;
+}
+export function dbset(key: string, val: any) {
+  const redis = require("redis");
+  client = client || redis.createClient();
+
+  client.on("error", function (error) {
+    console.error(error);
+  });
+  client.set(key, val);
+}
 
 export const midiMeta = (midiFile: string) => {
   const { header, duration, tracks } = new Midi(readFileSync(midiFile));
@@ -41,6 +61,7 @@ export const sleep = (ms: number) => {
     setTimeout(resolve, ms);
   });
 };
+export const std_settings = "-f 32le -ar 48000 -ac 1";
 export const std_inst_names = [
   "acoustic_grand_piano",
   "bright_acoustic_piano",
@@ -180,7 +201,7 @@ export function cspawn(
 
   const { stdin, stdout, stderr } = spawn(t.shift(), t);
   if (debug) {
-    stdout.on("error", (e) => console.log(e.toString()));
+    stdout.on("error", (e) => console.log(e.toString(), str));
     stderr.pipe(process.stderr);
   }
   return { stdin, stdout, stderr };

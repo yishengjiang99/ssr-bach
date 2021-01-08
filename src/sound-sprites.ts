@@ -1,7 +1,7 @@
 import { Writable } from "stream";
 import { spawn } from "child_process";
 import { convertMidi } from "./load-sort-midi";
-import { openSync, readSync, closeSync } from "fs";
+import { openSync, readSync, closeSync, createWriteStream, existsSync } from "fs";
 import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { cspawn, sleep } from "./utils";
@@ -34,11 +34,21 @@ export const produce = (
 
       notes.map((note, i) => {
         let velocityshift = 0; //note.velocity * 8;
-        const fadeoutTime = note.velocity / 1000;
-        const bytelength =
-          spriteBytePeSecond * Math.max(note.durationTime + fadeoutTime, 0.25);
-        const file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
+        let fadeoutTime = (10 - note.velocity) / 10;
+        const bytelength = spriteBytePeSecond * note.durationTime;
+        let file;
+        if (note.instrument.includes("piano")) {
+          fadeoutTime = 0;
+          velocityshift = 48;
 
+          file = `./midisf/${note.instrument}/${note.midi - 21}v${
+            note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
+          }.pcm`;
+        } else {
+          file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
+        }
+        // console.log(file, velocityshift, bytelength + bytelength);
+        if (!existsSync(file)) `./midisf/acoustic_grand_piano/${note.midi - 21}v8.pcm`;
         const fd = openSync(file, "r");
 
         const ob = Buffer.alloc(bytelength);
@@ -74,15 +84,3 @@ export const produce = (
   });
   return controller;
 };
-
-// //produce("./bach_846-mid.mid", createWriteStream("day32.pcm"), null, "auto");
-//produce("./song.mid", process.stdout, null, "auto");
-
-// //createWriteStream("d, null, "auto");
-
-//produce("./midi/bach_846-mid.mid", ffp(), null, "auto");
-//precache("./song.mid", "ro2");
-// produce("./midi/all_hell_billie.mid", cspawn("nc -l -p 8000").stdin);
-/*
-
-*/

@@ -1,0 +1,4 @@
+docker run \
+    -e ALLOW_EMPTY_PASSWORD=yes \
+    -v /path/to/redis-persistence:/bitnami/redis/data \
+    bitnami/redis:latest

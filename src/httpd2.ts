@@ -5,14 +5,19 @@ import { readFileSync } from "fs";
 import { mp3c } from "./sinks";
 import { resolve } from "path";
 import { cspawn } from "./utils";
-import { parseQuery, parseUrl } from "./fsr";
+import { parseQuery, parseUrl, queryFs } from "./fsr";
 import { existsSync } from "fs";
 import { get } from "https";
 const fs = require("fs");
-const server = createSecureServer({
-  key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
-  cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
-});
+const server = createSecureServer(
+  {
+    key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
+    cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
+  },
+  (res, req) => {
+    queryFs(res, req);
+  }
+);
 server.on("error", (err) => console.error(err));
 
 server.on("stream", (stream: ServerHttp2Stream, headers) => {
@@ -45,11 +50,7 @@ server.on("stream", (stream: ServerHttp2Stream, headers) => {
     const proc = cspawn("ffmpeg -re -f f32le -ac 2 -ar 48000 -i pipe:0 -f WAV -", {
       debug: true,
     });
-    // produce(resolve(__dirname, "../midi/song.mid"), proc.stdin, rc2);
-    // const curl = cspawn(
-    //   `curl -S https://grep32bit.blob.core.windows.net/pcm/billicrown.pcm -o -`,
-    //   { debug: true }
-    // );
+
     get("https://grep32bit.blob.core.windows.net/pcm/billicrown.pcm", (res) => {
       console.log(res);
       res.on("data", (d) => {

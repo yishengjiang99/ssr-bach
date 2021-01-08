@@ -9,7 +9,7 @@
     "sourceMap": true,
     "jsx": "react",
     "declaration": true,
-    "types": ["node", "mocha", "chai"]
+    "types": ["node", "jest"]
   },
   "include": ["src/*.ts"],
   "compileOnSave": true

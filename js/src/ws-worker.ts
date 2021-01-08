@@ -1,9 +1,12 @@
 const wss: WebSocket = new WebSocket("%WSHOST%");
 let procPort: MessagePort;
+const wschan = new BroadcastChannel("wschan");
+
 wss.onopen = () => {
   //@ts-ignore
   postMessage({ msg: "ws open" });
   wss.onmessage = ({ data }) => {
+    wschan.postMessage(data);
     if (data[0] == "{") {
       //@ts-ignore
       postMessage({ playback: JSON.parse(data) });

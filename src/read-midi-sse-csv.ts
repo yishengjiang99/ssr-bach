@@ -30,20 +30,38 @@ export const readMidiSSE = (
 
   ["note", "#meta", "#time", "#tempo"].map((event) => {
     emitter.on(event, (d) => {
-      response.write(["event: ", event, "\n", "data: ", JSON.stringify(d), "\n\n"].join(""));
+      response.write(
+        ["event: ", event, "\n", "data: ", JSON.stringify(d), "\n\n"].join("")
+      );
     });
   });
 };
 export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
-  const { emitter, start } = convertMidiASAP(midifile);
+  const rc = convertMidiASAP(midifile);
+  const { emitter, start } = rc;
 
   const readable = new Readable({ read: () => "" });
   emitter.on("note", (event) => {
-    const { midi, instrument, ticks, durationTicks, velocity, noteOffVelocity, trackId } = event;
+    const {
+      midi,
+      instrument,
+      ticks,
+      durationTicks,
+      velocity,
+      noteOffVelocity,
+      trackId,
+    } = event;
     readable.push(
-      [ticks, midi, durationTicks, velocity, noteOffVelocity, instrument, trackId, instrument].join(
-        ","
-      ) + "\n"
+      [
+        ticks,
+        midi,
+        durationTicks,
+        velocity,
+        noteOffVelocity,
+        instrument,
+        trackId,
+        instrument,
+      ].join(",") + "\n"
     );
   });
   emitter.on("#meta", (info) => {

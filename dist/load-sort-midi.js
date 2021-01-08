@@ -25,10 +25,10 @@ function convertMidi(source, cb) {
     const controller = {
         pause: () => setState({ paused: true }),
         resume: () => {
-            console.log("resume");
             setState({ paused: false });
             emitter.emit("resume");
         },
+        seek: (_time) => setState({ time: _time }),
         stop: () => setState({ stop: true }),
         ff: () => setState({ time: state.time + 15 }),
         next: () => { },
@@ -36,17 +36,17 @@ function convertMidi(source, cb) {
         emitter: emitter,
         start: () => {
             setState({ paused: false });
-            pullMidiTrack(tracks, cb);
+            pullMidiTrack({ tracks, _cb: cb });
         },
         setCallback,
         state,
         meta: {
             name: header.name,
             seconds: Math.floor(duration),
-            ...(header.meta[0] || {}),
+            ...(Object.values(header.meta) || {}),
         },
     };
-    const pullMidiTrack = async (tracks, _cb) => {
+    const pullMidiTrack = async ({ tracks, _cb }) => {
         let done = 0;
         let doneSet = new Set();
         setState({ t0: process.uptime() });
@@ -83,10 +83,14 @@ function convertMidi(source, cb) {
                     emitter.emit("#tempo", { bpm: state.tempo.bpm });
                 }
             }
+            let intval = Math.floor(state.time);
             state.time += await _cb(notesstarting);
+            if (Math.floor(state.time) > intval) {
+                emitter.emit("#time", { seconds: state.time });
+            }
             if (state.paused) {
                 await new Promise((resolve) => {
-                    emitter.on("resume", resolve);
+                    emitter.once("resume", resolve);
                 });
             }
             if (state.stop)

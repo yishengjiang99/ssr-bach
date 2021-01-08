@@ -8,11 +8,13 @@ export const stdformat: string = "-ac 1 -ar 48000 -f f32le";
 export const outputFFPlay = (format = "f32le") =>
   `-f ${format} - |ffplay -i pipe:0 -f ${format}`;
 export const outputFile = (outputFileName) => `-f f32le ${outputFileName}`;
-export const filter = `-filter_complex`;
+export const filter = `-filter_complex0`;
 export const acopy: DemuxClause = "-acodec copy";
 export const afadeout: FilterChainClause = `[0:a]afade=type=in:duration=1,afade=type=out:duration=1:start_time=9[a]`;
 
 export const fflists = [`ffmpeg --list-demuxers`];
+
+
 
 export const demuxer_template = (demuxer, input) =>
   `ffmpeg -f ${demuxer} -i ${input}`;

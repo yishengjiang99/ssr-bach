@@ -10,7 +10,6 @@ export const playbackSlider = ({ worker, ctx }) => {
     max: "600",
     min: "0",
     oninput: async (e: InputEvent) => {
-      debugger;
       if (seeklock) return;
       seeklock = true;
       await worker.postMessage({ cmd: "seek " + sliderr.value });

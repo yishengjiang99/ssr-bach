@@ -19,7 +19,7 @@ const queue = [];
 /* @ts-ignore */
 onmessage = (e) => {
     const { data } = e;
-    const { cmd, msg, port, url } = data;
+    const { cmd, msg, port, url, procReset } = data;
     //@ts-ignore
     // postMessage("act" + [cmd, msg, port, url].join(" "));
     //console.log(e.data);
@@ -29,6 +29,9 @@ onmessage = (e) => {
     if (cmd) {
         wss.send(cmd);
         procPort.postMessage({ cmd: cmd });
+    }
+    if (procReset) {
+        procPort.postMessage({ reset: 1 });
     }
     if (url && procPort) {
         procPort.onmessage = (e) => {

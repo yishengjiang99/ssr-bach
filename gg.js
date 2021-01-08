@@ -59,3 +59,7 @@ function Button() {
 //   }
 
 //   ReactDOM.render(<PlayBtn />, document.getElementById("root"));
+
+[1,2,3,4,5,6,7].map(n=>{
+	['A','C','D#','F#']
+})

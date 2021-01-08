@@ -2,13 +2,15 @@ import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
 import { playbackSlider, loadProc } from "./playback-slider.js";
-
+import { EventsPanel } from "./panel.js";
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
 let worker = new Worker("js/build/ws-worker.js", {
   type: "module",
 });
+let eventPanel;
+
 const menu = document.querySelector("#menu");
 const panel = document.querySelector("#panel");
 let slider;
@@ -21,27 +23,12 @@ worker.onmessage = ({ data }) => {
       onStats(data);
     } else if (data.playback) {
       const { event, info } = data.playback;
-      switch (event) {
-        case "#tempo":
-          printrx(info.tempo);
-          break;
-        case "#time":
-          slider.value = "" + Math.floor(info.seconds);
-          break;
-        case "#meta":
-          stdout(JSON.stringify(info));
-          break;
-        default:
-          console.log(info, event);
-          break;
+      if (info.seconds) slider.value = "" + Math.floor(info.seconds);
+      if (info.bpm) printrx(slider.value);
+      if (info.mea) {
       }
+      //not sure
     }
-  });
-};
-
-window.onhashchange = () => {
-  start().then(() => {
-    worker.postMessage({ url: window.location.hash.substring(1) });
   });
 };
 
@@ -69,7 +56,9 @@ const start = async function (url: string = "/pcm/song.mid") {
       });
       // document.querySelector("ul").style.display = "block";
       worker.postMessage({ port: proc.port }, [proc.port]);
-
+      eventPanel = new EventsPanel(document.querySelector("#panel"));
+      eventPanel.start(url.replace("pcm", "rt"));
+      debugger;
       gainNode = new GainNode(ctx);
       av = new AnalyserNode(ctx);
       gainNode.connect(av).connect(ctx.destination);
@@ -78,6 +67,7 @@ const start = async function (url: string = "/pcm/song.mid") {
 
       proc.connect(gainNode);
       slider = playbackSlider({ worker, ctx });
+
       return { gainNode, ctx };
     } catch (e) {
       alert(e.message);
@@ -87,7 +77,6 @@ const start = async function (url: string = "/pcm/song.mid") {
     worker.postMessage({ url });
   }
 };
-
 const pause = () => worker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn"); //#playpause");
 let paused = true;
@@ -109,15 +98,18 @@ function handleBtnClick(e: MouseEvent, url: string) {
 
   if (nowPlaying.url === "") {
     worker.postMessage({ url });
+
     nowPlaying = { url, div: caller };
     caller.innerHTML = html_pause;
     paused = false;
+    eventPanel.start(url);
   } else if (nowPlaying !== null && nowPlaying.url === url) {
     if (paused) {
       caller.innerHTML = html_pause;
 
       worker.postMessage({ cmd: "resume" });
       paused = false;
+      eventPanel.stop();
     } else {
       caller.innerHTML = html_play;
       worker.postMessage({ cmd: "pause" });
@@ -127,6 +119,7 @@ function handleBtnClick(e: MouseEvent, url: string) {
     nowPlaying.div.innerHTML = html_play;
     worker.postMessage({ cmd: "stop" });
     worker.postMessage({ url });
+
     paused = false;
     nowPlaying = { div: caller, url: url };
   } else {
