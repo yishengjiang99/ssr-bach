@@ -16,6 +16,7 @@ import { PassThrough } from "stream";
 import { notelist } from "./filelist";
 import { Http2Stream, createSecureServer, ServerHttp2Stream } from "http2";
 import { handleSamples } from "./id2";
+import { Server } from "ws";
 import { midiMeta } from "./utils";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -84,32 +85,23 @@ export const handler = async (req, res) => {
         res.write(idx1);
         res.write(css);
         res.write(
-          `<iframe  src='https://www.grepawk.com:8443/rcstate?cookie=${who}'></iframe>`
+          `<iframe  src='https://www.grepawk.com/rcstate?cookie=${who}'></iframe>`
         );
         res.write(idx2);
         res.end(idx3);
 
         break;
       case "js":
-        console.log(req.url);
         if (basename(req.url) === "ws-worker.js") {
           res.writeHead(200, {
             "Content-Type": "application/javascript",
           });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
-            .replace("%WSHOST%", "wss://www.grepawk.com/?cookie=" + who);
+            .replace("%WSHOST%", "wss://www.grepawk.com/ws");
           res.end(str);
-        } else if (basename(req.url) === "proc2.js") {
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
-          res.end(readFileSync("./js/build/proc2.js"));
         } else {
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
-          res.end(readFileSync(resolve(__dirname, "../js/build/" + basename(req.url))));
+          queryFs(req, res);
         }
         break;
 
@@ -243,59 +235,29 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
 };
 
 const server = createServer(httpsTLS, handler);
+<<<<<<< Updated upstream
+const wss = new Server({ server });
+
+wss.on("connection", function connection(ws, req: IncomingMessage) {
+  ws.on("message", function incoming(message) {
+    console.log("received: %s", message);
+  });
+  const activeSession = idUser(req);
+
+  ws.send("something");
+});
+=======
+
 server.on("upgrade", wshand);
+>>>>>>> Stashed changes
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
-});
-process.stdin.on("data", (d) => {
-  const cmd = d.toString().trim().split(" ");
-
-  if (cmd[0] === "g") {
-    Object.values(activeSessions).map((ses) => {
-      const { rc, who, query, parts } = ses;
-      console.log(rc);
-      console.log(who, query, parts);
-    });
-  }
-  let proxyUser;
-  if (proxyUser !== null) {
-    switch (cmd.shift()) {
-      case "r":
-      case "resume":
-        proxyUser.rc.resume();
-        break;
-      case "backpressure":
-        proxyUser.rt.write("backpressure");
-        break;
-      case "p":
-      case "play":
-        const url = basename(cmd[cmd.length - 1]);
-        if (url !== proxyUser.rt.filename) {
-          proxyUser.rc.stop();
-        } else {
-          proxyUser.rc.resume();
-        }
-        (wsRefs[cmd[0]] && wsRefs[cmd.join("")]).write("play");
-        break;
-      case "stop":
-      case "pause":
-        proxyUser.rc.pause();
-        proxyUser.rc.ws.write("paused");
-        break;
-      case "morebass":
-        break;
-    }
-  }
-  if (activeSessions[cmd.join("")]) {
-    let proxyUser = activeSessions[cmd.join("")];
-    console.log("sudo for ", proxyUser);
-  }
-  wsRefs[cmd[0]] && wsRefs[cmd.join("")].write("HI");
 });
 
 server.on("upgrade", wshand);
 server.listen(443); //3000);
 
+<<<<<<< Updated upstream
 const server2 = createSecureServer({
   key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
   cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
@@ -317,4 +279,29 @@ server2.on("stream", (stream: ServerHttp2Stream, headers) => {
   stream.write(`<body><pre>HI</pre>`);
   stream.write(`</body></html>`);
 });
-server2.listen(8443);
+=======
+const server2 = createSecureServer(
+  {
+    key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
+    cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
+  },
+  (req, res) => {
+    console.time("in lisrtner");
+  }
+);
+// server2.on("stream", (stream: ServerHttp2Stream, headers) => {
+//   const [parts, query] = parseUrl(headers[":path"]);
+//   const [_, p1, p2, p3] = parts;
+
+//   console.time("in ins tream");
+//   stream.respond({
+//     "content-type": "text/html; charset=utf-8",
+//     ":status": 200,
+//   });
+//   stream.write(idx1);
+//   stream.write(css);
+//   stream.write(`<body><pre>HI</pre>`);
+//   stream.write(`</body></html>`);
+// });
+>>>>>>> Stashed changes
+// server2.listen(8443);

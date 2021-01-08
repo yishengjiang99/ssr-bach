@@ -99,12 +99,12 @@ class PlaybackProcessor extends AudioWorkletProcessor {
   }
   process(inputs, outputs, parameters) {
     if (this.started === false) {
-      this.report();
+      //this.report();
       return true;
     }
     if (this.buffers.length === 0) {
       this.loss++;
-      this.report();
+      //s  this.report();
       return true;
     }
     this.total++;

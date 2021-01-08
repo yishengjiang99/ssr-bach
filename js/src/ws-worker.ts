@@ -30,11 +30,11 @@ onmessage = (e) => {
     procPort = port;
   }
   if (cmd) {
-    wss.send(cmd);
-    procPort.postMessage({ cmd: cmd });
+    if (wss) wss.send(cmd);
+    if (procPort) procPort.postMessage({ cmd: cmd });
   }
   if (procReset) {
-    procPort.postMessage({ reset: 1 });
+    if (procPort) procPort.postMessage({ reset: 1 });
   }
 
   if (url && procPort) {
