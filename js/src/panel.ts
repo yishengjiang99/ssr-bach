@@ -19,36 +19,53 @@ export type NoteEvent = {
 };
 export class EventsPanel {
   ended: boolean;
+  evt: any;
+
+  canvas: HTMLCanvasElement;
   constructor(
-    private parentElement: HTMLElement,
     private offset: number = 0,
     private bars: NoteEvent[] = [],
     private lookbackWindow = 30
-  ) {}
+  ) {
+    var canvas = document.createElement("canvas");
+    document.body.append(canvas);
+    function resizeCanvas() {
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      const WIDTH = window.innerWidth; //.clientHeight;
+      const HEIGHT = window.innerHeight;
+      canvas.setAttribute("width", WIDTH + "");
+      canvas.setAttribute("height", HEIGHT + "");
+    }
 
+    // Webkit/Blink will fire this on load, but Gecko doesn't.
+    window.onresize = resizeCanvas;
+    resizeCanvas();
+    this.canvas = canvas;
+  }
+  stop() {
+    this.evt.close();
+  }
   start(rtlink: string) {
-    const HEIGHT = this.parentElement.clientHeight;
-    const WIDTH = this.parentElement.clientWidth;
-    var canvas: HTMLCanvasElement = document.createElement("canvas")!; //(elemId);
-    const canvasCtx: CanvasRenderingContext2D = canvas.getContext("2d")!;
-    canvas.setAttribute("width", WIDTH + "");
-    canvas.setAttribute("height", HEIGHT + "");
-    canvas.style.zIndex = "-3";
-
+    const canvasCtx: CanvasRenderingContext2D = this.canvas.getContext("2d")!;
+    const WIDTH = window.innerWidth; //.clientHeight;
+    const HEIGHT = window.innerHeight;
     canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
     canvasCtx.fillStyle = `rbga(${pallet[0]},1)`;
     canvasCtx.lineWidth = 1;
     canvasCtx.strokeStyle = "white";
-    this.parentElement.append(canvas);
+
     const svt: EventSource = new EventSource(rtlink);
     let t0;
+    this.evt = svt;
     svt.onopen = () => {
+      t0 = performance.now();
+      requestAnimationFrame(draw);
+
       // @ts-ignore
       svt.addEventListener("note", ({ start, duration, trackId, midi, instrument }) => {
         this.bars.push({ start, duration, trackId, midi, instrument });
       });
-      t0 = performance.now();
-      requestAnimationFrame(draw);
     };
     svt.addEventListener(
       "closed",

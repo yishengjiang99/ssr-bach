@@ -1,33 +1,50 @@
 import { cdiv } from "./misc-ui.js";
-let seeklock = null;
+let seeklock = null,
+  sliderlocks = {};
 let worker, ctx;
-export const playbackSlider = ({ worker, ctx }) => {
-  seeklock = null;
+
+const aggregatedFeed = new TransformStream();
+
+export const UISlider = ({
+  parent = "#stats",
+  worker,
+  cmd,
+  attribute,
+  label = "",
+  defaultValue = 12,
+  min = -12,
+  max = -12,
+  step = 0.1,
+}) => {
   worker = worker;
-  let sliderr = slider(document.querySelector("#stats"), {
-    label: "playback",
-    step: "1",
-    max: "600",
-    min: "0",
+  let formdata: FormData = new FormData();
+  let sliderr = slider(document.querySelector(parent), {
+    ...{ value: defaultValue, min, max, step, label },
     oninput: async (e: InputEvent) => {
-      if (seeklock) return;
-      seeklock = true;
-      await worker.postMessage({ cmd: "seek " + sliderr.value });
-      seeklock = false;
+      if (sliderlocks[attribute]) return;
+      sliderlocks[attribute] = true;
+      formdata.set("attribute", sliderr.value);
+      const resp = await fetch("/update", { method: "post", body: formdata });
+      resp.body
+        .getReader()
+        .read()
+        .then((result) => {});
+      sliderlocks[attribute];
     },
     wrapper: "span",
   });
   return sliderr;
 };
-
+const wschan = new BroadcastChannel("wschan");
+// aggregatedFeed.readable.on("data", (d) => wschan.postMessage(d));
 export const postSeek = async (val) => {
-  const newProc = await loadProc(ctx);
-  worker.postMessage({ cmd: "seek " + val, port: newProc });
+  // const newProc = await loadProc(ctx);
+  worker.postMessage({ cmd: "seek " + val });
   await new Promise((r) => {
-    worker.addEventListener(
+    wschan.addEventListener(
       "message",
-      ({ data }) => {
-        if (data === "ackseek") {
+      ({ data: { ack } }) => {
+        if (ack === "seek") {
           r(1);
         }
       },
@@ -92,8 +109,8 @@ export function slider(container, options) {
   contain.append(input);
   contain.append(label);
 
-  if (!container) {
-    return contain;
-  } else container.append(contain);
+  if (container) {
+    container.append(contain);
+  }
   return input;
 }
