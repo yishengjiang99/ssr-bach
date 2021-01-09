@@ -38,6 +38,7 @@ export type ControllerState = {
 export type RemoteControl = {
   pause: () => void;
   resume: () => void;
+  config?: () => void;
   ff: () => void;
   rwd: () => void;
   seek: (time: number) => void;

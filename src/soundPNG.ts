@@ -55,28 +55,4 @@ export const bitmapget = async (midifile, output: Writable): Promise<Buffer> => 
     emitter.on("end", () => resolve(bitmapp))
   );
 };
-
-export const peeks = (sampleFile: string, output: Writable) => {
-  const sab = new SharedArrayBuffer(1024);
-  const Uint32 = new Uint32Array(sab);
-  Atomics.add(Uint32, 0, 1);
-const f  openSync(sampleFile, "rb");
-
-
-
-  if (err) throw err;
-  const ob = Buffer.alloc(1024);
-  let offset = 0;
-
-  while (true) {
-    readSync(fd, ob, 0, 1024, (offset += 1024));
-    for (let i = 0; i < 1024; i += 4) {
-      const dv: DataView = new DataView(ob.buffer);
-      Atomics.add(Uint32, dv.getUint32(i, true), 1);
-    }
-  }
-  output.write(Uint32.buffer):
-});
-
-
-};
+sli

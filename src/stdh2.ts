@@ -4,7 +4,7 @@ import { createSecureServer } from "http2";
 import { notelist } from "./filelist";
 import { hotreloadOrPreload, parseUrl, pushFile } from "./fsr";
 import { httpsTLS } from "./tls";
-import { cspawn, std_settings } from "./utils";
+import { cspawn, midiMeta, std_settings } from "./utils";
 import { LSSource, LSGraph, ReadlineTransform } from "grep-transform";
 import stream, { Transform } from "stream";
 import { produce } from "./sound-sprites";
@@ -32,8 +32,12 @@ server.on("stream", (stream: ServerHttp2Stream, headers) => {
     },
     { waitForTrailers: true }
   );
-  stream.on("wantTrailers", () => {});
+  stream.on("wantTrailers", () => {
+    console.log("ss");
+  });
   stream.write(idx1);
   stream.write(css);
   stream.write(idx2);
+  stream.write(midiMeta(mid));
 });
+server.listen(443);
