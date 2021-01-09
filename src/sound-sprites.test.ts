@@ -3,7 +3,6 @@ import { convertMidiASAP } from "./load-sort-midi";
 import { produce } from "./sound-sprites";
 import { PassThrough } from "stream";
 import { NoteEvent } from "./ssr-remote-control.types";
-import { test } from "@types/jest";
 const assert = require("assert").strict;
 const ctx = new SSRContext({
   nChannels: 1,
@@ -31,7 +30,7 @@ test("event with real data", () => {
   pt.on("data", (d) => {
     // console.log(d.byteLength);
     for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
-      expect(!isNaN(f)).to.be.true;
+      expect(!isNaN(f)).toReturn;
       // console.log(f);
     }
   });

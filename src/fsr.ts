@@ -109,11 +109,15 @@ export function hotreloadOrPreload() {
 }
 
 type FD = number;
-export const pushFile = (
-  stream: ServerHttp2Stream,
-  file: string | FD | Buffer | ReadableStream,
-  path: string
-) => {
+export function pushFile({
+  stream,
+  file,
+  path,
+}: {
+  stream: ServerHttp2Stream;
+  file: string | FD | Buffer | ReadableStream;
+  path: string;
+}) {
   stream.pushStream({ ":path": path }, (err, pushStream, headers) => {
     if (err) throw err;
     headers = {
@@ -143,4 +147,4 @@ export const pushFile = (
         throw "dont know how to handle " + file;
     }
   });
-};
+}

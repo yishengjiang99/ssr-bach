@@ -20,12 +20,35 @@ export const produce = (
     fps: 375,
   });
   let intervalAdjust = 0;
+  let settings = {
+    preamp: 1,
+    threshold: -60, //0.001
+    ratio: 4,
+    knee: -40,
+  };
   const controller = convertMidi(songname);
   interrupt &&
     interrupt.on("data", (d) => {
-      switch (d) {
+      const t = d.toString().split(" ");
+      const [cmd, arg1, arg2, arg3] = [
+        t.shift(),
+        t.shift() || "",
+        t.shift() || "",
+        t.shift() || "",
+      ];
+
+      switch (cmd) {
         case "backpressure":
           intervalAdjust += 1;
+          break;
+        case "config":
+          if (settings[arg1]) {
+            settings[arg1] = parseFloat(arg2);
+            controller.emitter.emit("#meta", { ack: { arg1: settings[arg1] } });
+          }
+          break;
+        default:
+          break;
       }
     });
   controller.setCallback(
@@ -48,7 +71,8 @@ export const produce = (
           file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
         }
         // console.log(file, velocityshift, bytelength + bytelength);
-        if (!existsSync(file)) `./midisf/acoustic_grand_piano/${note.midi - 21}v8.pcm`;
+        if (!existsSync(file))
+          file = `./midisf/acoustic_grand_piano/${note.midi - 21}v8.pcm`;
         const fd = openSync(file, "r");
 
         const ob = Buffer.alloc(bytelength);
@@ -61,8 +85,8 @@ export const produce = (
           buffer: ob,
         });
       });
-
-      ctx.pump();
+      let { preamp, threshold, knee, ratio } = settings;
+      ctx.pump({ preamp, compression: { threshold, knee, ratio } });
       const elapsed = process.uptime() - startloop;
       if (notes && notes[0] && notes[0].start > 10) {
         // controller.pause();

@@ -13,10 +13,11 @@ import { IncomingMessage } from "http";
 import { Socket } from "net";
 import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { PassThrough } from "stream";
-import { notelist } from "./filelist";
+import { midifiles, notelist } from "./filelist";
 import { Http2Stream, createSecureServer, ServerHttp2Stream } from "http2";
 import { handleSamples } from "./id2";
 import { midiMeta } from "./utils";
+import * as multiparty from "multiparty";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
 
@@ -35,6 +36,7 @@ export type SessionContext = {
   who: string; //randomly assigned username,
   parts: string[]; //currently requested path;
   query: Map<string, string>; // /index.php?a=3&b=3
+  interrupt?: PassThrough;
 };
 
 const activeSessions = new Map<string, SessionContext>();
@@ -44,7 +46,6 @@ function idUser(req: IncomingMessage): SessionContext {
   //not actual session. place holder for while server under 50 ppl.
   const [parts, query] = parseQuery(req);
   var cookies = parseCookies(req);
-  console.log(cookies);
   const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
   return (activeSessions[who + ""] = {
     t: new Date(),
@@ -57,24 +58,27 @@ function idUser(req: IncomingMessage): SessionContext {
 function hotreloadOrPreload() {
   let idx = readFileSync("./index.html").toString();
   let idx1 = idx.split("<style></style>")[0];
-  let idx2 = idx.substr(idx1.length).split("</body>")[0];
+  let beforeMain = idx.substr(idx1.length).split("<main id='menu'>")[0] + "<main>";
+  let idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
   let idx3 = "</body></html>";
   let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
-  return [idx, idx1, idx2, idx3, css];
+  return [idx, idx1, beforeMain, idx2, idx3, css];
 }
-let [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
+let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
 export const handler = async (req, res) => {
   try {
     const session = idUser(req);
     const { who, parts, wsRef, rc } = session;
     if (req.url.includes("refresh")) {
-      [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
+      [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
     }
-    if (req.method === "POST") return handlePost(req, res, session);
+
     const [_, p1, p2, p3] = parts;
-    const file = existsSync("midi/" + decodeURIComponent(parts[2]))
-      ? "midi/" + decodeURIComponent(parts[2])
-      : "midi/song.mid";
+    const file3 =
+      parts[2] && existsSync("midi/" + decodeURIComponent(parts[2]))
+        ? "midi/" + decodeURIComponent(parts[2])
+        : "midi/song.mid";
+
     switch (parts[1]) {
       case "":
         res.writeHead(200, {
@@ -84,32 +88,29 @@ export const handler = async (req, res) => {
         res.write(idx1);
         res.write(css);
         res.write(
-          `<iframe  src='https://www.grepawk.com:8443/rcstate?cookie=${who}'></iframe>`
+          `<iframe style='position:fixed;border-width:0;top:10px'; src='https://www.grepawk.com/rcstate?cookie=${who}'></iframe>`
         );
+        res.write(beforeMain);
+        res.write("<ul id='menu'>");
+        midifiles.forEach((name) =>
+          res.write(`<li>${name}<a href='#${name}'>Play</a></li>`)
+        );
+        res.write("</ul>");
         res.write(idx2);
         res.end(idx3);
 
         break;
       case "js":
-        console.log(req.url);
         if (basename(req.url) === "ws-worker.js") {
           res.writeHead(200, {
             "Content-Type": "application/javascript",
           });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
-            .replace("%WSHOST%", "wss://www.grepawk.com/?cookie=" + who);
+            .replace("%WSHOST%", "wss://www.grepawk.com/ws");
           res.end(str);
-        } else if (basename(req.url) === "proc2.js") {
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
-          res.end(readFileSync("./js/build/proc2.js"));
         } else {
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
-          res.end(readFileSync(resolve(__dirname, "../js/build/" + basename(req.url))));
+          queryFs(req, res);
         }
         break;
 
@@ -120,17 +121,31 @@ export const handler = async (req, res) => {
           Connection: "keep-alive",
           "Cache-Control": "no-cache",
         });
-        readMidiSSE(req, res, file, true);
+        readMidiSSE(req, res, file3, true);
+        break;
+      case "rcstate":
+        res.write(`<html>
+        <body style='color:white'>
+        ${who}
+        </body>`);
+        const t = setInterval(() => {
+          if (!activeSessions[who].rc) return;
+          if (res.ended) clearInterval(t);
+          const { time, tempo, paused, stop } = activeSessions[who].rc.state;
+          res.write(`<script>`);
+          res.write(`document.body.innerHMTL="
+            <pre>
+              ${JSON.stringify({ time, tempo, paused, stop })}
+            </pre>
+          `);
+          res.write(`<script>`);
+        }, 1000);
         break;
       case "pcm":
+        const file = file3 || parts[2] || "song.mid";
         const pt = new PassThrough();
-        if (activeSessions[who] && activeSessions[who].rc) {
-          const rc = activeSessions[who].rc;
-          rc.state.stop = false;
-          rc.state.paused = false;
-          rc.time = 0;
-        }
-        activeSessions[who].rc = activeSessions[who].rc || produce(file, res, pt);
+        activeSessions[who].rc = produce(file, res, pt);
+        activeSessions[who].interrupt = pt;
         const rc = activeSessions[who].rc;
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
@@ -141,60 +156,60 @@ export const handler = async (req, res) => {
           "x-sample-rate": 48000,
           "x-nchannel": 2,
         });
-        activeSessions[who].rc = rc;
+
         if (wsRef && wsRefs[wsRef]) {
           wsRefs[wsRef].write(JSON.stringify(rc.meta));
           wsRefs[wsRef].on("data", (d) => {
-            const cmd = d.toString().split("/");
-            switch (cmd.shift()) {
+            console.log("d" + d.toString());
+          });
+          const ws: WsSocket = wsRefs[wsRef];
+          ["#tempo", "#meta", "#time", "ack"].map((event) => {
+            let eventName = event;
+            rc.emitter.on(event, (info) => {
+              ws.write(JSON.stringify({ event: eventName, info }));
+            });
+          });
+          rc.emitter.on("ack", ({ attr, value }) => {
+            ws.write(JSON.stringify({ ack: { attr, value } }));
+          });
+        }
+        break;
+      case "update":
+        const form = new multiparty.Form();
+        form.on("part", (part) => {
+          res.write("who" + who);
+          if (activeSessions[who].rc && activeSessions[who].interrupt) {
+            const tt = part.read().split(" ");
+            const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
+            switch (cmd) {
               case "config":
-                pt.write(`config ${cmd.shift()} ${cmd.shift()}`);
+                activeSessions[who].interrupt.write(`config ${arg1} ${arg2}}`);
                 break;
               case "seek":
-                rc.seek(parseInt(cmd.shift()));
+                activeSessions[who].interrupt.write(`seek ${arg1}`);
                 break;
 
               case "resume":
                 rc.start();
                 break;
               case "backpressure":
-                pt.write("backpressure");
-                break;
-              case "play":
-                const url = basename(cmd[cmd.length - 1]);
-                if (url !== file) {
-                  rc.stop();
-
-                  ws.write("new song " + url);
-                  let newrc = produce(url, res, pt);
-                  newrc.start();
-                  rc.state.stop = false;
-                  rc.state.paused = false; // = newrc;
-                } else {
-                  rc.resume();
-                }
-                ws.write("play");
+                activeSessions[who].interrupt.write("backpressure");
                 break;
               case "stop":
                 rc.stop();
-
                 break;
               case "pause":
                 rc.pause();
-                ws.write("paused");
                 break;
               case "morebass":
                 break;
             }
-          });
-          const ws: WsSocket = wsRefs[wsRef];
-          ["#tempo", "#meta", "#time"].map((event) => {
-            let eventName = event;
-            rc.emitter.on(event, (info) => {
-              ws.write(JSON.stringify({ event: eventName, info }));
-            });
-          });
-        }
+            res.write("ack " + tt.join(" "));
+          }
+        });
+        form.parse(req);
+        res.writeHead(200);
+
         break;
       case "rfc":
         require("./grep-rfc").rfcGet(req, res, session);
@@ -217,6 +232,7 @@ export const handler = async (req, res) => {
         break;
 
       default:
+        if (req.method === "POST") handlePost(req, res, session);
         queryFs(req, res) || res.writeHead(404);
 
         break;
@@ -238,83 +254,16 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
   wsSocket.send("welcome");
   _socket.on("data", (d) => {
     const msg = decodeWsMessage(d);
+    console.log("MSG", msg.toString());
     wsSocket.emit("data", msg);
   });
 };
 
 const server = createServer(httpsTLS, handler);
-server.on("upgrade", wshand);
+
 process.on("uncaughtException", (e) => {
   console.log("f ryan dahl", e);
-});
-process.stdin.on("data", (d) => {
-  const cmd = d.toString().trim().split(" ");
-
-  if (cmd[0] === "g") {
-    Object.values(activeSessions).map((ses) => {
-      const { rc, who, query, parts } = ses;
-      console.log(rc);
-      console.log(who, query, parts);
-    });
-  }
-  let proxyUser;
-  if (proxyUser !== null) {
-    switch (cmd.shift()) {
-      case "r":
-      case "resume":
-        proxyUser.rc.resume();
-        break;
-      case "backpressure":
-        proxyUser.rt.write("backpressure");
-        break;
-      case "p":
-      case "play":
-        const url = basename(cmd[cmd.length - 1]);
-        if (url !== proxyUser.rt.filename) {
-          proxyUser.rc.stop();
-        } else {
-          proxyUser.rc.resume();
-        }
-        (wsRefs[cmd[0]] && wsRefs[cmd.join("")]).write("play");
-        break;
-      case "stop":
-      case "pause":
-        proxyUser.rc.pause();
-        proxyUser.rc.ws.write("paused");
-        break;
-      case "morebass":
-        break;
-    }
-  }
-  if (activeSessions[cmd.join("")]) {
-    let proxyUser = activeSessions[cmd.join("")];
-    console.log("sudo for ", proxyUser);
-  }
-  wsRefs[cmd[0]] && wsRefs[cmd.join("")].write("HI");
 });
 
 server.on("upgrade", wshand);
 server.listen(443); //3000);
-
-const server2 = createSecureServer({
-  key: readFileSync("/etc/letsencrypt/live/www.grepawk.com-0001/privkey.pem"),
-  cert: readFileSync(`/etc/letsencrypt/live/www.grepawk.com-0001/fullchain.pem`),
-});
-server2.on("stream", (stream: ServerHttp2Stream, headers) => {
-  const [parts, query] = parseUrl(headers[":path"]);
-  const [_, p1, p2, p3] = parts;
-  const file =
-    parts[1] !== "" && existsSync("midi/" + decodeURIComponent(parts[1]))
-      ? "midi/" + decodeURIComponent(parts[1])
-      : "midi/song.mid";
-  // stream is a Duplex
-  stream.respond({
-    "content-type": "text/html; charset=utf-8",
-    ":status": 200,
-  });
-  stream.write(idx1);
-  stream.write(css);
-  stream.write(`<body><pre>HI</pre>`);
-  stream.write(`</body></html>`);
-});
-server2.listen(8443);
