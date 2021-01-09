@@ -1,29 +1,38 @@
 import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
-import { playbackSlider, loadProc } from "./playback-slider.js";
+import { UISlider, loadProc, slider } from "./playback-slider.js";
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
 let worker = new Worker("js/build/ws-worker.js", {
   type: "module",
 });
+let playbackSlider = UISlider({
+  worker,
+  label: "playback",
+  defaultValue: 0,
+  min: 0,
+  max: 600,
+  cmd: "seek",
+  attribute: "time",
+});
 
+let gainNode: AudioNode, av: AnalyserNode, canvas: any;
 const menu = document.querySelector("#menu");
 const panel: HTMLDivElement = document.querySelector("#panel");
-let slider;
 worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
   requestAnimationFrame(() => {
     if (data.msg) {
-      stdout(data.msg);
+      // stdout(data.msg);
     } else if (data.stats) {
-      onStats(data);
-    } else if (data.playback) {
+      // onStats(data);
+    } else if (data.playback && data.playback.info) {
       const { event, info } = data.playback;
-      if (info.seconds) slider.value = "" + Math.floor(info.seconds);
-      if (info.bpm) printrx(slider.value);
-      if (info.mea) {
+      if (info.seconds) playbackSlider.value = "" + Math.floor(info.seconds);
+      if (info.bpm) printrx(info.bpm);
+      if (info.meta) {
       }
       //not sure
     }
@@ -37,10 +46,36 @@ let nowPlaying = {
   div: null,
   url: "",
 };
+let controls = [
+  UISlider({
+    worker,
+    defaultValue: 1,
+    cmd: "config",
+    attribute: "preamp",
+    min: 0,
+    max: 2,
+  }),
+  UISlider({
+    worker,
+    cmd: "config",
 
-let gainNode: AudioNode, av: AnalyserNode, canvas: any;
+    attribute: "compression.threshold (db)",
+    min: -50,
+    max: -40,
+    defaultValue: 1,
+  }),
+  UISlider({
+    worker,
+    cmd: "config",
+    attribute: "compression.ratio",
+    min: 0,
+    max: 2,
+  }),
+];
+
 const start = async function (url: string = "/pcm/song.mid") {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
+  if (proc) proc.disconnect();
   if (!proc) {
     try {
       await ctx.audioWorklet.addModule("./js/build/proc2.js");
@@ -62,11 +97,10 @@ const start = async function (url: string = "/pcm/song.mid") {
       setTimeout(avcanvas.start, 1000);
 
       proc.connect(gainNode);
-      slider = playbackSlider({ worker, ctx });
 
       return { gainNode, ctx };
     } catch (e) {
-      alert(e.message);
+      stdout("<font color='red'>" + e.message + "</font>");
     }
   }
   if (url) {
@@ -94,7 +128,7 @@ async function handleBtnClick(e: MouseEvent, url: string) {
 
   if (nowPlaying.url === "") {
     nowPlaying = { url, div: caller };
-    caller.innerHTML = html_pause;
+    //caller.innerHTML = html_pause;
     paused = false;
     playUrl(url);
   } else if (nowPlaying !== null && nowPlaying.url === url) {
@@ -103,7 +137,7 @@ async function handleBtnClick(e: MouseEvent, url: string) {
 
       worker.postMessage({ cmd: "resume" });
       paused = false;
-      eventPanel.stop();
+
       pause();
     } else {
       caller.innerHTML = html_play;
@@ -111,7 +145,7 @@ async function handleBtnClick(e: MouseEvent, url: string) {
       paused = true;
     }
   } else if (nowPlaying.url !== "" && nowPlaying.url !== url) {
-    nowPlaying.div.innerHTML = html_play;
+    //   nowPlaying.div.innerHTML = html_play;
     worker.postMessage({ cmd: "stop" });
     worker.postMessage({ url });
 
@@ -122,35 +156,23 @@ async function handleBtnClick(e: MouseEvent, url: string) {
     //    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
     caller.innerHTML = html_pause;
   }
-
-  if (!paused) {
-    menu.classList.add("collapse");
-    panel.classList.add("show");
-  } else {
-    panel.classList.add("collapse");
-    menu.classList.add("show");
-  }
 }
-
+const wschan = new BroadcastChannel("wschan");
+wschan.onmessage = ({ data }) => {
+  // stdout(JSON.stringify(data));
+};
 playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowPlaying.url);
 const { onStats, onPlayback } = ttt();
 
 const html_play = " play ";
 const html_pause = "pause";
-window.onhashchange = (e) => {
+window.onhashchange = () => {
   stdout(document.location.hash.substr(1));
-  handleBtnClick(e, "/" + document.location.hash.substr(1));
-};
-fetch("/midi?format=json")
-  .then((res) => res.json())
-  .then(function gen(resultjson) {
-    menu.innerHTML = resultjson
-      .map((name: string, s: any) => `<li>${name}<a href='#${name}'>Play</a></li>`)
-      .join("");
-
-    return menu;
-  })
-
-  .catch((e) => {
-    alert(e.message);
+  start().then(() => {
+    worker.postMessage({ url: "/pcm/" + document.location.hash.substr(1) });
   });
+  nowPlaying = {
+    url: "/pcm/" + document.location.hash.substr(1),
+    div: null,
+  };
+};
