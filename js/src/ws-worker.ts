@@ -7,6 +7,7 @@ wss.onopen = () => {
   postMessage({ msg: "ws open" });
   wss.onmessage = ({ data }) => {
     wschan.postMessage(data);
+
     if (data[0] == "{") {
       //@ts-ignore
       postMessage({ playback: JSON.parse(data) });

@@ -14,10 +14,7 @@ export const afadeout: FilterChainClause = `[0:a]afade=type=in:duration=1,afade=
 
 export const fflists = [`ffmpeg --list-demuxers`];
 
-
-
-export const demuxer_template = (demuxer, input) =>
-  `ffmpeg -f ${demuxer} -i ${input}`;
+export const demuxer_template = (demuxer, input) => `ffmpeg -f ${demuxer} -i ${input}`;
 
 export const concat = `-af concat -i playlist.txt`;
 export const concatPlaylist: TXTFileContent = `\
@@ -29,7 +26,7 @@ output 1.2
 
 file subdir/file-2.wav
 file file3`;
-export const recordmic = "ffmpeg -f avfoundation -i :1 -f mpegts output.ts";
+export const recordmic = "ffmpeg -re -f avfoundation -i :1 -f mpegts output.ts";
 
 export function build51(...inputs) {
   const [fl, fr, fc, sl, sr, lfe] = inputs;

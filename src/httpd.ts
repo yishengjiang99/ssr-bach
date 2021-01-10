@@ -18,6 +18,8 @@ import { Http2Stream, createSecureServer, ServerHttp2Stream } from "http2";
 import { handleSamples } from "./id2";
 import { midiMeta } from "./utils";
 import * as multiparty from "multiparty";
+import { Player } from "./player";
+
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
 
@@ -29,6 +31,7 @@ import * as multiparty from "multiparty";
 type WebSocketRefStr = string;
 export type SessionContext = {
   t?: any;
+  player: Player;
   wsRef?: WebSocketRefStr; //used to message user via ws during playback
   rc?: RemoteControl; //this controls active playback + the data channel actively piping to their browser
   ffspawn?: ChildProcess; //the ffmpeg filter
@@ -36,11 +39,26 @@ export type SessionContext = {
   who: string; //randomly assigned username,
   parts: string[]; //currently requested path;
   query: Map<string, string>; // /index.php?a=3&b=3
-  interrupt?: PassThrough;
 };
+let activeSessions = new Map<string, SessionContext>();
+let wsRefs = new Map<WebSocketRefStr, WsSocket>();
+let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
 
-const activeSessions = new Map<string, SessionContext>();
-const wsRefs = new Map<WebSocketRefStr, WsSocket>();
+export const run = (port, tls = httpsTLS) => {
+  process.env.port = port;
+  const server = createServer(tls, handler);
+
+  process.on("uncaughtException", (e) => {
+    console.log("f ", e);
+  });
+
+  server.on("upgrade", wshand);
+  server.listen(port); //3000);
+  return {
+    activeSessions,
+    server,
+  };
+};
 
 function idUser(req: IncomingMessage): SessionContext {
   //not actual session. place holder for while server under 50 ppl.
@@ -49,22 +67,24 @@ function idUser(req: IncomingMessage): SessionContext {
   const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
   return (activeSessions[who + ""] = {
     t: new Date(),
-    ...activeSessions[who + ""],
+    player: new Player(),
     who,
+    ...activeSessions[who + ""],
+
     parts,
     query,
   });
 }
-function hotreloadOrPreload() {
+export function hotreloadOrPreload() {
   let idx = readFileSync("./index.html").toString();
   let idx1 = idx.split("<style></style>")[0];
-  let beforeMain = idx.substr(idx1.length).split("<main id='menu'>")[0] + "<main>";
+  let beforeMain = idx.substr(idx1.length).split("<main></main>")[0] + "<main>";
   let idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
   let idx3 = "</body></html>";
   let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
   return [idx, idx1, beforeMain, idx2, idx3, css];
 }
-let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
+
 export const handler = async (req, res) => {
   try {
     const session = idUser(req);
@@ -87,9 +107,7 @@ export const handler = async (req, res) => {
         });
         res.write(idx1);
         res.write(css);
-        res.write(
-          `<iframe style='position:fixed;border-width:0;top:10px'; src='https://www.grepawk.com/rcstate?cookie=${who}'></iframe>`
-        );
+
         res.write(beforeMain);
         res.write("<ul id='menu'>");
         midifiles.forEach((name) =>
@@ -107,7 +125,7 @@ export const handler = async (req, res) => {
           });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
-            .replace("%WSHOST%", "wss://www.grepawk.com/ws");
+            .replace("%WSHOST%", "wss://www.grepawk.com:" + process.env.port);
           res.end(str);
         } else {
           queryFs(req, res);
@@ -123,40 +141,21 @@ export const handler = async (req, res) => {
         });
         readMidiSSE(req, res, file3, true);
         break;
-      case "rcstate":
-        res.write(`<html>
-        <body style='color:white'>
-        ${who}
-        </body>`);
-        const t = setInterval(() => {
-          if (!activeSessions[who].rc) return;
-          if (res.ended) clearInterval(t);
-          const { time, tempo, paused, stop } = activeSessions[who].rc.state;
-          res.write(`<script>`);
-          res.write(`document.body.innerHMTL="
-            <pre>
-              ${JSON.stringify({ time, tempo, paused, stop })}
-            </pre>
-          `);
-          res.write(`<script>`);
-        }, 1000);
-        break;
       case "pcm":
         const file = file3 || parts[2] || "song.mid";
-        const pt = new PassThrough();
-        activeSessions[who].rc = produce(file, res, pt);
-        activeSessions[who].interrupt = pt;
-        const rc = activeSessions[who].rc;
+
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "audio/raw",
           "Cache-Control": "no-cache",
-          "x-meta": JSON.stringify(rc.meta),
+
           "x-bit-depth": 32,
           "x-sample-rate": 48000,
           "x-nchannel": 2,
         });
-
+        activeSessions[who].player.playTrack(file, res);
+        activeSessions[who].rc = activeSessions[who].player.nowPlaying;
+        const rc = activeSessions[who].rc;
         if (wsRef && wsRefs[wsRef]) {
           wsRefs[wsRef].write(JSON.stringify(rc.meta));
           wsRefs[wsRef].on("data", (d) => {
@@ -173,43 +172,6 @@ export const handler = async (req, res) => {
             ws.write(JSON.stringify({ ack: { attr, value } }));
           });
         }
-        break;
-      case "update":
-        const form = new multiparty.Form();
-        form.on("part", (part) => {
-          res.write("who" + who);
-          if (activeSessions[who].rc && activeSessions[who].interrupt) {
-            const tt = part.read().split(" ");
-            const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
-            switch (cmd) {
-              case "config":
-                activeSessions[who].interrupt.write(`config ${arg1} ${arg2}}`);
-                break;
-              case "seek":
-                activeSessions[who].interrupt.write(`seek ${arg1}`);
-                break;
-
-              case "resume":
-                rc.start();
-                break;
-              case "backpressure":
-                activeSessions[who].interrupt.write("backpressure");
-                break;
-              case "stop":
-                rc.stop();
-                break;
-              case "pause":
-                rc.pause();
-                break;
-              case "morebass":
-                break;
-            }
-            res.write("ack " + tt.join(" "));
-          }
-        });
-        form.parse(req);
-        res.writeHead(200);
-
         break;
       case "rfc":
         require("./grep-rfc").rfcGet(req, res, session);
@@ -244,7 +206,36 @@ export const handler = async (req, res) => {
   }
 };
 
-const wshand = (req: IncomingMessage, _socket: Socket) => {
+export const handleRemoteControl = function (player: Player, msg: string, ws) {
+  let tt: string[] = msg.split(" ");
+  const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
+  if (cmd === "config") {
+    player.setSetting(arg1, parseFloat(arg2));
+    ws.write("ack config " + arg1 + " " + arg2);
+    return;
+  }
+  if (player.nowPlaying === null) {
+    ws.write("not currenting playing anything");
+    return;
+  }
+  let rc = player.nowPlaying;
+  switch (cmd) {
+    case "resume":
+      rc.resume();
+      break;
+    case "stop":
+      rc.stop();
+      rc.emitter.removeAllListeners();
+      player.nowPlaying = null;
+      break;
+    case "pause":
+      rc.pause();
+      break;
+    default:
+      ws.write("unknown handler " + cmd);
+  }
+};
+export const wshand = (req: IncomingMessage, _socket: Socket) => {
   shakeHand(_socket, req.headers);
   const activeSession = idUser(req);
   const wsSocket: WsSocket = new WsSocket(_socket, req);
@@ -254,16 +245,15 @@ const wshand = (req: IncomingMessage, _socket: Socket) => {
   wsSocket.send("welcome");
   _socket.on("data", (d) => {
     const msg = decodeWsMessage(d);
-    console.log("MSG", msg.toString());
-    wsSocket.emit("data", msg);
+    fd(wsSocket, msg);
+    handleRemoteControl(activeSession.player, msg.toString(), wsSocket);
+    wsSocket.write("ack " + msg);
   });
 };
 
-const server = createServer(httpsTLS, handler);
-
-process.on("uncaughtException", (e) => {
-  console.log("f ryan dahl", e);
-});
-
-server.on("upgrade", wshand);
-server.listen(443); //3000);
+if (require.main === module) {
+  run(process.argv[2] || 443);
+}
+function fd(wsSocket: WsSocket, msg: Buffer) {
+  wsSocket.emit("data", msg);
+}

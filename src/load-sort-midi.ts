@@ -55,7 +55,10 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     meta: {
       name: header.name,
       seconds: Math.floor(duration),
-      ...(Object.values(header.meta) || {}),
+      ...(Object.values(header.meta).reduce((map, ele) => {
+        map[ele.text] = ele["value"];
+        return map;
+      }, {}) || {}),
     },
   };
 
@@ -77,6 +80,22 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
         }
         if (tracks[i].notes[0] && tracks[i].notes[0].ticks <= currentTick) {
           const note = tracks[i].notes.shift();
+          if (currentTick - note.ticks < 500) {
+            const noteEvent = {
+              ...note,
+              name: note.name,
+              trackId: i,
+              instId: tracks[i].instrument.number,
+              start: header.ticksToSeconds(note.ticks),
+              durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
+              velocity: note.velocity,
+              instrument: std_inst_names[tracks[i].instrument.number],
+            };
+            notesstarting.push(noteEvent);
+            emitter.emit("note", noteEvent);
+          } else {
+            //discarding notes too far i the past.. which is valid case in ff playback
+          }
           const noteEvent = {
             ...note,
             name: note.name,
@@ -108,7 +127,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
       }
       if (state.stop) break;
     }
-    emitter.emit("ended");
     emitter.emit("end");
   };
 

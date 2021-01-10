@@ -13,23 +13,14 @@ export const UISlider = ({
   label = "",
   defaultValue = 12,
   min = -12,
-  max = -12,
+  max = 12,
   step = 0.1,
 }) => {
   worker = worker;
-  let formdata: FormData = new FormData();
   let sliderr = slider(document.querySelector(parent), {
     ...{ value: defaultValue, min, max, step, label },
     oninput: async (e: InputEvent) => {
-      if (sliderlocks[attribute]) return;
-      sliderlocks[attribute] = true;
-      formdata.set("attribute", sliderr.value);
-      const resp = await fetch("/update", { method: "post", body: formdata });
-      resp.body
-        .getReader()
-        .read()
-        .then((result) => {});
-      sliderlocks[attribute];
+      worker.postMessage({ cmd: `config ${attribute} ${sliderr.value}` });
     },
     wrapper: "span",
   });
@@ -52,51 +43,24 @@ export const postSeek = async (val) => {
     );
   });
 };
-export const loadProc = async (ctx) => {
-  if (true || ctx.audioWorklet.module) {
-    await ctx.audioWorklet.addModule("./js/build/proc2.js");
-  }
-
-  let aproc = new AudioWorkletNode(ctx, "playback-processor", {
-    outputChannelCount: [2],
-  });
-  await new Promise<void>((resolve) => {
-    aproc.port.onmessage = ({ data }) => {
-      resolve();
-    };
-  });
-  return aproc;
-};
 
 export function slider(container, options) {
   var params = options || {};
   var input = document.createElement("input");
-  input.min =
-    (params.min !== null && params.min) || (params.prop && params.prop.minValue) || "-12";
-  input.max =
-    (params.max !== null && params.max) || (params.prop && params.prop.maxValue) || "12";
-  input.type = params.type || "range";
-  input.defaultValue = (params.prop && params.prop.value.toString()) || params.value;
-  input.step = params.step || "0.1";
+  input.min = params.min !== null ? params.min : "-12";
+  input.max = params.max !== null ? params.max : "12"; //|| "12";
+  input.type = "range";
+  input.step = params.step || 0.1;
+  input.value = params.defaultValue !== null ? params.defaultValue : 0;
   var label = document.createElement("span");
+  label.innerHTML = params.label + ": " + input.value;
 
-  if (input.type == "range") {
-    label.innerHTML =
-      params.label || (params.prop && params.prop.value.toString()) || params.value;
-  } else {
-    input.size = 10;
-  }
-  if (options.oninput) {
-    input.oninput = options.oninput;
-  } else {
-    input.oninput = (e) => {
-      params.prop.setValueAtTime(input.value, 0);
-      label.innerHTML = input.value + "";
-    };
-  }
-  if (options.eventEmitter) {
-    options.eventEmitter();
-  }
+  input.oninput = (e) => {
+    if (params.props) params.prop.setValueAtTime(input.value, 0);
+    if (label) label.innerHTML = params.label + " " + input.value + "";
+    if (params.oninput) options.oninput(e);
+  };
+
   var contain = document.createElement(params.wrapper || "td");
   contain.style.position = "relative";
   label.style.minWidth = "4em";

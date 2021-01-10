@@ -1,7 +1,7 @@
 import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
-import { UISlider, loadProc, slider } from "./playback-slider.js";
+import { UISlider, slider } from "./playback-slider.js";
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
@@ -25,9 +25,9 @@ worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
   requestAnimationFrame(() => {
     if (data.msg) {
-      // stdout(data.msg);
+      stdout(data.msg);
     } else if (data.stats) {
-      // onStats(data);
+      onStats(data);
     } else if (data.playback && data.playback.info) {
       const { event, info } = data.playback;
       if (info.seconds) playbackSlider.value = "" + Math.floor(info.seconds);
@@ -51,23 +51,28 @@ let controls = [
     worker,
     defaultValue: 1,
     cmd: "config",
+    label: "preamp",
+
     attribute: "preamp",
-    min: 0,
+    min: -0.1,
     max: 2,
   }),
   UISlider({
     worker,
     cmd: "config",
+    label: "threshold",
 
-    attribute: "compression.threshold (db)",
+    attribute: "threshold",
     min: -50,
     max: -40,
-    defaultValue: 1,
+    step: 1,
+    defaultValue: -45,
   }),
   UISlider({
     worker,
+    label: "ratio",
     cmd: "config",
-    attribute: "compression.ratio",
+    attribute: "ratio",
     min: 0,
     max: 2,
   }),
@@ -114,7 +119,7 @@ const pause = () => worker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn"); //#playpause");
 let paused = true;
 let init = false;
-
+const { onStats, onPlayback } = ttt();
 async function handleBtnClick(e: MouseEvent, url: string) {
   e.preventDefault();
   let caller: HTMLButtonElement = e.target as HTMLButtonElement;
@@ -162,7 +167,6 @@ wschan.onmessage = ({ data }) => {
   // stdout(JSON.stringify(data));
 };
 playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowPlaying.url);
-const { onStats, onPlayback } = ttt();
 
 const html_play = " play ";
 const html_pause = "pause";

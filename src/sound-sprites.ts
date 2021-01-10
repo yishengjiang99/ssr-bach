@@ -1,16 +1,18 @@
 import { Writable } from "stream";
-import { spawn } from "child_process";
 import { convertMidi } from "./load-sort-midi";
 import { openSync, readSync, closeSync, createWriteStream, existsSync } from "fs";
-import { SSRContext, PulseSource, Envelope } from "ssr-cxt";
+import { SSRContext, PulseSource, Envelope, Oscillator } from "ssr-cxt";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { cspawn, sleep } from "./utils";
 import { Readable } from "stream";
+import { PassThrough } from "stream";
 
 export const produce = (
   songname: string,
-  output: Writable,
-  interrupt?: Readable
+  output: Writable = createWriteStream(songname + ".pcm"),
+  interrupt: Readable = null,
+  playbackRate: number = 1,
+  autoStart: boolean = true
 ): RemoteControl => {
   const spriteBytePeSecond = 48000 * 1 * 4;
   const ctx = new SSRContext({
@@ -19,6 +21,7 @@ export const produce = (
     sampleRate: 48000,
     fps: 375,
   });
+  let lastSettingsUsed;
   let intervalAdjust = 0;
   let settings = {
     preamp: 1,
@@ -29,15 +32,18 @@ export const produce = (
   const controller = convertMidi(songname);
   interrupt &&
     interrupt.on("data", (d) => {
-      const t = d.toString().split(" ");
+      const t = d.toString().trim().split(" ");
       const [cmd, arg1, arg2, arg3] = [
         t.shift(),
         t.shift() || "",
         t.shift() || "",
         t.shift() || "",
       ];
-
+      console.log(cmd, arg1, arg2);
       switch (cmd) {
+        case "?":
+          console.log(settings, lastSettingsUsed);
+          break;
         case "backpressure":
           intervalAdjust += 1;
           break;
@@ -57,7 +63,7 @@ export const produce = (
 
       notes.map((note, i) => {
         let velocityshift = 0; //note.velocity * 8;
-        let fadeoutTime = (10 - note.velocity) / 10;
+        let fadeoutTime = (1 - note.velocity) / 10;
         const bytelength = spriteBytePeSecond * note.durationTime;
         let file;
         if (note.instrument.includes("piano")) {
@@ -70,35 +76,44 @@ export const produce = (
         } else {
           file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
         }
-        // console.log(file, velocityshift, bytelength + bytelength);
-        if (!existsSync(file))
-          file = `./midisf/acoustic_grand_piano/${note.midi - 21}v8.pcm`;
-        const fd = openSync(file, "r");
 
-        const ob = Buffer.alloc(bytelength);
-        if (note.durationTime < 1.0) {
-          velocityshift = note.velocity * 1028;
+        if (!existsSync(file)) {
+          ctx.inputs.push(
+            new Oscillator(ctx, {
+              frequency: Math.pow(2, note.midi - 69) * 440,
+              start: ctx.currentTime,
+              end: ctx.currentTime + note.durationTime,
+            })
+          );
+        } else {
+          const fd = openSync(file, "r");
+
+          const ob = Buffer.alloc(bytelength);
+          if (note.durationTime < 1.0) {
+            velocityshift = note.velocity * 1028;
+          }
+          readSync(fd, ob, 0, bytelength, velocityshift);
+          closeSync(fd);
+          new PulseSource(ctx, {
+            buffer: ob,
+          });
         }
-        readSync(fd, ob, 0, bytelength, velocityshift);
-        closeSync(fd);
-        new PulseSource(ctx, {
-          buffer: ob,
-        });
       });
       let { preamp, threshold, knee, ratio } = settings;
+      lastSettingsUsed = { preamp, compression: { threshold, knee, ratio } };
       ctx.pump({ preamp, compression: { threshold, knee, ratio } });
       const elapsed = process.uptime() - startloop;
       if (notes && notes[0] && notes[0].start > 10) {
         // controller.pause();
       }
-      await sleep(ctx.secondsPerFrame * 1000 - elapsed + intervalAdjust);
+      await sleep((ctx.secondsPerFrame / playbackRate) * 1000 - elapsed + intervalAdjust);
 
       return ctx.secondsPerFrame; // / 1000;
     }
   );
   let closed = false;
 
-  controller.start();
+  if (autoStart) controller.start();
   output.on("close", (d) => {
     controller.stop();
     closed = true;
@@ -106,5 +121,11 @@ export const produce = (
   ctx.on("data", (d) => {
     if (controller.state.paused == false) output.write(d);
   });
+
   return controller;
 };
+
+if (require.main === module) {
+  produce("midi/song.mid", cspawn("nc -l 8080").stdin, process.stdin);
+  console.log("nc grepawk.com 8080 |ffplay -i pipe:0 -f f32le -ac 2 -ar 48000");
+}
