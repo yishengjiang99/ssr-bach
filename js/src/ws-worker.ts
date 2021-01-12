@@ -62,9 +62,10 @@ onmessage = (e) => {
         } else {
           resp.body.pipeTo(transform.writable, { preventClose: true });
         }
-
-        queue.push({ url, from: offset, to: offset + 1024 * 1024 });
-        offset = offset + 1 * 1024 * 1024;
+        if (resp.status === 206) {
+          queue.push({ url, from: offset, to: offset + 1024 * 1024 });
+          offset = offset + 1 * 1024 * 1024;
+        }
       } catch (e) {
         console.log(e);
       }

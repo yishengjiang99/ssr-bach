@@ -11,5 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "typescript": "^4.1.3"
+  }
 }

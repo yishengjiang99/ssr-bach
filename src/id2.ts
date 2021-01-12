@@ -12,7 +12,7 @@ export const handleSamples = ({ who, parts }, res): void => {
       "ffmpeg",
       `-f f32le -ar 48000 -ac 1 -i ${
         "./midisf/" + instment + "/" + note + ".pcm"
-      } -f mp3 -`.split(" ")
+      } -f wav -`.split(" ")
     );
     proc.on("error", (d) => console.error(d.toString()));
     proc.stdout.pipe(res);

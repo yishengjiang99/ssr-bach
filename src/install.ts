@@ -25,6 +25,7 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
   )
     .toString()
     .trim()
+
     .split("\n")) {
     if (name === "") continue;
     const fontname = format(name).replace("\t", "");

@@ -5,7 +5,7 @@ import { UISlider, slider } from "./playback-slider.js";
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
-let worker = new Worker("js/build/ws-worker.js", {
+let worker = new Worker("/js/build/ws-worker.js", {
   type: "module",
 });
 let playbackSlider = UISlider({
@@ -20,7 +20,9 @@ let playbackSlider = UISlider({
 
 let gainNode: AudioNode, av: AnalyserNode, canvas: any;
 const menu = document.querySelector("#menu");
-const panel: HTMLDivElement = document.querySelector("#panel");
+
+const panel: HTMLDivElement = document.createElement("div")!;
+document.body.append(panel);
 worker.onmessage = ({ data }) => {
   //  requestAnimationFrame(() => printrx(JSON.stringify(data.stats)));
   requestAnimationFrame(() => {
@@ -83,7 +85,7 @@ const start = async function (url: string = "/pcm/song.mid") {
   if (proc) proc.disconnect();
   if (!proc) {
     try {
-      await ctx.audioWorklet.addModule("./js/build/proc2.js");
+      await ctx.audioWorklet.addModule("https://grepawk.com/js/build/ws-worker.js");
       proc = new AudioWorkletNode(ctx, "playback-processor", {
         outputChannelCount: [2],
       });
@@ -113,10 +115,11 @@ const start = async function (url: string = "/pcm/song.mid") {
   }
 };
 const playUrl = (url) => {
-  worker.postMessage({ cmd: "play", url: url });
+  worker.postMessage({ url: url });
 };
 const pause = () => worker.postMessage({ cmd: "pause" });
-const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn"); //#playpause");
+const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn");
+playPauseBtn.setAttribute("href", "/pcm/song.mid"); //#playpause");
 let paused = true;
 let init = false;
 const { onStats, onPlayback } = ttt();
@@ -131,52 +134,43 @@ async function handleBtnClick(e: MouseEvent, url: string) {
     init = true;
   }
 
-  if (nowPlaying.url === "") {
+  if (!nowPlaying.url) {
     nowPlaying = { url, div: caller };
-    //caller.innerHTML = html_pause;
+    caller.innerHTML = html_pause;
     paused = false;
     playUrl(url);
-  } else if (nowPlaying !== null && nowPlaying.url === url) {
+    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
+  } else if (nowPlaying.url && nowPlaying.url === url) {
     if (paused) {
       caller.innerHTML = html_pause;
-
-      worker.postMessage({ cmd: "resume" });
+      worker.postMessage({ cmd: "play", url });
       paused = false;
-
-      pause();
+      playPauseBtn.querySelector("use").setAttribute("href", "#pause");
     } else {
       caller.innerHTML = html_play;
+
       worker.postMessage({ cmd: "pause" });
       paused = true;
+      playPauseBtn.querySelector("use").setAttribute("href", "#play");
     }
   } else if (nowPlaying.url !== "" && nowPlaying.url !== url) {
-    //   nowPlaying.div.innerHTML = html_play;
-    worker.postMessage({ cmd: "stop" });
-    worker.postMessage({ url });
+    nowPlaying.div.innerHTML = html_play;
+    worker.postMessage({ cmd: "play " + url });
 
     paused = false;
-    nowPlaying = { div: caller, url: url };
+    nowPlaying.url = url;
+    playPauseBtn.querySelector("use").setAttribute("href", "#play");
   } else {
     worker.postMessage({ cmd: "resume" });
-    //    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
+    playPauseBtn.querySelector("use").setAttribute("href", "#pause");
     caller.innerHTML = html_pause;
   }
 }
-const wschan = new BroadcastChannel("wschan");
-wschan.onmessage = ({ data }) => {
-  // stdout(JSON.stringify(data));
-};
-playPauseBtn.onclick = (e) => handleBtnClick(e, "/pcm/" + nowPlaying.url);
 
 const html_play = " play ";
 const html_pause = "pause";
-window.onhashchange = () => {
-  stdout(document.location.hash.substr(1));
-  start().then(() => {
-    worker.postMessage({ url: "/pcm/" + document.location.hash.substr(1) });
-  });
-  nowPlaying = {
-    url: "/pcm/" + document.location.hash.substr(1),
-    div: null,
-  };
+window.onmousedown = (e) => {
+  if (e.target.hasAttribute("href")) {
+    handleBtnClick(e, e.target.getAttribute("href"));
+  }
 };

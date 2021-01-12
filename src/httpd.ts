@@ -1,7 +1,7 @@
 import { resolve, basename } from "path";
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, openSync, readdirSync, readFileSync, readSync } from "fs";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
-import { WsSocket, WsServer, handleWsRequest, shakeHand } from "grep-wss";
+import { WsSocket, WsServer, handleWsRequest, shakeHand, header } from "grep-wss";
 import { createServer } from "https";
 import { produce } from "./sound-sprites";
 import { spawn, execSync, ChildProcess } from "child_process";
@@ -14,11 +14,16 @@ import { Socket } from "net";
 import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { PassThrough } from "stream";
 import { midifiles, notelist } from "./filelist";
-import { Http2Stream, createSecureServer, ServerHttp2Stream } from "http2";
+import {
+  Http2Stream,
+  createSecureServer,
+  ServerHttp2Stream,
+  IncomingHttpHeaders,
+} from "http2";
 import { handleSamples } from "./id2";
-import { midiMeta } from "./utils";
-import * as multiparty from "multiparty";
+import { cspawn, midiMeta, tagResponse } from "./utils";
 import { Player } from "./player";
+import { stdformat } from "./ffmpeg-templates";
 
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -44,9 +49,54 @@ let activeSessions = new Map<string, SessionContext>();
 let wsRefs = new Map<WebSocketRefStr, WsSocket>();
 let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
 
+function idUser(req: IncomingMessage): SessionContext {
+  //not actual session. place holder for while server under 50 ppl.
+  const [parts, query] = parseQuery(req);
+  var cookies = parseCookies(req);
+  const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
+  return currentSession(who, parts, query);
+}
+function currentSession(who, parts, query) {
+  return (activeSessions[who + ""] = {
+    t: new Date(),
+    player: new Player(),
+    who,
+    ...activeSessions[who + ""],
+    parts,
+    query,
+  });
+}
+let page2preload;
 export const run = (port, tls = httpsTLS) => {
   process.env.port = port;
-  const server = createServer(tls, handler);
+
+  page2preload = (() => {
+    let page2html = readFileSync("fullscreen.html").toString();
+    let precache = [
+      "fetchworker.js",
+      "proc2.js",
+      "panel.js",
+      "misc-ui.js",
+      "analyserView.js",
+    ].reduce((map, entry) => {
+      map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
+      return map;
+    }, {});
+    let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload("fullscreen.html");
+    precache["style.css"] = readFileSync("./style.css").toString();
+    return {
+      page2html,
+      precache,
+      idx,
+      idx1,
+      beforeMain,
+      idx2,
+      idx3,
+      css,
+    };
+  })();
+  const server = createSecureServer(tls, handler);
+  server.on("stream", handleStream);
 
   process.on("uncaughtException", (e) => {
     console.log("f ", e);
@@ -59,24 +109,65 @@ export const run = (port, tls = httpsTLS) => {
     server,
   };
 };
+export function handleStream(
+  stream: ServerHttp2Stream,
+  headers: IncomingHttpHeaders,
+  flags: number
+) {
+  let m = headers[":path"].match(/\/midi\/(\S+)/);
+  if (!m) {
+    return;
+  }
+  const { page2html, precache, idx, idx1, beforeMain, idx2, idx3, css } = page2preload;
+  const file = resolve("midi/" + decodeURIComponent(m[1].replace(".html", "")));
+  if (!existsSync(file)) {
+    stream.respond({
+      ":status": 404,
+    });
+    return stream.end();
+  }
+  stream.respond(
+    {
+      ":status": 200,
+      "Content-Type": "text/html",
+    },
+    { waitForTrailers: true }
+  );
+  const [parts, query] = parseUrl(headers[":path"]);
 
-function idUser(req: IncomingMessage): SessionContext {
-  //not actual session. place holder for while server under 50 ppl.
-  const [parts, query] = parseQuery(req);
-  var cookies = parseCookies(req);
-  const who = cookies["who"] || query["cookie"] || process.hrtime()[0] + "";
-  return (activeSessions[who + ""] = {
-    t: new Date(),
-    player: new Player(),
-    who,
-    ...activeSessions[who + ""],
-
-    parts,
-    query,
-  });
+  currentSession(query["cookie"], parts, query);
+  const meta = midiMeta(file);
+  const h = (str: TemplateStringsArray, ...args) => {
+    for (const st of str.entries()) {
+      stream.write(st);
+      stream.write(args.shift());
+    }
+  };
+  stream.write(/* html */ `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${file}</title>
+        <style>${css}</style>
+      </head>
+      <body>g
+        <div class="fullscreen">
+          <canvas></canvas>
+        </div>g
+        <div id="panel"></div>
+        <pre id="stdout"></pre>
+        <script type="module" src="/js/build/panel.js"></script>
+      </body>
+    </html>
+`);
+  // res.write(idx2);
 }
-export function hotreloadOrPreload() {
-  let idx = readFileSync("./index.html").toString();
+const wavheader = Buffer.allocUnsafe(56);
+openSync("./cachedheader.WAV", "r");
+readSync(openSync("./cachedheader.WAV", "r"), wavheader, 0, 56, 0);
+
+export function hotreloadOrPreload(url = "./index.html") {
+  let idx = readFileSync(url).toString();
   let idx1 = idx.split("<style></style>")[0];
   let beforeMain = idx.substr(idx1.length).split("<main></main>")[0] + "<main>";
   let idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
@@ -89,6 +180,8 @@ export const handler = async (req, res) => {
   try {
     const session = idUser(req);
     const { who, parts, wsRef, rc } = session;
+    if (req.method === "POST") return handlePost(req, res, session);
+
     if (req.url.includes("refresh")) {
       [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
     }
@@ -111,11 +204,27 @@ export const handler = async (req, res) => {
         res.write(beforeMain);
         res.write("<ul id='menu'>");
         midifiles.forEach((name) =>
-          res.write(`<li>${name}<a href='#${name}'>Play</a></li>`)
+          res.write(
+            `<li>${name}<a href='/midi/${name}.html'><button>Play</button></a></li>`
+          )
         );
         res.write("</ul>");
         res.write(idx2);
         res.end(idx3);
+
+        break;
+      case "midi":
+        // res.writeHead(200, {
+        //   "Content-Type": "text/HTML",
+        //   "set-cookie": "who=" + who,
+        // });
+        // res.write(idx1);
+        // res.write(css);
+
+        // res.write(`<h3></h3><div class='fullscreen'><canvas></canvas></div>`);
+        // res.write("<script src='/js/build/panel.js'>");
+        // // res.write(idx2);
+        // res.end(idx3);
 
         break;
       case "js":
@@ -148,7 +257,7 @@ export const handler = async (req, res) => {
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "audio/raw",
           "Cache-Control": "no-cache",
-
+          "Content-Disposition": "in-line",
           "x-bit-depth": 32,
           "x-sample-rate": 48000,
           "x-nchannel": 2,
@@ -193,9 +302,21 @@ export const handler = async (req, res) => {
         // createReadStream("./midisf/" + p2 + "/" + p3 + ".pcm").pipe(res);
         break;
 
+      case "proxy":
+        const remoteUrl =
+          "https://grep32bit.blob.core.windows.net/pcm/" + basename(req.url); // //'pcm/14v16.pc'
+
+        res.writeHead(200, {
+          "Access-Control-Allow-Origin": "*",
+          "content-type": "audio/wav",
+        });
+        const queries = parseUrl(req.url);
+        const vol = queries["vol"] || 1;
+        cspawn(`ffmpeg ${stdformat} -i ${remoteUrl} -f WAV -`).stdout.pipe(res);
+        break;
       default:
         if (req.method === "POST") handlePost(req, res, session);
-        queryFs(req, res) || res.writeHead(404);
+        else queryFs(req, res) || res.writeHead(404);
 
         break;
     }
@@ -206,7 +327,12 @@ export const handler = async (req, res) => {
   }
 };
 
-export const handleRemoteControl = function (player: Player, msg: string, ws) {
+export const handleRemoteControl = function (
+  player: Player,
+  msg: string,
+  ws,
+  activeSession
+) {
   let tt: string[] = msg.split(" ");
   const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
   if (cmd === "config") {
@@ -231,6 +357,17 @@ export const handleRemoteControl = function (player: Player, msg: string, ws) {
     case "pause":
       rc.pause();
       break;
+    case "play":
+      const request = resolve("midi/" + basename(arg1));
+      if (rc.state.midifile !== request) {
+        rc.stop();
+        player.playTrack(arg1, player.output);
+        activeSession.rc = player.nowPlaying;
+      } else {
+        rc.resume();
+      }
+
+      break;
     default:
       ws.write("unknown handler " + cmd);
   }
@@ -246,13 +383,13 @@ export const wshand = (req: IncomingMessage, _socket: Socket) => {
   _socket.on("data", (d) => {
     const msg = decodeWsMessage(d);
     fd(wsSocket, msg);
-    handleRemoteControl(activeSession.player, msg.toString(), wsSocket);
+    handleRemoteControl(activeSession.player, msg.toString(), wsSocket, activeSession);
     wsSocket.write("ack " + msg);
   });
 };
 
-if (require.main === module) {
-  run(process.argv[2] || 443);
+if (require.main === module && process.argv[3] === "yisheng") {
+  run(process.argv[2]);
 }
 function fd(wsSocket: WsSocket, msg: Buffer) {
   wsSocket.emit("data", msg);

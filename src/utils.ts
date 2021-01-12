@@ -14,26 +14,26 @@ export function tagResponse(res, templateFn) {
 
   tag(templateFn);
 }
-const redis = require("redis");
-let client = redis.createClient();
-export function db_get(key: string) {
-  const redis = require("redis");
-  client = client || redis.createClient();
+// const redis = require("redis");
+// let client = redis.createClient();
+// export function db_get(key: string) {
+//   const redis = require("redis");
+//   client = client || redis.createClient();
 
-  client.on("error", function (error) {
-    console.error(error);
-  });
-  return client.get(key).buffer;
-}
-export function dbset(key: string, val: any) {
-  const redis = require("redis");
-  client = client || redis.createClient();
+//   client.on("error", function (error) {
+//     console.error(error);
+//   });
+//   return client.get(key).buffer;
+// }
+// export function dbset(key: string, val: any) {
+//   const redis = require("redis");
+//   client = client || redis.createClient();
 
-  client.on("error", function (error) {
-    console.error(error);
-  });
-  client.set(key, val);
-}
+//   client.on("error", function (error) {
+//     console.error(error);
+//   });
+//   client.set(key, val);
+// }
 
 export const midiMeta = (midiFile: string) => {
   const { header, duration, tracks } = new Midi(readFileSync(midiFile));

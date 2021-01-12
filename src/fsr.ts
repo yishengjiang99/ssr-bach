@@ -51,7 +51,7 @@ export const handlePost = (
     resolvePath(dbfsroot, session.who + "/" + dirname(URL.pathname)) +
     "/" +
     basename(URL.pathname);
-
+  console.log(fullpadth);
   req.pipe(require("fs").createReadStream(fullpadth));
   res.writeHead(200, "welcome", {
     "Access-Control-Allow-Origin": "*",
@@ -77,6 +77,26 @@ export const queryFs = (req, res) => {
   return queryFsUrl(req.url, res);
 };
 
+const nigg = `
+          window.onmousedown=(e)=>{
+            if(e.target.hasAttribute("preview")){
+              const url = e.target.getAttribute("preview");
+              fetch(url).then(async res=>{
+                const reader=res.body.pipeThrough(new TextDecoderStream()).getReader()
+                const textarea=document.querySelector('textarea');
+                textarea.value='';
+                while(true){
+                  const {value,done} = await reader.read();
+                  if(done)break;
+                  textarea.value +=value.toString();
+                }
+              }).catch(e=>{
+                document.body.innerHTML+=e.message;
+              })
+           
+            }
+          }
+          </script></body></html>`;
 export const queryFsUrl = (url: string, res) => {
   if (url === "") return false;
   const [parts, query] = parseUrl(url);
@@ -118,27 +138,7 @@ export const queryFsUrl = (url: string, res) => {
         </form></div>
         </div>
           
-          <script>` +
-            /* javascript */ `
-          window.onmousedown=(e)=>{
-            if(e.target.hasAttribute("preview")){
-              const url = e.target.getAttribute("preview");
-              fetch(url).then(async res=>{
-                const reader=res.body.pipeThrough(new TextDecoderStream()).getReader()
-                const textarea=document.querySelector('textarea');
-                textarea.value='';
-                while(true){
-                  const {value,done} = await reader.read();
-                  if(done)break;
-                  textarea.value +=value.toString();
-                }
-              }).catch(e=>{
-                document.body.innerHTML+=e.message;
-              })
-           
-            }
-          }
-          </script></body></html>`
+          <script>` + /* javascript */ nigg
         );
       }
     }

@@ -25,9 +25,9 @@ export const produce = (
   let intervalAdjust = 0;
   let settings = {
     preamp: 1,
-    threshold: -60, //0.001
+    threshold: 55, //0.001
     ratio: 4,
-    knee: -40,
+    knee: 33,
   };
   const controller = convertMidi(songname);
   interrupt &&
@@ -70,7 +70,7 @@ export const produce = (
           fadeoutTime = 0;
           velocityshift = 48;
 
-          file = `./midisf/${note.instrument}/${note.midi - 21}v${
+          file = `./midisf/${note.instrument}/${note.midi - 33}v${
             note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
           }.pcm`;
         } else {
@@ -78,13 +78,7 @@ export const produce = (
         }
 
         if (!existsSync(file)) {
-          ctx.inputs.push(
-            new Oscillator(ctx, {
-              frequency: Math.pow(2, note.midi - 69) * 440,
-              start: ctx.currentTime,
-              end: ctx.currentTime + note.durationTime,
-            })
-          );
+          file = `./midisf/clarinet/${note.midi - 21}.pcm`;
         } else {
           const fd = openSync(file, "r");
 

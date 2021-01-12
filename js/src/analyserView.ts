@@ -32,9 +32,7 @@ export const AnalyzerView = function (analyser, params = {}) {
     canvasCtx.beginPath();
     var sum = 0;
     canvasCtx.moveTo(0, height / 2);
-    sum = dataArray.reduce(
-      (accumulator, currentValue) => accumulator + currentValue
-    );
+    sum = dataArray.reduce((accumulator, currentValue) => accumulator + currentValue);
     canvasCtx.clearRect(0, 0, width, height);
     canvasCtx.fillStyle = "black";
 
@@ -43,13 +41,7 @@ export const AnalyzerView = function (analyser, params = {}) {
     canvasCtx.lineWidth = 1;
     let x = 0,
       iwidth = width / bufferLength; //strokeText(`r m s : ${sum / bufferLength}`, 10, 20, 100)
-    canvasCtx.fillStyle = "blue";
-    canvasCtx.fillRect(
-      10,
-      height / 2,
-      Math.sqrt(sum / bufferLength) * width,
-      200
-    );
+
     for (let i = 0; i < bufferLength; i++) {
       canvasCtx.lineTo(x, convertY(dataArray[i]));
       x += iwidth;

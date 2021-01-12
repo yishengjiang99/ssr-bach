@@ -8,7 +8,7 @@ const aggregatedFeed = new TransformStream();
 export const UISlider = ({
   parent = "#stats",
   worker,
-  cmd,
+  cmd = "config",
   attribute,
   label = "",
   defaultValue = 12,
@@ -20,7 +20,7 @@ export const UISlider = ({
   let sliderr = slider(document.querySelector(parent), {
     ...{ value: defaultValue, min, max, step, label },
     oninput: async (e: InputEvent) => {
-      worker.postMessage({ cmd: `config ${attribute} ${sliderr.value}` });
+      worker.postMessage({ cmd: `${cmd} ${attribute} ${sliderr.value}` });
     },
     wrapper: "span",
   });

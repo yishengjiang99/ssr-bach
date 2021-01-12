@@ -1,12 +1,12 @@
 import { handler, wshand } from "./httpd";
 import { run } from "./httpd";
-import { get, IncomingMessage } from "http";
+import { get } from "https";
 import { ClientRequest } from "http";
 
 let { activeSessions, server } = run(8322);
 
 test("connnectivity", (done): void => {
-  get("http://localhost:8332", (res: IncomingMessage) => {
+  get("https://localhost:8332", (res: any) => {
     expect(res.statusCode).toBe(200);
     let chunks = "";
     res.on("data", (d) => (chunks += d.toString()));
@@ -20,7 +20,7 @@ test("connnectivity", (done): void => {
 
   const request: ClientRequest = get(
     "http://localhost:8332/pcm/song.mid?cookie=tester",
-    (res: IncomingMessage) => {
+    (res) => {
       expect(res.statusCode).toBe(200);
       let chunks = "";
       res.on("data", (d) => {

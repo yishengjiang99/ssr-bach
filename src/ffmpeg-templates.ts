@@ -4,7 +4,7 @@ type FilterChainClause = string;
 type TXTFileContent = string;
 
 export const qclause: GlobalClause = "-y -hide_banner -loglevel panic";
-export const stdformat: string = "-ac 1 -ar 48000 -f f32le";
+export const stdformat: string = "-ac 2 -ar 48000 -f f32le";
 export const outputFFPlay = (format = "f32le") =>
   `-f ${format} - |ffplay -i pipe:0 -f ${format}`;
 export const outputFile = (outputFileName) => `-f f32le ${outputFileName}`;
