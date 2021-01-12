@@ -44,9 +44,5 @@ export const bitmapget = async (rc: RemoteControl, output: Writable): Promise<Bu
     }
   });
 
-  start();
-
-  return await new Promise((resolve, reject) =>
-    emitter.on("end", () => resolve(bitmapp))
-  );
+  return bitmapp;
 };
