@@ -96,18 +96,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
           } else {
             //discarding notes too far i the past.. which is valid case in ff playback
           }
-          const noteEvent = {
-            ...note,
-            name: note.name,
-            trackId: i,
-            instId: tracks[i].instrument.number,
-            start: header.ticksToSeconds(note.ticks),
-            durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
-            velocity: note.velocity,
-            instrument: std_inst_names[tracks[i].instrument.number],
-          };
-          notesstarting.push(noteEvent);
-          emitter.emit("note", noteEvent);
         }
         if (tempos[1] && currentTick >= tempos[1].ticks) {
           tempos.shift();
