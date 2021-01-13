@@ -9,53 +9,37 @@
 
   <style></style>
   <body>
+
+
     <div id="root">
-      <span>
-        <button id="btn">
-          <svg id="playpause" width="100" height="100" viewBox="0 0 500 500">
-            <defs>
-              <path
-                id="play"
-                fill="currentColor"
-                d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 47.9V464c0 37.5 40.7 60.1 72.4 41.3l352-208c31.4-18.5 31.5-64.1 0-82.6z"
-              ></path>
-              <path
-                fill="currentColor"
-                d="M144 479H48c-26.5 0-48-21.5-48-48V79c0-26.5 21.5-48 48-48h96c26.5 0 48 21.5 48 48v352c0 26.5-21.5 48-48 48zm304-48V79c0-26.5-21.5-48-48-48h-96c-26.5 0-48 21.5-48 48v352c0 26.5 21.5 48 48 48h96c26.5 0 48-21.5 48-48z"
-                id="pause"
-              ></path>
-            </defs>
-            <use x="5" y="5" href="#play" fill="currentColor" />
-          </svg></button></span
-      ><span id="rx1"></span>
       <div style="display: grid; height: 250px; grid-template-columns: 1fr 1fr">
         <span width="50%">
-          <div height="420"><canvas></canvas></div>
         </span>
         <span id="stats" width="50%">
           <div>
             <label for="buffered">Downloaded (kb):<span></span></label>
-            <progress id="buffered" value="0" max="101230"></progress>
+            <progress id="buffered" value="0" max="225000"></progress>
           </div>
           <div>
             <label for="played">Played (kb):<span></span> </label>
-            <progress id="played" value="0" max="1023200"></progress>
+            <progress id="played" value="0" max="225000"></progress>
           </div>
           <div>
             <label for="inmemory">in memory: <span></span></label>
-            <meter id="inmemory" min="0" value="0" max="1023200"></meter>
+            <progress id="inmemory" min="0" value="0" max="1023200"></meter>
           </div>
           <div>
             <label for="loss">percent loss <span></span></label>
-            <meter id="loss" min="0" value="0" max="100"></meter>
+            <progress id="loss" min="0" value="0" max="100"></meter>
           </div>
         </span>
       </div>
-      <div id='cp'></script>
-
+      <div id='cp'></div>
       <main></main>
     </div>
     <pre style='position:fixed' id="stdout"></pre>
+    <div class='canvas_container'><canvas></canvas></div>
+
     <script type="module" src="/js/build/index.js"></script>
   </body>
 </html>

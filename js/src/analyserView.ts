@@ -47,7 +47,9 @@ export const AnalyzerView = function (analyser, params = {}) {
       x += iwidth;
     }
     canvasCtx.stroke();
-    requestAnimationFrame(draw);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(draw);
+    });
   }
   return {
     canvas: canvas,

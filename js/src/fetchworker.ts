@@ -25,6 +25,8 @@ onmessage = (e) => {
     let offset = 0;
     queue.push({ from: 0 * 1024 * 1024, to: 1 * 1024 * 1024, url });
     offset = offset + 1 * 1024 * 1024;
+    postMessage({ msg: "fetch start" });
+
     const transform = new TransformStream();
     if (controller) {
       try {
@@ -45,6 +47,8 @@ onmessage = (e) => {
           signal: controller.signal,
           headers: { "if-range": "bytes=" + from + "-" + to },
         });
+        postMessage({ msg: "first byte feched" });
+
         if (transform.writable.locked) {
           //@ts-ignore
           postMessage({ readable: resp.body }, [resp.body]);
@@ -59,8 +63,11 @@ onmessage = (e) => {
         console.log(e);
       }
     }
+
     loop(controller);
+
     // @ts-ignore
     procPort.postMessage({ url, readable: transform.readable }, [transform.readable]);
+    postMessage({ msg: "sharing readable with proc frame" });
   }
 };

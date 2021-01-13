@@ -6,6 +6,8 @@ import {
   createReadStream,
   mkdirSync,
   readFileSync,
+  write,
+  closeSync,
 } from "fs";
 import { resolve, basename, extname, dirname } from "path";
 import { lookup } from "mime-types";
@@ -14,7 +16,7 @@ import { cspawn, resjson } from "./utils";
 import { SessionContext } from "./httpd";
 import { ServerHttp2Stream } from "http2";
 import { Readable } from "stream";
-const dbfsroot = "../dbfs";
+export const dbfsroot = resolve(__dirname, "../dbfs");
 export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] => {
   return parseUrl(req.url);
 };
@@ -28,39 +30,51 @@ export const parseUrl = (url: string): [string[], Map<string, string>] => {
   }, new Map<string, string>());
   return [parts, query];
 };
-const mkfolder = (folder) => existsSync(folder) || mkdirSync(folder);
-const resolvePath = (root, relativePath) => {
+export const mkfolder = (folder) => existsSync(folder) || mkdirSync(folder);
+export const resolvePath = (root, relativePath) => {
   let rt = root.split("/");
   let t = relativePath.split("/");
+
   while (t.length) {
+    console.log(rt.join("/"));
+
     rt.push(t.shift());
     mkfolder(rt.join("/"));
   }
   return rt.join("/");
 };
 
-export const handlePost = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  session: SessionContext
-) => {
-  let parts = (req.url[0] || "").split("/");
+export const handlePost = (req: IncomingMessage, res: ServerResponse, who?: string) => {
+  const url = req.url.slice(0);
+  let folder = resolvePath(dbfsroot, who + dirname(url));
+  const fullpath = resolve(folder, basename(url));
+  open(fullpath, "a+", (err, fd) => {
+    if (err) {
+      res.writeHead(500);
+      res.end(err.message);
+    }
+    res.writeHead(200, "welcome", {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Location": fullpath.replace(dbfsroot, "https://www.grepawk.com"),
+    });
+    let offset = 0;
+    req.on("data", (d) => {
+      write(fd, d, offset, d.byteLength, (err, written, buf) => {
+        if (res.writableEnded == false) res.write(written + "written");
+      });
+      offset += d.byteLength;
+    });
+    req.on("end", () => {
+      closeSync(fd);
+      res.end();
+    });
+  });
 
-  const URL = require("url").parse(req.url);
-  const fullpadth =
-    resolvePath(dbfsroot, session.who + "/" + dirname(URL.pathname)) +
-    "/" +
-    basename(URL.pathname);
-  console.log(fullpadth);
-  req.pipe(require("fs").createReadStream(fullpadth));
-  res.writeHead(200, "welcome", {
-    "Access-Control-Allow-Origin": "*",
-    "Content-Type": "text/plain; charset=utf-8",
-    "Content-Location": dbfsroot + "/" + session.who + "/" + URL.pathname,
-  });
-  req.on("end", () => {
-    return res.end("ty");
-  });
+  // const pq = require("fs").createReadStream(fullpadth);
+  // req.on("data", (d) => {
+  //   res.write("d");
+  // });
 };
 
 export function parseCookies(request) {
@@ -100,7 +114,7 @@ const nigg = `
 export const queryFsUrl = (url: string, res) => {
   if (url === "") return false;
   const [parts, query] = parseUrl(url);
-  const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
+  const filename = resolve(__dirname, "...", parts.slice(1).join("/"));
   if (existsSync(filename)) {
     if (statSync(filename).isFile()) {
       res.writeHead(200, {

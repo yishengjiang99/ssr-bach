@@ -1,8 +1,15 @@
 import { resolve, basename } from "path";
-import { existsSync, openSync, readdirSync, readFileSync, readSync } from "fs";
+import {
+  createReadStream,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+} from "fs";
 import { readMidiSSE, readAsCSV } from "./read-midi-sse-csv";
 import { WsSocket, WsServer, handleWsRequest, shakeHand, header } from "grep-wss";
-import { createServer } from "https";
+import { createServer, request, get } from "https";
 import { produce } from "./sound-sprites";
 import { spawn, execSync, ChildProcess } from "child_process";
 
@@ -21,7 +28,7 @@ import {
   IncomingHttpHeaders,
 } from "http2";
 import { handleSamples } from "./id2";
-import { cspawn, midiMeta, tagResponse } from "./utils";
+import { cspawn, midiMeta, tagResponse, WAVheader } from "./utils";
 import { Player } from "./player";
 import { stdformat } from "./ffmpeg-templates";
 import { bitmapget } from "./soundPNG";
@@ -67,36 +74,46 @@ function currentSession(who, parts, query) {
     query,
   });
 }
-let page2preload;
+let page2html = readFileSync("fullscreen.html").toString();
+let precache = [
+  "fetchworker.js",
+  "proc2.js",
+  "panel.js",
+  "misc-ui.js",
+  "analyserView.js",
+].reduce((map, entry) => {
+  map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
+  return map;
+});
 export const run = (port, tls = httpsTLS) => {
   process.env.port = port;
 
-  page2preload = (() => {
-    let page2html = readFileSync("fullscreen.html").toString();
-    let precache = [
-      "fetchworker.js",
-      "proc2.js",
-      "panel.js",
-      "misc-ui.js",
-      "analyserView.js",
-    ].reduce((map, entry) => {
-      map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
-      return map;
-    }, {});
-    let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload("fullscreen.html");
-    precache["style.css"] = readFileSync("./style.css").toString();
-    return {
-      page2html,
-      precache,
-      idx,
-      idx1,
-      beforeMain,
-      idx2,
-      idx3,
-      css,
-    };
-  })();
-  const server = createServer(tls, handler);
+  // page2preload = (() => {
+  //   let page2html = readFileSync("fullscreen.html").toString();
+  //   let precache = [
+  //     "fetchworker.js",
+  //     "proc2.js",
+  //     "panel.js",
+  //     "misc-ui.js",
+  //     "analyserView.js",
+  //   ].reduce((map, entry) => {
+  //     map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
+  //     return map;
+  //   }, {});
+  //   let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload("fullscreen.html");
+  //   precache["style.css"] = readFileSync("./style.css").toString();
+  //   return {
+  //     page2html,
+  //     precache,
+  //     idx,
+  //     idx1,
+  //     beforeMain,
+  //     idx2,
+  //     idx3,
+  //     css,
+  //   };
+  // })();
+  const server = createSecureServer(tls, handler);
   server.on("stream", handleStream);
 
   process.on("uncaughtException", (e) => {
@@ -181,7 +198,7 @@ export const handler = async (req, res) => {
   try {
     const session = idUser(req);
     const { who, parts, wsRef, rc } = session;
-    if (req.method === "POST") return handlePost(req, res, session);
+    if (req.method === "POST") return handlePost(req, res, session.who);
 
     if (req.url.includes("refresh")) {
       [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload();
@@ -203,16 +220,13 @@ export const handler = async (req, res) => {
         res.write(css);
 
         res.write(beforeMain);
-        res.write("<ul id='menu'>");
+        res.write("<select id='menu'>");
         midifiles.forEach((name) =>
-          res.write(
-            `<li>${name}<a href='javascript://'><button  href='/pcm/${name}'>Play</button><a></li>`
-          )
+          res.write(`<option value='${name}'>${name}</option>`)
         );
-        res.write("</ul>");
+        res.write("</select> <button>Play</button>");
         res.write(idx2);
-        // handleSamples(session, res);
-        notelist(res);
+
         res.end(idx3);
 
         break;
@@ -231,16 +245,16 @@ export const handler = async (req, res) => {
 
         break;
       case "js":
+        res.writeHead(200, {
+          "Content-Type": "application/javascript",
+        });
         if (basename(req.url) === "ws-worker.js") {
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
           const str = readFileSync("./js/build/ws-worker.js")
             .toString()
             .replace("%WSHOST%", "wss://www.grepawk.com:" + process.env.port);
           res.end(str);
         } else {
-          queryFs(req, res);
+          createReadStream("./js/build/" + basename(req.url)).pipe(res);
         }
         break;
 
@@ -251,7 +265,16 @@ export const handler = async (req, res) => {
           Connection: "keep-alive",
           "Cache-Control": "no-cache",
         });
-        readMidiSSE(req, res, file3, true);
+        // activeSessions[who].rc.on("#note")
+        ["note", "#meta", "#time", "#tempo"].map((event) => {
+          activeSessions[who].rc.emitter.on(event, (d) => {
+            res.write(
+              ["event: ", event, "\n", "data: ", JSON.stringify(d), "\n\n"].join("")
+            );
+          });
+        });
+        //   readMidiSSE(req, res, file3, true);
+
         break;
       case "pcm":
         const file = file3 || parts[2] || "song.mid";
@@ -270,9 +293,6 @@ export const handler = async (req, res) => {
         const rc = activeSessions[who].rc;
         if (wsRef && wsRefs[wsRef]) {
           wsRefs[wsRef].write(JSON.stringify(rc.meta));
-          wsRefs[wsRef].on("data", (d) => {
-            console.log("d" + d.toString());
-          });
           const ws: WsSocket = wsRefs[wsRef];
           ["#tempo", "#meta", "#time", "ack"].map((event) => {
             let eventName = event;
@@ -309,17 +329,32 @@ export const handler = async (req, res) => {
         const remoteUrl =
           "https://grep32bit.blob.core.windows.net/pcm/" + basename(req.url); // //'pcm/14v16.pc'
 
+        get(
+          remoteUrl,
+          {
+            headers: {
+              range: "bytes=0-102400",
+            },
+          },
+          (fres) => {
+            const bytes = fres.headers["content-length"];
+            res.write(WAVheader(parseInt(bytes) / 4));
+
+            fres.pipe(res);
+          }
+        );
         res.writeHead(200, {
           "Access-Control-Allow-Origin": "*",
           "content-type": "audio/wav",
         });
+
         const queries = parseUrl(req.url);
         const vol = queries["vol"] || 1;
-        cspawn(`ffmpeg ${stdformat} -i ${remoteUrl} -f WAV -`).stdout.pipe(res);
+        //  cspawn(`ffmpeg ${stdformat} -i ${remoteUrl} -f WAV -`).stdout.pipe(res);
         break;
 
       default:
-        if (req.method === "POST") handlePost(req, res, session);
+        if (req.method === "POST") handlePost(req, res, session.who);
         else queryFs(req, res) || res.writeHead(404);
 
         break;
@@ -392,114 +427,8 @@ export const wshand = (req: IncomingMessage, _socket: Socket) => {
 };
 
 if (require.main === module) {
-  run(process.argv[2] ||443);
+  run(process.argv[2] || 443);
 }
 function fd(wsSocket: WsSocket, msg: Buffer) {
   wsSocket.emit("data", msg);
 }
-
-
-export const produce = (
-  songname: string,
-  output: Writable = createWriteStream(songname + ".pcm"),
-  interrupt: Readable = null,
-  playbackRate: number = 1,
-  autoStart: boolean = true
-): RemoteControl => {
-  const ctx = new SSRContext({
-    nChannels: 2,
-    bitDepth: 32,
-    sampleRate: 48000,
-    fps: 375,
-  });
-  const spriteBytePeSecond = ctx.bytesPerSecond;
-
-  let intervalAdjust = 0;
-  let settings = {
-    preamp: 1,
-    threshold: 55, //0.001
-    ratio: 4,
-    knee: 88,
-  };
-  const controller = convertMidi(songname);
-
-  const tracks: PulseSource[] = new Array(controller.state.tracks.length);
-  controller.setCallback(
-    async (notes: NoteEvent[]): Promise<number> => {
-      const startloop = process.uptime();
-
-      notes.map((note, i) => {
-        let velocityshift = 0; //note.velocity * 8;
-        let fadeoutTime = (1 - note.velocity) / 10;
-        const bytelength = spriteBytePeSecond * note.durationTime;
-        let file;
-        if (note.instrument.includes("piano")) {
-          fadeoutTime = 0;
-          velocityshift = 48;
-
-          file = `./midisf/${note.instrument}/${note.midi - 21}v${
-            note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
-          }.pcm`;
-        } else {
-          file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
-        }
-
-        if (!existsSync(file)) {
-          file = `./midisf/clarinet/${note.midi - 21}.pcm`;
-        } else {
-          const fd = openSync(file, "r");
-
-          const ob = Buffer.alloc(bytelength);
-          if (note.durationTime < 1.0) {
-            velocityshift = note.velocity * 1028;
-          }
-          readSync(fd, ob, 0, bytelength, 0);
-          closeSync(fd);
-          if (tracks[note.trackId]) {
-            tracks[note.trackId].buffer = Buffer.alloc(0);
-            tracks[note.trackId] = null;
-            //to prevent overlap of sound frm same track..
-          }
-          tracks[note.trackId] = new PulseSource(ctx, {
-            buffer: ob,
-          });
-        }
-      });
-      const elapsed = process.uptime() - startloop;
-      await sleep(ctx.secondsPerFrame * 1000);
-      return ctx.secondsPerFrame; // / 1000;
-    }
-  );
-  let closed = false;
-
-  if (autoStart) controller.start();
-  output.on("close", (d) => {
-    controller.stop();
-    closed = true;
-  });
-  setInterval(() => {
-    const { preamp, threshold, knee, ratio } = settings;
-    // ctx.pump({ preamp, compression: { threshold, knee, ratio } });
-    const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
-    let inputViews = tracks
-      .filter((t, i) => t && t.buffer && t.buffer.byteLength >= ctx.blockSize)
-      .map((t) => t.read());
-    const n = inputViews.length;
-
-    for (let k = 0; k < ctx.blockSize; k += 4) {
-      let sum = 0;
-      for (let j = n - 1; j >= 0; j--) {
-        sum += inputViews[j].readFloatLE(k);
-      }
-
-      summingbuffer.setFloat32(k, sum, true);
-
-      // summingbuffer.setFloat32(2 * k + 4, n, true);
-    }
-
-    output.write(Buffer.from(summingbuffer.buffer));
-    //  console.log(".");
-  }, ctx.secondsPerFrame * 1000);
-
-  return controller;
-};

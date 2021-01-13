@@ -14,7 +14,7 @@ export type NoteEvent = {
   midi: number;
   instrument: string;
   start: number;
-  duration: number;
+  durationTime: number;
   trackId: number;
 };
 export class EventsPanel {
@@ -28,10 +28,15 @@ export class EventsPanel {
     private lookbackWindow = 30
   ) {
     var canvas = document.createElement("canvas");
+
     document.body.append(canvas);
     function resizeCanvas() {
       canvas.style.width = window.innerWidth + "px";
       canvas.style.height = window.innerHeight + "px";
+      canvas.style.position = "fixed";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.zIndex = "-3";
       const WIDTH = window.innerWidth; //.clientHeight;
       const HEIGHT = window.innerHeight;
       canvas.setAttribute("width", WIDTH + "");
@@ -58,14 +63,14 @@ export class EventsPanel {
     const svt: EventSource = new EventSource(rtlink);
     let t0;
     this.evt = svt;
+    let now = 0;
     svt.onopen = () => {
-      t0 = performance.now();
-      requestAnimationFrame(draw);
-
       // @ts-ignore
-      svt.addEventListener("note", ({ start, duration, trackId, midi, instrument }) => {
-        this.bars.push({ start, duration, trackId, midi, instrument });
+      svt.addEventListener("note", (e) => {
+        this.bars.push(JSON.parse(e.data));
+        now = e.data.start;
       });
+      requestAnimationFrame(draw);
     };
     svt.addEventListener(
       "closed",
@@ -80,24 +85,30 @@ export class EventsPanel {
     };
 
     const draw = () => {
-      const elapsed = performance.now() - t0;
+      //   debugger;
+      const now = performance.now() / 1000;
+      const elapsed = now - t0;
       this.offset += elapsed;
+      t0 = now;
 
-      if (this.bars.length === 0) return;
-      let tn = this.bars[0].start;
-      while (true) {
-        const { start, duration } = this.bars[this.bars.length - 1];
-        if (start + duration > this.offset - this.lookbackWindow) {
+      while (true && this.bars.length) {
+        const { start, durationTime } = this.bars[this.bars.length - 1];
+        if (start + durationTime > this.offset - this.lookbackWindow) {
           this.bars.shift();
         } else {
           break;
         }
       }
+
       canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
       for (const bar of this.bars) {
-        canvasCtx.fillStyle = `rbga(${pallet[bar.trackId]},1)`;
-        canvasCtx.moveTo((HEIGHT / 88) * bar.midi, secondToPixelX(bar.start));
-        canvasCtx.fillRect(0, 0, HEIGHT / 88, secondToPixelX(bar.duration));
+        canvasCtx.fillStyle = `red`;
+        canvasCtx.fillRect(
+          (WIDTH / 88) * bar.midi,
+          ((now - bar.start) / this.lookbackWindow) * HEIGHT,
+          WIDTH / 88,
+          (WIDTH * bar.durationTime) / this.lookbackWindow
+        );
       }
       canvasCtx.save();
       canvasCtx.restore();
