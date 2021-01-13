@@ -1,7 +1,7 @@
 const chunk = 128 * 4 * 2;
 
 /* @ts-ignore */
-class PlaybackProcessor extends AudioWorkletProcessor {
+class PlaybackProcessor /* @ts-ignore */ extends AudioWorkletProcessor /* @ts-ignore */ {
   buffers: any[];
   readqueue: any[];
   started: boolean;
@@ -119,7 +119,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       }
     }
     this.rms = Math.sqrt(sum / 256);
-    if (this.total % 150 == 50) this.report();
+    //  if (this.total % 150 == 50) this.report();
     return true;
   }
 }

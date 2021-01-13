@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>jsp</title>
+    <style></style>
+  </head>
+  <body>
+    <script type="module">
+      try {
+        const ctx = new AudioContext({ sampleRate: 48000 });
+        ctx.audioWorklet.addModule("/proc2.js").then((proc) => {
+          proc = new AudioWorkletNode(ctx, "playback-processor", {
+            outputChannelCount: [2],
+          });
+        });
+      } catch (e) {
+        console.log(e);
+      }
+    </script>
+    <div class="fullscreen">
+      <canvas></canvas>
+    </div>
+    <div id="panel"></div>
+    <pre id="stdout"></pre>
+    <script type="module" src="/js/build/panel.js"></script>
+  </body>
+</html>

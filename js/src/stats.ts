@@ -1,4 +1,4 @@
-export const ttt = function () {
+  export const ttt = function () {
   const buffM: HTMLProgressElement = document.querySelector<HTMLProgressElement>(
     "progress#buffered"
   );

@@ -1,4 +1,5 @@
 import { Header, Midi } from "@tonejs/midi";
+import { Instrument } from "@tonejs/midi/dist/Instrument";
 import { EventEmitter } from "events";
 
 import {
@@ -23,6 +24,11 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     paused: true,
     time: 0,
     stop: false,
+    tracks: tracks.map((t, i) => ({
+      trackId: i,
+      instrument: std_inst_names[t.instrument.number],
+      mute: false,
+    })),
     duration: durationTicks / header.ppq,
     midifile: source,
     tempo: tempos[0],

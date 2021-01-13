@@ -21,7 +21,7 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
   const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
   "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
   for (const name of execSync(
-    "cat " + csvfile + "|grep -v '#'|cut -f6 -d','|sort |uniq|grep -v ^$"
+    "cat " + csvfile + "|grep -v '#'|cut -f8 -d','|sort |uniq|grep -v ^$"
   )
     .toString()
     .trim()
@@ -52,13 +52,13 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
     const bytesPerNote = ~~(byteswrote / 88 / 4) * 4;
 
     for (let index = 0; index < 88; index++) {
-      const pcmname = `midisf/${fontname}/${index}.pcm`;
+      const pcmname = `midisf/${fontname}/stero-${index}.pcm`;
       try {
         if (!existsSync(pcmname)) {
           console.log(pcmname);
 
           execSync(
-            `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
+            `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 2 -ar 48000 ${pcmname}`
           );
         }
       } catch (e) {
@@ -102,4 +102,3 @@ export const installPiano = (vel) => {
     //  process.exit();
   });
 };
-installPiano("1-PA");

@@ -1,11 +1,15 @@
 import { AnalyzerView } from "./analyserView.js";
 import { startBtn, stdoutPanel, cdiv } from "./misc-ui.js";
 import { ttt } from "./stats.js";
+import { EventsPanel } from "panel";
 import { UISlider, slider } from "./playback-slider.js";
 const { printrx, printlink, stdout } = stdoutPanel(document.querySelector("#root"));
 let ctx: AudioContext;
 let proc: AudioWorkletNode;
-let worker = new Worker("/js/build/ws-worker.js", {
+let commsworker = new Worker("/js/build/ws-worker.js", {
+  type: "module",
+});
+let worker = new Worker("/js/build/fetchworker.js", {
   type: "module",
 });
 let playbackSlider = UISlider({
@@ -60,23 +64,36 @@ let controls = [
     max: 2,
   }),
   UISlider({
-    worker,
+    worker: commsworker,
     cmd: "config",
-    label: "threshold",
+    label: "knee",
 
-    attribute: "threshold",
-    min: -50,
-    max: -40,
+    attribute: "knee",
+    min: 40,
+    max: 90,
     step: 1,
-    defaultValue: -45,
+    defaultValue: 44,
   }),
   UISlider({
-    worker,
+    worker: commsworker,
     label: "ratio",
     cmd: "config",
     attribute: "ratio",
     min: 0,
-    max: 2,
+    defaultValue: 5,
+    max: 26,
+  }),
+  UISlider({
+    worker: commsworker,
+
+    cmd: "config",
+    label: "threshold",
+
+    attribute: "threshold",
+    min: 12,
+    max: 90,
+    step: 1,
+    defaultValue: -45,
   }),
 ];
 
@@ -85,15 +102,11 @@ const start = async function (url: string = "/pcm/song.mid") {
   if (proc) proc.disconnect();
   if (!proc) {
     try {
-      await ctx.audioWorklet.addModule("https://grepawk.com/js/build/ws-worker.js");
+      await ctx.audioWorklet.addModule("/js/build/proc2.js");
       proc = new AudioWorkletNode(ctx, "playback-processor", {
         outputChannelCount: [2],
       });
-      await new Promise<void>((resolve) => {
-        proc.port.onmessage = ({ data }) => {
-          resolve();
-        };
-      });
+
       // document.querySelector("ul").style.display = "block";
       worker.postMessage({ port: proc.port }, [proc.port]);
 
@@ -115,9 +128,18 @@ const start = async function (url: string = "/pcm/song.mid") {
   }
 };
 const playUrl = (url) => {
-  worker.postMessage({ url: url });
+  if (proc && proc.numberOfOutputs > 0) {
+    proc.disconnect();
+    proc = null;
+  }
+  proc = new AudioWorkletNode(ctx, "playback-processor", {
+    outputChannelCount: [2],
+  });
+  proc.connect(gainNode);
+  proc.connect(ctx.destination);
+  worker.postMessage({ port: proc.port, url }, [proc.port]);
 };
-const pause = () => worker.postMessage({ cmd: "pause" });
+const pause = () => commsworker.postMessage({ cmd: "pause" });
 const playPauseBtn = document.querySelector<HTMLButtonElement>("button#btn");
 playPauseBtn.setAttribute("href", "/pcm/song.mid"); //#playpause");
 let paused = true;
@@ -143,25 +165,25 @@ async function handleBtnClick(e: MouseEvent, url: string) {
   } else if (nowPlaying.url && nowPlaying.url === url) {
     if (paused) {
       caller.innerHTML = html_pause;
-      worker.postMessage({ cmd: "play", url });
+      playUrl(url);
       paused = false;
       playPauseBtn.querySelector("use").setAttribute("href", "#pause");
     } else {
       caller.innerHTML = html_play;
 
-      worker.postMessage({ cmd: "pause" });
+      commsworker.postMessage({ cmd: "pause" });
       paused = true;
       playPauseBtn.querySelector("use").setAttribute("href", "#play");
     }
   } else if (nowPlaying.url !== "" && nowPlaying.url !== url) {
     nowPlaying.div.innerHTML = html_play;
-    worker.postMessage({ cmd: "play " + url });
+    playUrl(url);
 
     paused = false;
     nowPlaying.url = url;
     playPauseBtn.querySelector("use").setAttribute("href", "#play");
   } else {
-    worker.postMessage({ cmd: "resume" });
+    playUrl(url);
     playPauseBtn.querySelector("use").setAttribute("href", "#pause");
     caller.innerHTML = html_pause;
   }
@@ -169,7 +191,7 @@ async function handleBtnClick(e: MouseEvent, url: string) {
 
 const html_play = " play ";
 const html_pause = "pause";
-window.onmousedown = (e) => {
+document.querySelector("main").onmousedown = (e) => {
   if (e.target.hasAttribute("href")) {
     handleBtnClick(e, e.target.getAttribute("href"));
   }

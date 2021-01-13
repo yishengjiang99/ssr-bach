@@ -7,12 +7,12 @@ import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { stdformat } from "./ffmpeg-templates";
 
-const spriteBytePeSecond = 48000 * 1 * 4;
+const spriteBytePeSecond = 48000 * 2 * 4;
 
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
-    nChannels: 1,
+    nChannels: 2,
     bitDepth: 32,
     sampleRate: 48000,
     fps: 375,
@@ -24,86 +24,90 @@ export class Player {
     knee: -40,
     playbackRate: 1,
   };
+  output: Writable;
   setSetting = (attr, value) => {
     this.settings[attr] = value;
   };
   lastPlayedSettings = null;
   playTrack = (file: string, output: Writable, autoStart: boolean = true) => {
     const ctx = this.ctx;
-    let lastSettingsUsed = this.lastPlayedSettings;
-    let settings = this.settings;
-
-    this.nowPlaying = convertMidi(
-      file,
+    const controller = convertMidi(file);
+    this.nowPlaying = controller;
+    const tracks: PulseSource[] = new Array(controller.state.tracks.length);
+    controller.setCallback(
       async (notes: NoteEvent[]): Promise<number> => {
-        /* this the main event loop of the whoe thing*/
         const startloop = process.uptime();
+
         notes.map((note, i) => {
-          let velocityshift = 0; //note.velocity * 8;
-          let fadeoutTime = (1 - note.velocity) / 10;
           const bytelength = spriteBytePeSecond * note.durationTime;
-          let file;
-          if (note.instrument.includes("piano")) {
-            fadeoutTime = 0;
-            velocityshift = 48;
-
-            file = `./midisf/${note.instrument}/${note.midi - 21}v${
-              note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
-            }.pcm`;
-          } else {
-            file = `./midisf/${note.instrument}/${note.midi - 21}.pcm`;
+          let file = getFilePath(note);
+          const fd = openSync(file, "r");
+          const ob = Buffer.allocUnsafe(bytelength);
+          readSync(fd, ob, 0, bytelength, 0);
+          closeSync(fd);
+          if (tracks[note.trackId]) {
+            tracks[note.trackId].buffer = Buffer.alloc(0);
+            tracks[note.trackId] = null;
           }
-
-          if (!existsSync(file)) {
-            ctx.inputs.push(
-              new Oscillator(ctx, {
-                frequency: Math.pow(2, note.midi - 69) * 440,
-                start: ctx.currentTime,
-                end: ctx.currentTime + note.durationTime,
-              })
-            );
-          } else {
-            const fd = openSync(file, "r");
-
-            const ob = Buffer.alloc(bytelength);
-            if (note.durationTime < 1.0) {
-              velocityshift = note.velocity * 1028;
-            }
-            readSync(fd, ob, 0, bytelength, velocityshift);
-            closeSync(fd);
-            new PulseSource(ctx, {
-              buffer: ob,
-              envelope: new Envelope(48000, [0.05, 0.1, 80, 0.4]),
-            });
-          }
+          tracks[note.trackId] = new PulseSource(ctx, {
+            buffer: ob,
+          });
         });
-        let { preamp, threshold, knee, ratio } = settings;
-        lastSettingsUsed = { preamp, compression: { threshold, knee, ratio } };
-        ctx.pump({ preamp, compression: { threshold, knee, ratio } });
         const elapsed = process.uptime() - startloop;
-        await sleep((ctx.secondsPerFrame / settings.playbackRate) * 1000 - elapsed);
-        return ctx.secondsPerFrame; // / 1000;
+        await sleep(ctx.secondsPerFrame * 1000);
+        return ctx.secondsPerFrame;
       }
     );
+    this.output = output;
 
-    let controller = this.nowPlaying;
     let closed = false;
     output.on("close", (d) => {
       controller.stop();
-      ctx.unpipe();
-      ctx.stop();
+
       closed = true;
-    });
-    const ffm = cspawn(
-      `ffmpeg -f f32le -ac 2 -ar 48k -i pipe:0 -filter:a loudnorm -f f32le -ac 2 -ar 48k -`
-    );
-    ffm.stdout.on("error", (e) => console.error(e.mesage.toString()));
-    ctx.on("data", (d) => {
-      output.write(d);
     });
 
     if (autoStart) controller.start();
+    output.on("close", (d) => {
+      controller.stop();
+      closed = true;
+    });
+    setInterval(() => {
+      // ctx.pump({ preamp, compression: { threshold, knee, ratio } });
+      const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
+      let inputViews = tracks
+        .filter((t, i) => t && t.buffer && t.buffer.byteLength >= ctx.blockSize)
+        .map((t) => t.read());
+      const n = inputViews.length;
+
+      for (let k = 0; k < ctx.blockSize; k += 4) {
+        let sum = 0;
+        for (let j = n - 1; j >= 0; j--) {
+          sum += inputViews[j].readFloatLE(k);
+        }
+
+        summingbuffer.setFloat32(k, sum, true);
+      }
+
+      if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
+    }, ctx.secondsPerFrame * 1000);
 
     return controller;
   };
+}
+
+function getFilePath(note) {
+  let file;
+  if (note.instrument.includes("piano") && note.midi - 21 <= 68) {
+    file = `./midisf/${note.instrument}/${note.midi - 21}v${
+      note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
+    }.pcm`;
+  } else {
+    file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
+  }
+
+  if (!existsSync(file)) {
+    file = `./midisf/clarinet/${note.midi - 21}.pcm`;
+  }
+  return file;
 }

@@ -4,6 +4,7 @@ import { header } from "grep-wss";
 import { cspawn, sleep } from "./utils";
 import { createReadStream, existsSync, readSync, statSync, write, open } from "fs";
 import { RemoteControl } from "./ssr-remote-control.types";
+import { ServerResponse } from "http";
 export const sampleSelect = async (file: string, offset: number) => {
   if (!existsSync(file)) return;
 
@@ -16,11 +17,12 @@ export const sampleSelect = async (file: string, offset: number) => {
 
 export const bitmapget = async (rc: RemoteControl, output: Writable): Promise<Buffer> => {
   const url = `js/runtime-${(Math.random() * 3222) >> 3}.png`;
-  const proc = cspawn(`ffmpeg -f rawvideo -pixel_format b -video_size 88x300 -i pipe:0`);
+  const proc = cspawn(
+    `ffmpeg -f rawvideo -pixel_format b -video_size 88x300 -frames 33333 -i pipe:0 -f mp4 video.mp4 `
+  );
   //88x300*3
   proc.stdout.on("error", (d) => console.error(d.toString()));
 
-  output.write(url);
   let lastsent = 0;
   const bitmapp = Buffer.alloc(88 * 10 * 300 * 3).fill(0);
   rc.emitter.on("note", (e) => {

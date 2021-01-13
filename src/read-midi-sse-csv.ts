@@ -44,6 +44,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
   emitter.on("note", (event) => {
     const {
       midi,
+      name,
       instrument,
       ticks,
       durationTicks,
@@ -55,6 +56,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
       [
         ticks,
         midi,
+        name,
         durationTicks,
         velocity,
         noteOffVelocity,
@@ -70,7 +72,7 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
   emitter.on("#tempo", (info) => {
     readable.push("#tempo, " + JSON.stringify(info) + "\n");
   });
-  emitter.on("end", () => readable.emit("end"));
+  emitter.on("ended", () => readable.emit("end"));
   start();
   return readable;
 };
