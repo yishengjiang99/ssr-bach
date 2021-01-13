@@ -24,6 +24,7 @@ import { handleSamples } from "./id2";
 import { cspawn, midiMeta, tagResponse } from "./utils";
 import { Player } from "./player";
 import { stdformat } from "./ffmpeg-templates";
+import { bitmapget } from "./soundPNG";
 
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -95,7 +96,7 @@ export const run = (port, tls = httpsTLS) => {
       css,
     };
   })();
-  const server = createSecureServer(tls, handler);
+  const server = createServer(tls, handler);
   server.on("stream", handleStream);
 
   process.on("uncaughtException", (e) => {
@@ -205,11 +206,13 @@ export const handler = async (req, res) => {
         res.write("<ul id='menu'>");
         midifiles.forEach((name) =>
           res.write(
-            `<li>${name}<a href='/midi/${name}.html'><button>Play</button></a></li>`
+            `<li>${name}<a href='javascript://'><button  href='/pcm/${name}'>Play</button><a></li>`
           )
         );
         res.write("</ul>");
         res.write(idx2);
+        // handleSamples(session, res);
+        notelist(res);
         res.end(idx3);
 
         break;
@@ -314,6 +317,7 @@ export const handler = async (req, res) => {
         const vol = queries["vol"] || 1;
         cspawn(`ffmpeg ${stdformat} -i ${remoteUrl} -f WAV -`).stdout.pipe(res);
         break;
+
       default:
         if (req.method === "POST") handlePost(req, res, session);
         else queryFs(req, res) || res.writeHead(404);
@@ -323,7 +327,6 @@ export const handler = async (req, res) => {
   } catch (e) {
     res.statusCode = 500;
     res.end(e.message);
-    console.log(e);
   }
 };
 
@@ -361,7 +364,7 @@ export const handleRemoteControl = function (
       const request = resolve("midi/" + basename(arg1));
       if (rc.state.midifile !== request) {
         rc.stop();
-        player.playTrack(arg1, player.output);
+        player.playTrack(request, player.output);
         activeSession.rc = player.nowPlaying;
       } else {
         rc.resume();
