@@ -129,7 +129,7 @@ const chunk = 128 * 4 * 2;
         }
       }
       this.rms = Math.sqrt(sum / 256);
-      //  if (this.total % 150 == 50) this.report();
+      if (this.total % 150 == 50) this.report();
       return true;
     }
   }

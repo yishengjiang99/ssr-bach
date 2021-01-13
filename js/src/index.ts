@@ -38,6 +38,7 @@ worker.onmessage = ({ data }) => {
     if (data.msg) {
       if (timelogger) timelogger(data.msg); //(data.msg);
     } else if (data.stats) {
+      printrx(JSON.stringify(data.stas), 2);
       onStats(data);
     } else if (data.playback && data.playback.info) {
       const { event, info } = data.playback;

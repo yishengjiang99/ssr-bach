@@ -98,16 +98,16 @@ export class Player {
 
 function getFilePath(note) {
   let file;
-  if (note.instrument.includes("piano") && note.midi - 21 <= 68) {
-    file = `./midisf/${note.instrument}/${note.midi - 21}v${
+  if (note.instrument.includes("piano") && note.midi - 33 <= 68) {
+    file = `./midisf/${note.instrument}/${note.midi - 33}v${
       note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
     }.pcm`;
   } else {
-    file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
+    file = `./midisf/${note.instrument}/stero-${note.midi - 33}.pcm`;
   }
 
   if (!existsSync(file)) {
-    file = `./midisf/clarinet/${note.midi - 21}.pcm`;
+    file = `./midisf/clarinet/${note.midi - 33}.pcm`;
   }
   return file;
 }

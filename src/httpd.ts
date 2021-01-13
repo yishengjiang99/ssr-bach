@@ -74,46 +74,17 @@ function currentSession(who, parts, query) {
     query,
   });
 }
-let page2html = readFileSync("fullscreen.html").toString();
-let precache = [
-  "fetchworker.js",
-  "proc2.js",
-  "panel.js",
-  "misc-ui.js",
-  "analyserView.js",
-].reduce((map, entry) => {
-  map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
-  return map;
-});
+let precache = readdirSync("./js/build/")
+  .filter((f) => f.endsWith("js"))
+  .reduce((map, entry) => {
+    map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
+    return map;
+  }, {});
+
 export const run = (port, tls = httpsTLS) => {
   process.env.port = port;
 
-  // page2preload = (() => {
-  //   let page2html = readFileSync("fullscreen.html").toString();
-  //   let precache = [
-  //     "fetchworker.js",
-  //     "proc2.js",
-  //     "panel.js",
-  //     "misc-ui.js",
-  //     "analyserView.js",
-  //   ].reduce((map, entry) => {
-  //     map["./js/build/" + entry] = readFileSync("./js/build/" + entry).toString();
-  //     return map;
-  //   }, {});
-  //   let [idx, idx1, beforeMain, idx2, idx3, css] = hotreloadOrPreload("fullscreen.html");
-  //   precache["style.css"] = readFileSync("./style.css").toString();
-  //   return {
-  //     page2html,
-  //     precache,
-  //     idx,
-  //     idx1,
-  //     beforeMain,
-  //     idx2,
-  //     idx3,
-  //     css,
-  //   };
-  // })();
-  const server = createSecureServer(tls, handler);
+  const server = createServer(tls, handler);
   server.on("stream", handleStream);
 
   process.on("uncaughtException", (e) => {
@@ -132,53 +103,30 @@ export function handleStream(
   headers: IncomingHttpHeaders,
   flags: number
 ) {
-  let m = headers[":path"].match(/\/midi\/(\S+)/);
-  if (!m) {
-    return;
-  }
-  const { page2html, precache, idx, idx1, beforeMain, idx2, idx3, css } = page2preload;
-  const file = resolve("midi/" + decodeURIComponent(m[1].replace(".html", "")));
-  if (!existsSync(file)) {
+  if (headers[":path"] === "/") {
+    // const file = resolve("midi/" + decodeURIComponent(m[1].replace(".html", "")))
     stream.respond({
-      ":status": 404,
-    });
-    return stream.end();
-  }
-  stream.respond(
-    {
       ":status": 200,
       "Content-Type": "text/html",
-    },
-    { waitForTrailers: true }
-  );
-  const [parts, query] = parseUrl(headers[":path"]);
-
-  currentSession(query["cookie"], parts, query);
-  const meta = midiMeta(file);
-  const h = (str: TemplateStringsArray, ...args) => {
-    for (const st of str.entries()) {
-      stream.write(st);
-      stream.write(args.shift());
+    });
+    const [parts, query] = parseUrl(headers[":path"]);
+    for (const path in precache) {
+      pushFile({ stream, path, file: precache[path] });
     }
-  };
-  stream.write(/* html */ `<!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${file}</title>
-        <style>${css}</style>
-      </head>
-      <body>g
-        <div class="fullscreen">
-          <canvas></canvas>
-        </div>g
-        <div id="panel"></div>
-        <pre id="stdout"></pre>
-        <script type="module" src="/js/build/panel.js"></script>
-      </body>
-    </html>
-`);
-  // res.write(idx2);
+    currentSession(query["cookie"], parts, query);
+    stream.write(idx1);
+    stream.write(css);
+
+    stream.write(beforeMain);
+    stream.write("<select id='menu'>");
+    midifiles.forEach((name) => stream.write(`<option value='${name}'>${name}</option>`));
+    stream.write("</select> <button>Play</button>");
+    stream.write(idx2);
+
+    stream.end(idx3);
+
+    // res.write(idx2);
+  }
 }
 const wavheader = Buffer.allocUnsafe(56);
 openSync("./cachedheader.WAV", "r");
@@ -224,7 +172,7 @@ export const handler = async (req, res) => {
         midifiles.forEach((name) =>
           res.write(`<option value='${name}'>${name}</option>`)
         );
-        res.write("</select> <button>Play</button>");
+        res.write("</select> <button>Play</button><br><br>");
         res.write(idx2);
 
         res.end(idx3);

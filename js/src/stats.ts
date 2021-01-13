@@ -1,4 +1,4 @@
-  export const ttt = function () {
+export const ttt = function () {
   const buffM: HTMLProgressElement = document.querySelector<HTMLProgressElement>(
     "progress#buffered"
   );
@@ -7,9 +7,11 @@
     "progress#played"
   );
   playedM.value = 0;
-  const loss: HTMLMeterElement = document.querySelector<HTMLMeterElement>("meter#loss");
-  const inmem: HTMLMeterElement = document.querySelector<HTMLMeterElement>(
-    "meter#inmemory"
+  const loss: HTMLProgressElement = document.querySelector<HTMLProgressElement>(
+    "progress#loss"
+  );
+  const inmem: HTMLProgressElement = document.querySelector<HTMLProgressElement>(
+    "progress#inmemory"
   );
   const spans = document.querySelectorAll("#stats span");
 
