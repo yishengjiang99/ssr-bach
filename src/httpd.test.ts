@@ -1,6 +1,6 @@
-import { Server } from "./httpd";
-import { get, request } from "https";
+import { get } from "https";
 import { ClientRequest } from "http";
+import { Server } from "./httpd";
 
 test("connnectivity", (done): void => {
   let { activeSessions, server } = new Server(8322);

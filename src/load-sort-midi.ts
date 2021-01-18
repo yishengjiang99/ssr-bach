@@ -2,7 +2,7 @@ import { Header, Midi } from "@tonejs/midi";
 import { Instrument } from "@tonejs/midi/dist/Instrument";
 import { EventEmitter } from "events";
 
-import { createWriteStream } from "fs";
+import { createWriteStream, readFileSync } from "fs";
 import {
   Filename,
   RemoteControl,
@@ -16,10 +16,7 @@ import { sleep, std_inst_names } from "./utils";
 
 export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteControl {
   const emitter = new EventEmitter();
-  const { duration, durationTicks, tracks, header } = new Midi(
-    require("fs").readFileSync(source)
-  );
-
+  const { duration, durationTicks, tracks, header } = new Midi(readFileSync(source));
   const tempos = JSON.parse(JSON.stringify(header.tempos));
   const state: ControllerState = {
     paused: true,
@@ -35,7 +32,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     tempo: tempos[0],
     timeSignature: header.timeSignatures[0],
   };
-  emitter.emit("#tempo", (state.tempo && state.tempo.bpm) || 70);
 
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);
   const setState = (update: { [key: string]: string | boolean | number }) => {
@@ -55,7 +51,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     emitter: emitter,
     start: () => {
       setState({ paused: false });
-      pullMidiTrack({ tracks, _cb: cb });
+      pullMidiTrack({ tracks, callback: cb });
     },
     setCallback,
     state,
@@ -69,7 +65,12 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     },
   };
 
-  const pullMidiTrack = async ({ tracks, _cb }: { tracks; _cb: CallbackFunction }) => {
+  type NewType = {
+    tracks;
+    callback: CallbackFunction;
+  };
+
+  const pullMidiTrack = async ({ tracks, callback }: NewType): Promise<void> => {
     let done = 0;
     let doneSet = new Set();
 
@@ -111,7 +112,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
       }
       let intval = Math.floor(state.time);
       emitter.emit("notes", notesstarting);
-      state.time += await _cb(notesstarting);
+      state.time += await callback(notesstarting);
       if (Math.floor(state.time) > intval) {
         emitter.emit("#time", { seconds: state.time });
       }
@@ -128,16 +129,16 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
   return controller;
 }
 
-export const convertMidiRealTime = (file) => {
+export function convertMidiRealTime(file): RemoteControl {
   const controller = convertMidi(file, async function () {
     await sleep(10); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return 0.01;
   });
   controller.start();
   return controller;
-};
+}
 
-export const convertMidiASAP = (file: MidiFile) => {
+export const convertMidiASAP = (file: MidiFile): RemoteControl => {
   const controller = convertMidi(file, async function () {
     await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return 0.1;

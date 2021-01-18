@@ -5,7 +5,7 @@ import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { convertMidi } from "./load-sort-midi";
 
-export function convertMidiSequencer({ file, output }: { file; output: Writable }) {
+export function convertMidiSequencer({ file }: { file: any; output: Writable }) {
   const wbook = new Workbook();
 
   const ws = wbook.addWorksheet(basename(file), {
@@ -25,12 +25,8 @@ export function convertMidiSequencer({ file, output }: { file; output: Writable 
     state: "visible",
   });
 
-  let k = 0;
-  let notesrec = [];
-  const workbook = new stream.xlsx.WorkbookWriter({
-    stream: output,
-  });
-  const controller = convertMidi(file, async (notes: NoteEvent[]) => {
+  const notesrec = [];
+  convertMidi(file, async (notes: NoteEvent[]) => {
     notes.map((note) =>
       notesrec.push({
         midi: note.midi,
@@ -38,7 +34,7 @@ export function convertMidiSequencer({ file, output }: { file; output: Writable 
         ticks: note.durationTicks / 256 / 8,
       })
     );
-    let excelrow = new Array(88).fill(" ");
+    const excelrow = new Array(88).fill(" ");
     for (let i = 0; i < notesrec.length; i++) {
       const note = notesrec[i];
       if (!note) continue;
@@ -46,7 +42,7 @@ export function convertMidiSequencer({ file, output }: { file; output: Writable 
       note.ticks -= 256 / 8;
       if (note.ticks <= 0) {
         continue;
-        //notesrec.splice(i, 1);
+        // notesrec.splice(i, 1);
       }
     }
 

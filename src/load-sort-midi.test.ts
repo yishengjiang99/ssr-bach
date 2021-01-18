@@ -8,7 +8,7 @@ test("convertMidi", () => {
   controller.emitter.on("note", (data) => {});
 });
 test("convertmidiscsv", () => {
-  readAsCSV("./midi/song.mid", false)
+  readAsCSV("./midi/song.mid")
     .pipe(createWriteStream("song.csv"))
     .on("end", () => {
       expect(readFileSync("./song.csv").toString().split("\n")).toHaveLength;

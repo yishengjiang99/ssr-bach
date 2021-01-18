@@ -21,10 +21,10 @@ test("player", () => {
 });
 let ctx;
 
-test("playing", () => {
+test("playing", (): void => {
   const p = new Player();
 
-  p.playTrack("./mid/song.mid", devnull(), true, 1);
+  p.playTrack("./midi/song.mid", devnull(), true, 1);
   let t = setInterval(() => {
     if (p.nowPlaying.state.time > 11) clearTimeout(t);
     p.ctx.inputs.map((s) => console.log);

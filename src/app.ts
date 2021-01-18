@@ -1,5 +1,3 @@
-import * as models from "./models/index";
-
 var express = require("express");
 var path = require("path");
 var logger = require("morgan");

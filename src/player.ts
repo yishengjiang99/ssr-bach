@@ -43,7 +43,7 @@ export class Player {
     if (this.output) this.output.end();
     if (this.timer) clearInterval(this.timer);
   };
-  msg = (msg: string, reply: { write: (string) => void }) => {
+  msg = (msg: string, reply: { write: (string) => void }): void => {
     let tt: string[] = msg.split(" ");
     const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
     if (cmd === "config") {
@@ -53,9 +53,6 @@ export class Player {
     if (this.nowPlaying && cmd === "seek") {
       this.nowPlaying.seek(parseInt(arg1));
       return reply.write({ rcstate: { seek: this.nowPlaying.state.time } });
-    }
-    if (cmd === "play") {
-      // this isunable to suppoort directly since it's talking to a websocket which doesn't have enough thorouput..
     }
     switch (cmd) {
       case "resume":
@@ -79,7 +76,7 @@ export class Player {
     output: Writable,
     autoStart: boolean = true,
     playbackRate: number = 1
-  ) => {
+  ): RemoteControl => {
     const ctx = this.ctx;
     const controller = convertMidi(file);
     this.nowPlaying = controller;
@@ -98,7 +95,7 @@ export class Player {
 
           let ob;
           if (file.includes("https")) {
-            ob = bufferRemote(file, bytelength);
+            ob = bufferRemote(file);
           } else {
             const fd = openSync(file, "r");
             ob = Buffer.allocUnsafe(bytelength);
@@ -156,12 +153,12 @@ export class Player {
   tracks: PulseTrackSource[];
 }
 
-function getFilePath(note) {
+function getFilePath(note): string {
   let file;
+  const cdn = "https://grep32bit.blob.core.windows.net/pcm";
   if (note.instrument.includes("piano")) {
-    file = `https://${note.midi - 21}v${
-      note.velocity > 0.6 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
-    }.pcm`;
+    const v = `${note.velocity > 0.6 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"}`;
+    file = `${cdn}/${note.midi - 21}v${v}.pcm`;
   } else {
     file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
   }
@@ -169,14 +166,10 @@ function getFilePath(note) {
   if (!existsSync(file)) {
     file = `./midisf/oboe/stero-${note.midi - 21}.pcm`;
   }
-  if (!existsSync(file)) {
-    return false;
-  }
+
   return file;
 }
-function bufferRemote(url: string, btes) {
-  const remoteUrl =
-    "https://grep32bit.blob.core.windows.net/pcm/" + require("path").basename(url); // //'pcm/14v16.pc'
 
-  return require("child_process").execSync(`curl -s ${remoteUrl} -o -`);
+function bufferRemote(url: string): Buffer {
+  return execSync(`curl -s ${url} -o -`);
 }

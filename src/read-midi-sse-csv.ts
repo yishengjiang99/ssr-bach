@@ -1,46 +1,30 @@
 import { EventEmitter } from "events";
 import { Readable, Transform, Writable } from "stream";
+import { readConfigFile } from "typescript";
 import { convertMidi, convertMidiASAP, convertMidiRealTime } from "./load-sort-midi";
-export const readMidiSSE = (
-  request: Readable,
-  response: Writable,
-  midifile: string,
-  realtime: boolean
-) => {
-  const { emitter, ff, start, rwd, stop, pause, resume } = convertMidiRealTime(midifile);
-  request.on("close", stop);
-  request.on("data", (d) => {
-    const req = d.toString().trim();
-    switch (req) {
-      case "pause":
-        pause();
-        break;
-      case "resume":
-        resume();
-        break;
-      case "ff":
-        ff();
-        break;
-      case "rwd":
-        rwd();
-        break;
-      default:
-        break;
-    }
-  });
+export const readMidiSSE = ({
+  request,
+  response,
+  midifile,
+  realtime,
+}: {
+  request?: Readable;
+  response: Writable;
+  midifile: string;
+  realtime: boolean;
+}) => {
+  const rc = convertMidiRealTime(midifile);
 
   ["note", "#meta", "#time", "#tempo"].map((event) => {
-    emitter.on(event, (d) => {
+    rc.emitter.on(event, (d) => {
       response.write(
         ["event: ", event, "\n", "data: ", JSON.stringify(d), "\n\n"].join("")
       );
     });
   });
+  return rc;
 };
-export const readAsCSV = (
-  midifile: string | EventEmitter,
-  realtime: boolean
-): Readable => {
+export function readAsCSV(midifile: string | EventEmitter): Readable {
   let emitter, rc;
   if (typeof midifile !== "string") {
     emitter = midifile;
@@ -84,4 +68,4 @@ export const readAsCSV = (
   emitter.on("ended", () => readable.emit("end"));
 
   return readable;
-};
+}

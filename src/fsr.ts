@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   existsSync,
   statSync,
@@ -9,34 +10,32 @@ import {
   write,
   closeSync,
 } from "fs";
-import { resolve, basename, extname, dirname } from "path";
+import { resolve, basename, dirname } from "path";
 import { lookup } from "mime-types";
-import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
-import { cspawn, resjson } from "./utils";
+import { IncomingMessage, ServerResponse } from "http";
 import { ServerHttp2Stream } from "http2";
 import { Readable } from "stream";
+import { resjson } from "./utils";
+
 export const dbfsroot = resolve(__dirname, "../dbfs");
-export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] => {
-  return parseUrl(req.url);
-};
+export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] =>
+  parseUrl(req.url);
 export const parseUrl = (url: string): [string[], Map<string, string>] => {
   const meparts = url.split("?");
   const parts = meparts[0].split("/");
   const query = (meparts[1] || "").split("&").reduce((queries, p) => {
     const [k, v] = p.split("=");
-    queries[k] = decodeURIComponent(v).split("; ")[0];
+    queries.set(k, decodeURIComponent(v).split("; ")[0]);
     return queries;
   }, new Map<string, string>());
   return [parts, query];
 };
 export const mkfolder = (folder) => existsSync(folder) || mkdirSync(folder);
 export const resolvePath = (root, relativePath) => {
-  let rt = root.split("/");
-  let t = relativePath.split("/");
+  const rt = root.split("/");
+  const t = relativePath.split("/");
 
   while (t.length) {
-    console.log(rt.join("/"));
-
     rt.push(t.shift());
     mkfolder(rt.join("/"));
   }
@@ -45,66 +44,54 @@ export const resolvePath = (root, relativePath) => {
 
 export const handlePost = (req: IncomingMessage, res: ServerResponse, who?: string) => {
   const url = req.url.slice(0);
-  let folder = resolvePath(dbfsroot, who + dirname(url));
+  const folder = resolvePath(dbfsroot, who + dirname(url));
   const fullpath = resolve(folder, basename(url));
-  // open(fullpath, "a+", (err, fd) => {
-  //   if (err) {
-  //     res.writeHead(500);
-  //     res.end(err.message);
-  //   }
-  //   res.writeHead(200, "welcome", {
-  //     "Access-Control-Allow-Origin": "*",
-  //     "Content-Type": "text/plain; charset=utf-8",
-  //     "Content-Location": fullpath.replace(dbfsroot, "https://www.grepawk.com"),
-  //   });
-  //   let offset = 0;
-  //   /*
-  //           fd: number,
-  //       buffer: TBuffer,
-  //       offset: number | undefined | null,
-  //       length: number | undefined | null,
-  //       position: number | undefined | null,
-  //       */
-  //   req.on("data", (d) => {
-  //     write(fd, d, 0, d.byteLength, offset, (err, written, buf) => {
-  //       if (res.writableEnded == false) res.write("\n" + written + "written");
-  //     });
-  //     offset += d.byteLength;
-  //   });
-  //   req.on("end", () => {
-  //     closeSync(fd);
-  //     res.end();
-  //   });
-  // });
+  open(fullpath, "a+", (err, fd) => {
+    if (err) {
+      res.writeHead(500);
+      res.end(err.message);
+    }
+    res.writeHead(200, "welcome", {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+    let offset = 0;
 
-  // const pq = require("fs").createReadStream(fullpadth);
-  // req.on("data", (d) => {
-  //   res.write("d");
-  // });
+    req.on("data", (d) => {
+      write(fd, d, 0, d.byteLength, offset, (err, written, buf) => {
+        if (err) console.error(err);
+        if (res.writableEnded === false) res.write(`\n${written}written`);
+      });
+      offset += d.byteLength;
+    });
+    req.on("end", () => {
+      closeSync(fd);
+      res.end();
+    });
+  });
+
+  const pq = createReadStream(fullpath);
+  pq.on("data", (d: Buffer) => {
+    res.write(d);
+  });
 };
 
 export function parseCookies(request) {
-  var list = {},
-    rc = request.headers.cookie;
-  rc &&
-    rc.split(";").forEach(function (cookie) {
-      var parts = cookie.split("=");
+  const list = {};
+  const rc = request.headers.cookie;
+  if (rc) {
+    rc.split(";").forEach((cookie) => {
+      const parts = cookie.split("=");
       list[parts.shift().trim()] = decodeURI(parts.join("="));
     });
+  }
   return list;
 }
-export const queryFs = (req, res) => {
-  console.log(req.url);
-  return queryFsUrl(req.url, res);
-};
 
-const nigg = `
-          `;
-export const queryFsUrl = (url: string, res) => {
+export const queryFsUrl = (url: string, res): any => {
   if (url === "") return false;
   const [parts, query] = parseUrl(url);
   const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
-  console.log(filename);
   if (existsSync(filename)) {
     if (statSync(filename).isFile()) {
       res.writeHead(200, {
@@ -112,30 +99,33 @@ export const queryFsUrl = (url: string, res) => {
         "Access-Control-Allow-Origin": "*",
       });
       return createReadStream(filename).pipe(res);
+    }
+    if (query.format === "json") {
+      resjson(res, readdirSync(filename));
+      res.end();
     } else {
-      if (query["format"] === "json") {
-        resjson(res, readdirSync(filename));
-        res.end();
-      } else {
-        res.end(
-          /* html */ `<html>
+      const mkLink = (filename, f) => {
+        if (statSync(resolve(filename, f)).isDirectory()) {
+          return `<a href='${url}/${f}'>${f}</a>`;
+        }
+        if (f.endsWith(".pcm") || f.endsWith(".wav")) {
+          return ` <a href='${url}/${f}'>${f}</a>`;
+        }
+        if (f.endsWith(".mp4") || f.endsWith(".webm")) {
+          return ` <a href='#' video='${url}/${f}'>${f}</a>`;
+        }
+        return `<a href='#' preview='${url}/${f}'>${f}</a>`;
+      };
+      res.end(/* html */ `
+      <html>
           <body>
           <div style='display:grid;grid-template-columns:1fr 3fr'>
           <div>
         <pre>
         ${readdirSync(filename)
-          .map((f) => {
-            if (statSync(resolve(filename, f)).isDirectory()) {
-              return `<a href='${url}/${f}'>${f}</a>`;
-            } else if (f.endsWith(".pcm") || f.endsWith(".wav")) {
-              return ` <a href='${url}/${f}'>${f}</a>`;
-            } else if (f.endsWith(".mp4") || f.endsWith(".webm")) {
-              return ` <a href='#' video='${url}/${f}'>${f}</a>`;
-            } else {
-              return `<a href='#' preview='${url}/${f}'>${f}</a>`;
-            }
-          })
-          .join("\n")}</pre></div>
+          .map((f) => mkLink(filename, f))
+          .join("\n")}
+        </pre></div>
         <div>  <form method='post' action='/${parts
           .slice(1)
           .join("/")}/newfile${Math.random()}.txt'>
@@ -143,16 +133,11 @@ export const queryFsUrl = (url: string, res) => {
         <input type='submit' />
         </form></div>
         </div>
-          
-          <script>` +
-            /* javascript */ `window.onmousedown=(e)=>{
+          <script>window.onmousedown=(e)=>{
               if(e.target.hasAttribute("video")){
                   const pl=document.createElement("video");
                 pl.src=e.target.getAttribute("video");
-                document.body
-                
-                
-                \.append(pl);
+                document.body.append(pl);
               }else  if(e.target.hasAttribute("preview")){
               const url = e.target.getAttribute("preview");
               fetch(url).then(async res=>{
@@ -169,23 +154,25 @@ export const queryFsUrl = (url: string, res) => {
               })
            
             }
-          }` +
-            ` </script></body></html>`
-        );
-      }
+          }</script></body></html>`);
     }
+
     return true;
   }
   return false;
 };
+export const queryFs = (req, res) => {
+  console.log(req.url);
+  return queryFsUrl(req.url, res);
+};
 
 export const hotreloadOrPreload = (url = "./index.html") => {
-  let idx = readFileSync(url).toString();
-  let idx1 = idx.split("<style></style>")[0];
-  let beforeMain = idx.substr(idx1.length).split("<main></main>")[0] + "<main>";
-  let idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
-  let idx3 = "</body></html>";
-  let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
+  const idx = readFileSync(url).toString();
+  const idx1 = idx.split("<style></style>")[0];
+  const beforeMain = `${idx.substr(idx1.length).split("<main></main>")[0]}<main>`;
+  const idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
+  const idx3 = "</body></html>";
+  const css = `<style>${readFileSync("./style.css").toString()}</style>`;
   return [idx, idx1, beforeMain, idx2, idx3, css];
 };
 type FD = number;
@@ -224,7 +211,7 @@ export function pushFile({
         }
         break;
       default:
-        throw "dont know how to handle " + file;
+        throw `dont know how to handle ${file}`;
     }
   });
 }
