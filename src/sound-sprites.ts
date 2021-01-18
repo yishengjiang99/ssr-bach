@@ -6,6 +6,7 @@ import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { cspawn, sleep } from "./utils";
 import { Readable } from "stream";
 import { PassThrough } from "stream";
+import { ffp } from "./sinks";
 
 export const produce = (
   songname: string,
@@ -115,11 +116,11 @@ export const produce = (
 if (require.main === module) {
   // produce("./midi/song.mid", cspawn("nc -l 8080").stdin, process.stdin);
   // console.log("nc grepawk.com 8080 |ffplay -i pipe:0 -f f32le -ac 2 -ar 48000");
-
-  require("net")
-    .createServer()
-    .on("connection", (sock) => {
-      produce("midi/song.mid", sock, process.stdin);
-    })
-    .listen(8111);
+  // require("net")
+  //   .createServer()
+  //   .on("connection", (sock) => {
+  //     produce("./midi/song.mid", sock, process.stdin);
+  //   })
+  //   .listen(8111);
 }
+produce("./midi/song.mid", process.stdout, process.stdin);

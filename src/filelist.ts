@@ -1,10 +1,7 @@
 import { createWriteStream, readdir, readFile } from "fs";
 import { readdirSync } from "fs";
-import { basename } from "path";
 import { Writable } from "stream";
-import { execSync } from "child_process";
-import { readAsCSV } from "./read-midi-sse-csv";
-import { installNotesFromCsv } from "./install";
+
 export const midifiles = readdirSync("./midi");
 
 export const fileRow = (item) => {

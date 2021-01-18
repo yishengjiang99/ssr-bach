@@ -2,6 +2,7 @@ import { Header, Midi } from "@tonejs/midi";
 import { Instrument } from "@tonejs/midi/dist/Instrument";
 import { EventEmitter } from "events";
 
+import { createWriteStream } from "fs";
 import {
   Filename,
   RemoteControl,
@@ -34,7 +35,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     tempo: tempos[0],
     timeSignature: header.timeSignatures[0],
   };
-  emitter.emit("#tempo", state.tempo.bpm);
+  emitter.emit("#tempo", (state.tempo && state.tempo.bpm) || 70);
 
   const setCallback = (_cb: CallbackFunction) => (cb = _cb);
   const setState = (update: { [key: string]: string | boolean | number }) => {
@@ -62,7 +63,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
       name: header.name,
       seconds: Math.floor(duration),
       ...(Object.values(header.meta).reduce((map, ele) => {
-        map[ele.text] = ele["value"];
+        map[ele + ""] = ele["value"];
         return map;
       }, {}) || {}),
     },
@@ -71,7 +72,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
   const pullMidiTrack = async ({ tracks, _cb }: { tracks; _cb: CallbackFunction }) => {
     let done = 0;
     let doneSet = new Set();
-    setState({ t0: process.uptime() });
 
     // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;
     while (tracks.length > done) {
@@ -110,6 +110,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
         }
       }
       let intval = Math.floor(state.time);
+      emitter.emit("notes", notesstarting);
       state.time += await _cb(notesstarting);
       if (Math.floor(state.time) > intval) {
         emitter.emit("#time", { seconds: state.time });
@@ -139,7 +140,7 @@ export const convertMidiRealTime = (file) => {
 export const convertMidiASAP = (file: MidiFile) => {
   const controller = convertMidi(file, async function () {
     await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
-    return msPerBeat(controller.state.tempo.bpm) / 1000;
+    return 0.1;
   });
   controller.start();
   return controller;

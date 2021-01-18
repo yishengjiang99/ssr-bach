@@ -1,13 +1,16 @@
 export const cdiv = (
   tag: string,
   attributes: { [k: string]: string } = {},
-  children: HTMLElement[] = []
+  children: string | HTMLElement | HTMLElement[] = []
 ) => {
   const div = document.createElement(tag);
   Object.keys(attributes).map((k) => {
     div[k] = attributes[k];
   });
-  children.map((c) => div.append(c));
+  typeof children === "string"
+    ? (div.innerHTML += children)
+    : [].concat(children).map((c) => div.append(c));
+
   return div;
 };
 
@@ -23,8 +26,7 @@ export const $ = document.querySelector;
 export const stdoutPanel = (parentDiv) => {
   parentDiv = parentDiv || document.body;
 
-  const std =
-    parentDiv.querySelector("#stdout") || cdiv("pre", { id: "stdout" });
+  const std = parentDiv.querySelector("#stdout") || cdiv("pre", { id: "stdout" });
   const linkdiv = cdiv("span");
   function stdout(str: string) {
     std.innerHTML = str + "\n" + std.innerHTML;
@@ -38,9 +40,22 @@ export const stdoutPanel = (parentDiv) => {
   return {
     stdout,
     std,
-    printrx,
+    printrx: (str, n = 1) => {
+      parentDiv.querySelector("#rx" + n)
+        ? (parentDiv.querySelector("#rx" + n).innerHTML = str)
+        : cdiv("span", { id: `rx${n}` }, str);
+    },
     printlink: (href, name) => {
       linkdiv.innerHTML += `<a href='${href}'>${name}</a>`;
     },
   }; //
 };
+export function logtime(stdout) {
+  let t0 = performance.now();
+  return function log(str: string) {
+    stdout(`${performance.now() - t0}: ${str}`);
+    //t0 = performance.now();
+    return true;
+  };
+}
+export const { printrx, stdout } = stdoutPanel(document.querySelector("#root"));

@@ -1,11 +1,10 @@
-import { handler, wshand } from "./httpd";
-import { run } from "./httpd";
-import { get } from "https";
+import { Server } from "./httpd";
+import { get, request } from "https";
 import { ClientRequest } from "http";
 
-let { activeSessions, server } = run(8322);
-
 test("connnectivity", (done): void => {
+  let { activeSessions, server } = new Server(8322);
+
   get("https://localhost:8332", (res: any) => {
     expect(res.statusCode).toBe(200);
     let chunks = "";
@@ -17,9 +16,11 @@ test("connnectivity", (done): void => {
     expect(res.headers.cookie).toContain("who=");
     expect(activeSessions).toHaveLength(1);
   });
-
+});
+test("/rt", (done): void => {
+  const server = new Server(9444);
   const request: ClientRequest = get(
-    "http://localhost:8332/pcm/song.mid?cookie=tester",
+    "https://localhost:8332/rt/song.mid?cookie=tester",
     (res) => {
       expect(res.statusCode).toBe(200);
       let chunks = "";
@@ -28,11 +29,24 @@ test("connnectivity", (done): void => {
         request.destroy();
         done();
       });
-      expect(activeSessions.values()).toHaveLength(2);
+      expect(server.activeSessions.entries()).toBe(1);
     }
   );
 });
 
-afterAll(() => {
-  server.close();
+test("/pcm", (done): void => {
+  const server = new Server(9444);
+  const request: ClientRequest = get(
+    "https://localhost:8332/pcm/song.mid?cookie=tester",
+    (res) => {
+      expect(res.statusCode).toBe(200);
+      let chunks = "";
+      res.on("data", (d) => {
+        expect(d.byteLength).toBe(1024);
+        request.destroy();
+        done();
+      });
+      expect(server.activeSessions.entries()).toBeTruthy();
+    }
+  );
 });

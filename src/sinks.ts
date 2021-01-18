@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
-import { Readable, Writable } from "stream";
+import { PassThrough, Readable, Writable } from "stream";
+import { cspawn } from "./utils";
 export const ffp = () => {
   const { stdin, stderr, stdout } = spawn("ffplay", [
     "-i",
@@ -14,6 +15,12 @@ export const ffp = () => {
   stderr.pipe(process.stderr);
   stdout.pipe(process.stderr);
   return stdin;
+};
+export const nc80 = (port) => {
+  return cspawn(`nc -l ${port}`).stdin;
+};
+export const devnull = () => {
+  return new PassThrough();
 };
 export const mp3c = (): [Writable, Readable, Readable] => {
   const { stdin, stderr, stdout } = spawn("ffmpeg", [
