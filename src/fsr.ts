@@ -13,7 +13,6 @@ import { resolve, basename, extname, dirname } from "path";
 import { lookup } from "mime-types";
 import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "http";
 import { cspawn, resjson } from "./utils";
-import { SessionContext } from "./httpd";
 import { ServerHttp2Stream } from "http2";
 import { Readable } from "stream";
 export const dbfsroot = resolve(__dirname, "../dbfs");
@@ -48,28 +47,35 @@ export const handlePost = (req: IncomingMessage, res: ServerResponse, who?: stri
   const url = req.url.slice(0);
   let folder = resolvePath(dbfsroot, who + dirname(url));
   const fullpath = resolve(folder, basename(url));
-  open(fullpath, "a+", (err, fd) => {
-    if (err) {
-      res.writeHead(500);
-      res.end(err.message);
-    }
-    res.writeHead(200, "welcome", {
-      "Access-Control-Allow-Origin": "*",
-      "Content-Type": "text/plain; charset=utf-8",
-      "Content-Location": fullpath.replace(dbfsroot, "https://www.grepawk.com"),
-    });
-    let offset = 0;
-    req.on("data", (d) => {
-      write(fd, d, offset, d.byteLength, (err, written, buf) => {
-        if (res.writableEnded == false) res.write(written + "written");
-      });
-      offset += d.byteLength;
-    });
-    req.on("end", () => {
-      closeSync(fd);
-      res.end();
-    });
-  });
+  // open(fullpath, "a+", (err, fd) => {
+  //   if (err) {
+  //     res.writeHead(500);
+  //     res.end(err.message);
+  //   }
+  //   res.writeHead(200, "welcome", {
+  //     "Access-Control-Allow-Origin": "*",
+  //     "Content-Type": "text/plain; charset=utf-8",
+  //     "Content-Location": fullpath.replace(dbfsroot, "https://www.grepawk.com"),
+  //   });
+  //   let offset = 0;
+  //   /*
+  //           fd: number,
+  //       buffer: TBuffer,
+  //       offset: number | undefined | null,
+  //       length: number | undefined | null,
+  //       position: number | undefined | null,
+  //       */
+  //   req.on("data", (d) => {
+  //     write(fd, d, 0, d.byteLength, offset, (err, written, buf) => {
+  //       if (res.writableEnded == false) res.write("\n" + written + "written");
+  //     });
+  //     offset += d.byteLength;
+  //   });
+  //   req.on("end", () => {
+  //     closeSync(fd);
+  //     res.end();
+  //   });
+  // });
 
   // const pq = require("fs").createReadStream(fullpadth);
   // req.on("data", (d) => {
@@ -88,12 +94,66 @@ export function parseCookies(request) {
   return list;
 }
 export const queryFs = (req, res) => {
+  console.log(req.url);
   return queryFsUrl(req.url, res);
 };
 
 const nigg = `
-          window.onmousedown=(e)=>{
-            if(e.target.hasAttribute("preview")){
+          `;
+export const queryFsUrl = (url: string, res) => {
+  if (url === "") return false;
+  const [parts, query] = parseUrl(url);
+  const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
+  console.log(filename);
+  if (existsSync(filename)) {
+    if (statSync(filename).isFile()) {
+      res.writeHead(200, {
+        "Content-Type": require("mime-types").lookup(filename),
+        "Access-Control-Allow-Origin": "*",
+      });
+      return createReadStream(filename).pipe(res);
+    } else {
+      if (query["format"] === "json") {
+        resjson(res, readdirSync(filename));
+        res.end();
+      } else {
+        res.end(
+          /* html */ `<html>
+          <body>
+          <div style='display:grid;grid-template-columns:1fr 3fr'>
+          <div>
+        <pre>
+        ${readdirSync(filename)
+          .map((f) => {
+            if (statSync(resolve(filename, f)).isDirectory()) {
+              return `<a href='${url}/${f}'>${f}</a>`;
+            } else if (f.endsWith(".pcm") || f.endsWith(".wav")) {
+              return ` <a href='${url}/${f}'>${f}</a>`;
+            } else if (f.endsWith(".mp4") || f.endsWith(".webm")) {
+              return ` <a href='#' video='${url}/${f}'>${f}</a>`;
+            } else {
+              return `<a href='#' preview='${url}/${f}'>${f}</a>`;
+            }
+          })
+          .join("\n")}</pre></div>
+        <div>  <form method='post' action='/${parts
+          .slice(1)
+          .join("/")}/newfile${Math.random()}.txt'>
+        <textarea name='body' rows=30 cols=90></textarea>
+        <input type='submit' />
+        </form></div>
+        </div>
+          
+          <script>` +
+            /* javascript */ `window.onmousedown=(e)=>{
+              if(e.target.hasAttribute("video")){
+                  const pl=document.createElement("video");
+                pl.src=e.target.getAttribute("video");
+                document.body
+                
+                
+                \.append(pl);
+              }else  if(e.target.hasAttribute("preview")){
               const url = e.target.getAttribute("preview");
               fetch(url).then(async res=>{
                 const reader=res.body.pipeThrough(new TextDecoderStream()).getReader()
@@ -109,50 +169,8 @@ const nigg = `
               })
            
             }
-          }
-          </script></body></html>`;
-export const queryFsUrl = (url: string, res) => {
-  if (url === "") return false;
-  const [parts, query] = parseUrl(url);
-  const filename = resolve(__dirname, "...", parts.slice(1).join("/"));
-  if (existsSync(filename)) {
-    if (statSync(filename).isFile()) {
-      res.writeHead(200, {
-        "Content-Type": require("mime-types").lookup(filename),
-        "Access-Control-Allow-Origin": "*",
-      });
-      return createReadStream(filename).pipe(res);
-    } else {
-      if (query["format"] === "json") {
-        resjson(res, readdirSync(filename));
-        res.end();
-      } else {
-        res.end(
-          `<html>
-          <body>
-          <div style='display:grid;grid-template-columns:1fr 3fr'>
-          <div>
-        <pre>
-        ${readdirSync(filename)
-          .map((f) => {
-            if (statSync(resolve(filename, f)).isDirectory()) {
-              return `<a href='${url}/${f}'>${f}</a>`;
-            } else if (f.endsWith(".pcm") || f.endsWith(".wav")) {
-              return ` <a href='${url}/${f}'>${f}</a>`;
-            } else {
-              return `<a href='#' preview='${url}/${f}'>${f}</a>`;
-            }
-          })
-          .join("\n")}</pre></div>
-        <div>  <form method='post' action='${dbfsroot}/${parts
-            .slice(1)
-            .join("/")}/newfile${process.hrtime[1]}.txt'>
-        <textarea name='body' rows=30 cols=90></textarea>
-        <input type='submit' />
-        </form></div>
-        </div>
-          
-          <script>` + /* javascript */ nigg
+          }` +
+            ` </script></body></html>`
         );
       }
     }
@@ -161,15 +179,15 @@ export const queryFsUrl = (url: string, res) => {
   return false;
 };
 
-export function hotreloadOrPreload() {
-  let idx = readFileSync("./index.html").toString();
+export const hotreloadOrPreload = (url = "./index.html") => {
+  let idx = readFileSync(url).toString();
   let idx1 = idx.split("<style></style>")[0];
-  let idx2 = idx.substr(idx1.length).split("</body>")[0];
+  let beforeMain = idx.substr(idx1.length).split("<main></main>")[0] + "<main>";
+  let idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
   let idx3 = "</body></html>";
   let css = "<style>" + readFileSync("./style.css").toString() + "</style>";
-  return [idx, idx1, idx2, idx3, css];
-}
-
+  return [idx, idx1, beforeMain, idx2, idx3, css];
+};
 type FD = number;
 export function pushFile({
   stream,
@@ -179,7 +197,7 @@ export function pushFile({
   stream: ServerHttp2Stream;
   file: string | FD | Buffer | ReadableStream;
   path: string;
-}) {
+}): void {
   stream.pushStream({ ":path": path }, (err, pushStream, headers) => {
     if (err) throw err;
     headers = {

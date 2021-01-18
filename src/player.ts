@@ -1,14 +1,23 @@
 import { existsSync, openSync, readSync, closeSync } from "fs";
 import { cspawn } from "./utils";
-import { Envelope, Oscillator, PulseSource, SSRContext } from "ssr-cxt";
+import { PulseSource, SSRContext } from "ssr-cxt";
 import { Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-import { stdformat } from "./ffmpeg-templates";
+import { get } from "https";
+import { execSync } from "child_process";
 
 const spriteBytePeSecond = 48000 * 2 * 4;
-
+class PulseTrackSource extends PulseSource {
+  note: NoteEvent;
+  trackId: number;
+  constructor(ctx, props: { buffer: Buffer; note: NoteEvent; trackId: number }) {
+    super(ctx, { buffer: props.buffer });
+    this.note = props.note;
+    this.trackId = props.trackId;
+  }
+}
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
@@ -29,11 +38,52 @@ export class Player {
     this.settings[attr] = value;
   };
   lastPlayedSettings = null;
-  playTrack = (file: string, output: Writable, autoStart: boolean = true) => {
+  stop = () => {
+    if (this.nowPlaying) this.nowPlaying.stop();
+    if (this.output) this.output.end();
+    if (this.timer) clearInterval(this.timer);
+  };
+  msg = (msg: string, reply: { write: (string) => void }) => {
+    let tt: string[] = msg.split(" ");
+    const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
+    if (cmd === "config") {
+      this.setSetting(arg1, parseFloat(arg2));
+      return reply.write("ack config " + arg1 + " " + arg2);
+    }
+    if (this.nowPlaying && cmd === "seek") {
+      this.nowPlaying.seek(parseInt(arg1));
+      return reply.write({ rcstate: { seek: this.nowPlaying.state.time } });
+    }
+    if (cmd === "play") {
+      // this isunable to suppoort directly since it's talking to a websocket which doesn't have enough thorouput..
+    }
+    switch (cmd) {
+      case "resume":
+        this.nowPlaying.resume();
+        break;
+      case "stop":
+        this.nowPlaying.stop();
+        this.nowPlaying.emitter.removeAllListeners();
+
+        break;
+      case "pause":
+        this.nowPlaying.pause();
+        break;
+      default:
+        reply.write("unknown handler " + cmd);
+        break;
+    }
+  };
+  playTrack = (
+    file: string,
+    output: Writable,
+    autoStart: boolean = true,
+    playbackRate: number = 1
+  ) => {
     const ctx = this.ctx;
     const controller = convertMidi(file);
     this.nowPlaying = controller;
-    const tracks: PulseSource[] = new Array(controller.state.tracks.length);
+    this.tracks = new Array(controller.state.tracks.length);
     controller.setCallback(
       async (notes: NoteEvent[]): Promise<number> => {
         const startloop = process.uptime();
@@ -41,73 +91,92 @@ export class Player {
         notes.map((note, i) => {
           const bytelength = spriteBytePeSecond * note.durationTime;
           let file = getFilePath(note);
-          const fd = openSync(file, "r");
-          const ob = Buffer.allocUnsafe(bytelength);
-          readSync(fd, ob, 0, bytelength, 0);
-          closeSync(fd);
-          if (tracks[note.trackId]) {
-            tracks[note.trackId].buffer = Buffer.alloc(0);
-            tracks[note.trackId] = null;
+          if (!file) {
+            console.log("skipping " + note + " not found");
+            return;
           }
-          tracks[note.trackId] = new PulseSource(ctx, {
+
+          let ob;
+          if (file.includes("https")) {
+            ob = bufferRemote(file, bytelength);
+          } else {
+            const fd = openSync(file, "r");
+            ob = Buffer.allocUnsafe(bytelength);
+            readSync(fd, ob, 0, bytelength, 0);
+            closeSync(fd);
+          }
+
+          if (this.tracks[note.trackId]) {
+            this.tracks[note.trackId].buffer = Buffer.alloc(0);
+            this.tracks[note.trackId] = null;
+          }
+          this.tracks[note.trackId] = new PulseTrackSource(ctx, {
             buffer: ob,
+            trackId: note.trackId,
+            note: note,
           });
         });
         const elapsed = process.uptime() - startloop;
-        await sleep(ctx.secondsPerFrame * 1000);
+        await sleep((ctx.secondsPerFrame * 1000) / playbackRate);
         return ctx.secondsPerFrame;
       }
     );
     this.output = output;
 
-    let closed = false;
-    output.on("close", (d) => {
-      controller.stop();
-
-      closed = true;
-    });
-
     if (autoStart) controller.start();
-    output.on("close", (d) => {
-      controller.stop();
-      closed = true;
-    });
-    setInterval(() => {
-      // ctx.pump({ preamp, compression: { threshold, knee, ratio } });
+
+    this.timer = setInterval(() => {
       const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
-      let inputViews = tracks
+      let inputViews: [Buffer, PulseTrackSource][] = this.tracks
         .filter((t, i) => t && t.buffer && t.buffer.byteLength >= ctx.blockSize)
-        .map((t) => t.read());
+        .map((t) => [t.read(), t]);
+
       const n = inputViews.length;
 
       for (let k = 0; k < ctx.blockSize; k += 4) {
         let sum = 0;
         for (let j = n - 1; j >= 0; j--) {
-          sum += inputViews[j].readFloatLE(k);
+          sum +=
+            (inputViews[j][0].readFloatLE(k) * inputViews[j][1].note.velocity * 1) / 2;
         }
 
         summingbuffer.setFloat32(k, sum, true);
       }
 
       if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
-    }, ctx.secondsPerFrame * 1000);
+    }, (ctx.secondsPerFrame * 1000) / playbackRate);
 
+    output.on("close", () => {
+      controller.stop();
+      this.stop();
+    });
     return controller;
   };
+  timer: NodeJS.Timeout;
+  tracks: PulseTrackSource[];
 }
 
 function getFilePath(note) {
   let file;
-  if (note.instrument.includes("piano") && note.midi - 33 <= 68) {
-    file = `./midisf/${note.instrument}/${note.midi - 33}v${
-      note.velocity > 0.4 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
+  if (note.instrument.includes("piano")) {
+    file = `https://${note.midi - 21}v${
+      note.velocity > 0.6 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"
     }.pcm`;
   } else {
-    file = `./midisf/${note.instrument}/stero-${note.midi - 33}.pcm`;
+    file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
   }
 
   if (!existsSync(file)) {
-    file = `./midisf/clarinet/${note.midi - 33}.pcm`;
+    file = `./midisf/oboe/stero-${note.midi - 21}.pcm`;
+  }
+  if (!existsSync(file)) {
+    return false;
   }
   return file;
+}
+function bufferRemote(url: string, btes) {
+  const remoteUrl =
+    "https://grep32bit.blob.core.windows.net/pcm/" + require("path").basename(url); // //'pcm/14v16.pc'
+
+  return require("child_process").execSync(`curl -s ${remoteUrl} -o -`);
 }

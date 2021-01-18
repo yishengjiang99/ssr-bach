@@ -21,7 +21,7 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
   const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
   "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
   for (const name of execSync(
-    "cat " + csvfile + "|grep -v '#'|cut -f8 -d','|sort |uniq|grep -v ^$"
+    "cat " + csvfile + "|grep -v '#'|cut -f7 -d','|sort |uniq|grep -v ^$"
   )
     .toString()
     .trim()
@@ -102,3 +102,6 @@ export const installPiano = (vel) => {
     //  process.exit();
   });
 };
+if (process.argv[2]) {
+  installNotesFromCsv(process.argv[2]);
+}

@@ -1,10 +1,13 @@
+#!/usr/env/ts-node
 import { convertMidi, convertMidiASAP, msPerBeat } from "./load-sort-midi";
 import { Transform, Writable } from "stream";
 import { header } from "grep-wss";
 import { cspawn, sleep } from "./utils";
 import { createReadStream, existsSync, readSync, statSync, write, open } from "fs";
 import { RemoteControl } from "./ssr-remote-control.types";
-import { ServerResponse } from "http";
+import { createServer, ServerResponse } from "http";
+import { builtinModules } from "module";
+import { execSync } from "child_process";
 export const sampleSelect = async (file: string, offset: number) => {
   if (!existsSync(file)) return;
 
@@ -15,6 +18,17 @@ export const sampleSelect = async (file: string, offset: number) => {
   );
 };
 
+createServer((req, res) => {
+  const file = require("path").resolve("./billie.mp4");
+  snapBitmap(file, res);
+}).listen(3000);
+export const snapBitmap = (file, res) => {
+  const proc = cspawn(
+    `ffmpeg -y -t 45 -i billie.mp4 -f mp4 $(mktemp)`, // fps=fps=1/60 ffmpeg_1.bmp`,{
+    { debug: true }
+  ).stdout.pipe(process.stdout);
+  createReadStream(`/tmp/ff.png`).pipe(res);
+};
 export const bitmapget = async (rc: RemoteControl, output: Writable): Promise<Buffer> => {
   const url = `js/runtime-${(Math.random() * 3222) >> 3}.png`;
   const proc = cspawn(

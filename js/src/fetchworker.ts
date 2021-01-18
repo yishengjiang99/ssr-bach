@@ -1,4 +1,6 @@
-let controller = new AbortController();
+const wschan = new BroadcastChannel("wschan");
+
+let controller;
 const queue: { from: number; to: number; url: string }[] = [];
 /* @ts-ignore */
 let procPort: MessagePort;
@@ -8,6 +10,9 @@ onmessage = (e) => {
   const { cmd, msg, port, url, procReset } = data;
 
   if (port) {
+    if (procPort) {
+      procPort.onmessage = null;
+    }
     procPort = port;
   }
   if (cmd) {
@@ -20,7 +25,7 @@ onmessage = (e) => {
   if (url && procPort) {
     procPort.onmessage = (e) => {
       // @ts-ignore
-      postMessage(e.data);
+      setTimeout(wschan.postMessage(e.data), 0);
     };
     let offset = 0;
     queue.push({ from: 0 * 1024 * 1024, to: 1 * 1024 * 1024, url });
@@ -39,16 +44,15 @@ onmessage = (e) => {
     controller.signal.onabort = () => {
       //("abort",()=>{
     };
-    async function loop(controller) {
-      try {
+
+    (async (_) => {
+      async function* loop(controller) {
         if (queue.length == 0) return;
         const { url, from, to } = queue.shift();
         const resp = await fetch(url, {
           signal: controller.signal,
           headers: { "if-range": "bytes=" + from + "-" + to },
         });
-        postMessage({ msg: "first byte feched" });
-
         if (transform.writable.locked) {
           //@ts-ignore
           postMessage({ readable: resp.body }, [resp.body]);
@@ -59,12 +63,11 @@ onmessage = (e) => {
           queue.push({ url, from: offset, to: offset + 1024 * 1024 });
           offset = offset + 1 * 1024 * 1024;
         }
-      } catch (e) {
-        console.log(e);
+        yield;
       }
-    }
-
-    loop(controller);
+      const g = loop(controller);
+      for await (const _ of await g);
+    })();
 
     // @ts-ignore
     procPort.postMessage({ url, readable: transform.readable }, [transform.readable]);

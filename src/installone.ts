@@ -35,14 +35,14 @@ export const installOnServerIfNeeded = (fontname: string, setname: string) => {
     if (!i) continue;
     mkfolder(`midisf/${fontname}`);
     const index = i;
-    const pcmname = `midisf/${fontname}/${index}.pcm`;
+    const pcmname = `midisf/${fontname}/stereo-${index}.pcm`;
     console.log(pcmname);
     try {
       console.log(
         `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 of=pipe:1|ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
       );
       execSync(
-        `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 1 -ar 48000 ${pcmname}`
+        `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 2 -ar 48000 ${pcmname}`
       );
     } catch (e) {
       console.log(e);

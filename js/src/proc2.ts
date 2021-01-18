@@ -15,9 +15,7 @@ const chunk = 128 * 4 * 2;
     port: any;
     reading: any;
     total: any;
-    leftPartialFrame: any;
     loss: number;
-    rms: number;
     abortSignal: boolean;
     threshold: number;
     constructor() {
@@ -35,15 +33,7 @@ const chunk = 128 * 4 * 2;
           this.buffers = [];
           this.started = false;
           this.readqueue = [];
-          this.threshold = 41;
           if (this.reading) this.abortSignal = true;
-        }
-        if (cmd) {
-          if (cmd === "pause") {
-            this.started = false;
-          } else if (cmd === "resume") {
-            this.started = true;
-          }
         }
         if (readable) {
           this.readqueue.push(readable);
@@ -57,7 +47,7 @@ const chunk = 128 * 4 * 2;
         while (that.readqueue.length > 0) {
           const next = that.readqueue.shift();
           if (typeof next === "undefined") break;
-          const reader = next.getReader();
+          const reader = await next.getReader();
           await reader
             .read()
             .then(function process(result) {
@@ -74,12 +64,12 @@ const chunk = 128 * 4 * 2;
                   that.port.postMessage({ msg: "starting playback next frame" });
                 }
               }
-              that.leftPartialFrame = value;
               if (that.abortSignal) {
                 that.abortSignal = false;
                 that.buffers = [];
                 return;
               }
+              that.report();
 
               reader.read().then(process);
             })
@@ -93,14 +83,11 @@ const chunk = 128 * 4 * 2;
       this.reading = false;
       this.loss = 0;
       this.total = 0;
-      this.rms = 0;
-      this.leftPartialFrame = null;
     }
     report() {
       this.port.postMessage({
         stats: {
           running: this.started,
-          rms: this.rms.toFixed(3),
           downloaded: (this.total * chunk) / 1024,
           buffered: (this.buffers.length * chunk) / 1024,
           lossPercent: ((this.loss / this.total) * 100).toFixed(2),
@@ -109,27 +96,20 @@ const chunk = 128 * 4 * 2;
     }
     process(inputs, outputs, parameters) {
       if (this.started === false) {
-        //this.report();
         return true;
       }
       if (this.buffers.length === 0) {
         this.loss++;
-        //s  this.report();
         return true;
       }
       this.total++;
       const ob = this.buffers.shift();
+      const dv = new DataView(ob.buffer);
       const fl = new Float32Array(ob.buffer);
-      let sum = 0;
       for (let i = 0; i < 128; i++) {
-        const chl = outputs[0].length;
-        for (let ch = 0; ch < chl; ch++) {
-          outputs[0][ch][i] = fl[i * chl];
-          sum += fl[i * chl + ch] * fl[i * chl + ch];
-        }
+        outputs[0][0][i] = dv.getFloat32(i * 4 * 2, true);
+        outputs[0][1][i] = dv.getFloat32(i * 4 * 2 + 4, true);
       }
-      this.rms = Math.sqrt(sum / 256);
-      if (this.total % 150 == 50) this.report();
       return true;
     }
   }

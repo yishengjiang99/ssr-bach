@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import { Readable, Transform, Writable } from "stream";
 import { convertMidi, convertMidiASAP, convertMidiRealTime } from "./load-sort-midi";
 export const readMidiSSE = (
@@ -36,10 +37,18 @@ export const readMidiSSE = (
     });
   });
 };
-export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
-  const rc = convertMidiASAP(midifile);
-  const { emitter, start } = rc;
-
+export const readAsCSV = (
+  midifile: string | EventEmitter,
+  realtime: boolean
+): Readable => {
+  let emitter, rc;
+  if (typeof midifile !== "string") {
+    emitter = midifile;
+  } else {
+    rc = convertMidiASAP(midifile as string);
+    emitter = rc.emitter;
+  }
+  rc.start();
   const readable = new Readable({ read: () => "" });
   emitter.on("note", (event) => {
     const {
@@ -58,8 +67,8 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
         midi,
         name,
         durationTicks,
-        velocity,
-        noteOffVelocity,
+        velocity * 127,
+        noteOffVelocity * 127,
         instrument,
         trackId,
         instrument,
@@ -73,6 +82,6 @@ export const readAsCSV = (midifile: string, realtime: boolean): Readable => {
     readable.push("#tempo, " + JSON.stringify(info) + "\n");
   });
   emitter.on("ended", () => readable.emit("end"));
-  start();
+
   return readable;
 };

@@ -50,3 +50,12 @@ export const stdoutPanel = (parentDiv) => {
     },
   }; //
 };
+export function logtime(stdout) {
+  let t0 = performance.now();
+  return function log(str: string) {
+    stdout(`${performance.now() - t0}: ${str}`);
+    //t0 = performance.now();
+    return true;
+  };
+}
+export const { printrx, stdout } = stdoutPanel(document.querySelector("#root"));
