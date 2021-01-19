@@ -69,7 +69,7 @@ const chunk = 128 * 4 * 2;
                 that.buffers = [];
                 return;
               }
-              that.report();
+             // that.report();
 
               reader.read().then(process);
             })
@@ -105,7 +105,6 @@ const chunk = 128 * 4 * 2;
       this.total++;
       const ob = this.buffers.shift();
       const dv = new DataView(ob.buffer);
-      const fl = new Float32Array(ob.buffer);
       for (let i = 0; i < 128; i++) {
         outputs[0][0][i] = dv.getFloat32(i * 4 * 2, true);
         outputs[0][1][i] = dv.getFloat32(i * 4 * 2 + 4, true);

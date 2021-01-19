@@ -1,4 +1,4 @@
-import { pallet } from "./pallet";
+import { pallet } from "./pallet.js";
 
 const wschan = new BroadcastChannel("wschan");
 wschan.onmessage = (e) => {};
@@ -42,17 +42,17 @@ export class EventsPanel {
   stop() {
     this.evt.close();
   }
-  start(rtlink: string) {
+  async start(rtlink: string) {
     const canvasCtx: CanvasRenderingContext2D = this.canvas.getContext("2d")!;
     const { WIDTH, HEIGHT } = this.prepareDraw(canvasCtx);
 
     let t0;
     this.evt = wschan;
     let now = 0;
-    fetch(rtlink)
+   this.bars = await fetch(rtlink)
       .then((res) => res.text())
       .then((t) =>
-        t.split("\n").map((lines) => {
+         t.split("\n").map((lines) => {
           const [
             start,
             midi,
@@ -63,6 +63,14 @@ export class EventsPanel {
             instrument,
             trackId,
           ] = lines.split(",");
+          return {
+            midi:parseInt(midi),
+            instrument,
+            start: parseInt(start)/256*60, 
+            durationTime: parseInt(durationTicks)/256*300,
+            trackId:parseInt(trackId)
+          }
+           
         })
       );
 

@@ -1,4 +1,4 @@
-const wschan = new BroadcastChannel("wschan");
+
 
 let controller;
 const queue: { from: number; to: number; url: string }[] = [];
@@ -6,6 +6,7 @@ const queue: { from: number; to: number; url: string }[] = [];
 let procPort: MessagePort;
 
 onmessage = (e) => {
+  let wschan=new BroadcastChannel("wschan")
   const { data } = e;
   const { cmd, msg, port, url, procReset } = data;
 

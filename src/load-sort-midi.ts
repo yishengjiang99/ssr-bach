@@ -29,14 +29,16 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     })),
     duration: durationTicks / header.ppq,
     midifile: source,
-    tempo: tempos[0],
+    tempo: tempos[0] || {bpm:60},
     timeSignature: header.timeSignatures[0],
   };
 
-  const setCallback = (_cb: CallbackFunction) => (cb = _cb);
-  const setState = (update: { [key: string]: string | boolean | number }) => {
+  function setCallback(_cb: CallbackFunction) {
+    return (cb = _cb);
+  }
+  function setState(update: { [key: string]: string | boolean | number; }) {
     Object.keys(update).forEach((k) => (state[k] = update[k]));
-  };
+  }
   const controller: RemoteControl = {
     pause: () => setState({ paused: true }),
     resume: () => {

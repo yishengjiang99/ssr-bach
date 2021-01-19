@@ -159,16 +159,19 @@ export const queryFs = (req, res) => {
   console.log(req.url);
   return queryFsUrl(req.url, res);
 };
-
-export const hotreloadOrPreload = (url = "./index.html") => {
+export type HTML={
+  header:string, beforeMain:string, afterMain:string, end:string, css:string
+} 
+export const hotreloadOrPreload = (url = "./index.html"):HTML=> {
   const idx = readFileSync(url).toString();
-  const idx1 = idx.split("<style></style>")[0];
-  const beforeMain = `${idx.substr(idx1.length).split("<main></main>")[0]}<main>`;
-  const idx2 = idx.substr(idx1.length + beforeMain.length).split("</body>")[0];
-  const idx3 = "</body></html>";
+  const header = idx.split("<style></style>")[0];
+  const beforeMain = `${idx.substr(header.length).split("<main></main>")[0]}<main>`;
+  const afterMain = idx.substr(header.length + beforeMain.length).split("</body>")[0];
+  const end = "</body></html>";
   const css = `<style>${readFileSync("./style.css").toString()}</style>`;
-  return [idx, idx1, beforeMain, idx2, idx3, css];
+  return {header, beforeMain, afterMain, end, css}
 };
+
 type FD = number;
 export function pushFile({
   stream,

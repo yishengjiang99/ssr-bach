@@ -6,6 +6,7 @@ export const worker = new Worker("/js/build/fetchworker.js", {
 });
 
 import { initGain } from "./initGain.js";
+import { EventsPanel } from "./panel.js";
 
 let ctx: AudioContext,
   gainNode: GainNode,
@@ -16,6 +17,7 @@ let ctx: AudioContext,
 export default (async function (midifile: string) {
   const timelogger = logtime(stdout);
   timelogger("user init - clicked");
+  const panel = new EventsPanel();
 
   if (!ctx) await initCtx();
   if (proc) disconnectExistingProc(proc);
@@ -26,10 +28,10 @@ export default (async function (midifile: string) {
     });
     timelogger(" client  load");
     proc.connect(gainNode);
-    fetch("")
     worker.postMessage({ port: proc.port, url: "/pcm/" + midifile }, [proc.port]);
 
     drawCanvasNextTickStart();
+    panel.start('/rt/'+midifile);
   } catch (e) {
     stdout("<font color='red'>" + e.message + "</font>");
   }

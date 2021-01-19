@@ -5,28 +5,12 @@ import { NoteEvent } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { convertMidi } from "./load-sort-midi";
 
-export function convertMidiSequencer({ file }: { file: any; output: Writable }) {
-  const wbook = new Workbook();
-
-  const ws = wbook.addWorksheet(basename(file), {
-    properties: { showGridLines: false },
-    pageSetup: {
-      fitToWidth: 1,
-      margins: {
-        left: 0.7,
-        right: 0.7,
-        top: 0.75,
-        bottom: 0.75,
-        header: 0.3,
-        footer: 0.3,
-      },
-    },
-    headerFooter: { firstHeader: "Hello Exceljs", firstFooter: "Hello World" },
-    state: "visible",
-  });
-
+export async function convertMidiSequencer({ file,output,page}: { page?:number, file: any; output?: Writable }):Promise<[][]>{
   const notesrec = [];
-  convertMidi(file, async (notes: NoteEvent[]) => {
+  const bitmap=[];
+  page = page || 1;
+  
+  const controller = convertMidi(file, async (notes: NoteEvent[]) => {
     notes.map((note) =>
       notesrec.push({
         midi: note.midi,
@@ -34,7 +18,7 @@ export function convertMidiSequencer({ file }: { file: any; output: Writable }) 
         ticks: note.durationTicks / 256 / 8,
       })
     );
-    const excelrow = new Array(88).fill(" ");
+    const excelrow = new Array(88).fill('')
     for (let i = 0; i < notesrec.length; i++) {
       const note = notesrec[i];
       if (!note) continue;
@@ -42,15 +26,24 @@ export function convertMidiSequencer({ file }: { file: any; output: Writable }) 
       note.ticks -= 256 / 8;
       if (note.ticks <= 0) {
         continue;
-        // notesrec.splice(i, 1);
       }
     }
-
-    ws.addRow(excelrow).commit();
-    console.log(excelrow.join(" "));
     while (notesrec[0] && notesrec[0].ticks <= 0) notesrec.shift();
-    await sleep(10);
-    return 0.01;
-  });
-  return wbook;
-}
+    bitmap.push(excelrow);
+    return .25;
+  });;
+
+    controller.start();
+    await new Promise(r=>{
+      controller.emitter.on("end",r);
+      
+      controller.emitter.on("#time",(info)=>{
+        if(info.seconds > page * 100){
+          controller.pause();
+          r( 1);
+        }
+      })
+    })
+    return bitmap;
+
+  }

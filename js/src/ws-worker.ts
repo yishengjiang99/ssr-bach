@@ -1,5 +1,6 @@
 const wss: WebSocket = new WebSocket("%WSHOST%");
-// const wschan = new BroadcastChannel("wschan");
+// @ts-ignore
+const wschan = new BroadcastChannel("wschan");
 wss.onopen = () => {
   //@ts-ignore
   postMessage({ msg: "ws open" });
