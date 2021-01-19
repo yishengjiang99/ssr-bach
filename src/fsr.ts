@@ -92,31 +92,29 @@ export const queryFsUrl = (url: string, res): any => {
   if (url === "") return false;
   const [parts, query] = parseUrl(url);
   const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
-  if (existsSync(filename)) {
-    if (statSync(filename).isFile()) {
-      res.writeHead(200, {
-        "Content-Type": require("mime-types").lookup(filename),
-        "Access-Control-Allow-Origin": "*",
-      });
-      return createReadStream(filename).pipe(res);
-    }
-    if (query.format === "json") {
-      resjson(res, readdirSync(filename));
-      res.end();
-    } else {
-      const mkLink = (filename, f) => {
-        if (statSync(resolve(filename, f)).isDirectory()) {
-          return `<a href='${url}/${f}'>${f}</a>`;
-        }
-        if (f.endsWith(".pcm") || f.endsWith(".wav")) {
-          return ` <a href='${url}/${f}'>${f}</a>`;
-        }
-        if (f.endsWith(".mp4") || f.endsWith(".webm")) {
-          return ` <a href='#' video='${url}/${f}'>${f}</a>`;
-        }
-        return `<a href='#' preview='${url}/${f}'>${f}</a>`;
-      };
-      res.end(/* html */ `
+  if (!existsSync(filename)) {
+    return false;
+  }
+  if (statSync(filename).isFile()) {
+    res.writeHead(200, {
+      "Content-Type": require("mime-types").lookup(filename),
+      "Access-Control-Allow-Origin": "*",
+    });
+    return createReadStream(filename).pipe(res);
+  } else {
+    const mkLink = (filename, f) => {
+      if (statSync(resolve(filename, f)).isDirectory()) {
+        return `<a href='${url}/${f}'>${f}</a>`;
+      }
+      if (f.endsWith(".pcm") || f.endsWith(".wav")) {
+        return ` <a href='${url}/${f}'>${f}</a>`;
+      }
+      if (f.endsWith(".mp4") || f.endsWith(".webm")) {
+        return ` <a href='#' video='${url}/${f}'>${f}</a>`;
+      }
+      return `<a href='#' preview='${url}/${f}'>${f}</a>`;
+    };
+    res.end(/* html */ `
       <html>
           <body>
           <div style='display:grid;grid-template-columns:1fr 3fr'>
@@ -155,11 +153,7 @@ export const queryFsUrl = (url: string, res): any => {
            
             }
           }</script></body></html>`);
-    }
-
-    return true;
   }
-  return false;
 };
 export const queryFs = (req, res) => {
   console.log(req.url);

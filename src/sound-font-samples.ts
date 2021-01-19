@@ -1,6 +1,5 @@
 import { spawn } from "child_process";
-import { existsSync } from "fs";
-import { notelist } from "./filelist";
+import { existsSync, readdirSync } from "fs";
 
 export const handleSamples = ({ who, parts }, res): void => {
   const instment = parts[2];
@@ -23,5 +22,19 @@ export const handleSamples = ({ who, parts }, res): void => {
     });
 
     notelist(res);
+  }
+};
+export const notelist = (res, format = "pcm") => {
+  const sections = readdirSync("./midisf");
+  res.write("<iframe name=_w1></iframe>");
+  for (const section of sections) {
+    const links = readdirSync("midisf/" + section).filter((n) => n);
+    res.write("<div class='mt-25'></div>");
+    res.write(`<div><span>${section}</span>
+      ${links.map((n) => {
+        const nn = n.replace("48000-mono-f32le-", "").replace(".pcm", "");
+        return `<a target=_w1 href="/samples/${section}/${nn}"> ${nn} </a>`;
+      })}
+      </div>`);
   }
 };

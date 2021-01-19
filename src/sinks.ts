@@ -1,6 +1,7 @@
-import { spawn } from "child_process";
+import { spawn ,execSync} from "child_process";
 import { PassThrough, Readable, Writable } from "stream";
 import { cspawn } from "./utils";
+import {createWriteStream,WriteStream}from'fs';
 export const ffp = () => {
   const { stdin, stderr, stdout } = spawn("ffplay", [
     "-i",
@@ -16,6 +17,9 @@ export const ffp = () => {
   stdout.pipe(process.stderr);
   return stdin;
 };
+export const tmpOutput=():WriteStream=>{
+  return createWriteStream(execSync('mktemp -u').toString())
+}
 export const nc80 = (port) => {
   return cspawn(`nc -l ${port}`).stdin;
 };

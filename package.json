@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.25",
+    "@types/node": "^14.14.21",
     "ejs": "^3.1.5",
     "exceljs": "^4.2.0",
     "express": "^4.13.4",
@@ -46,10 +47,10 @@
     "webpack-dev-server": "^3.11.2"
   },
   "scripts": {
-    "dev": "nodemon --exec ts-node src/httpd.ts 443 yisheng",
-    "test": "jest --silent=false src/*.ts",
+    "dev": "nodemon --exec ts-node src/httpd.ts 8443 yisheng",
+    "test": "jest --silent=false src/*.ts --detectOpenHandles",
     "log": "sudo journalctl -f -u bachd",
-    "build": "sudo systemctl start bachd"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",

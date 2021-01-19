@@ -1,52 +1,26 @@
 import { get } from "https";
-import { ClientRequest } from "http";
+import { ClientRequest,ServerResponse } from "http";
 import { Server } from "./httpd";
-
+process.env.HOST='dsp.greawk.com'
 test("connnectivity", (done): void => {
-  let { activeSessions, server } = new Server(8322);
-
-  get("https://localhost:8332", (res: any) => {
-    expect(res.statusCode).toBe(200);
-    let chunks = "";
-    res.on("data", (d) => (chunks += d.toString()));
-    res.on("end", () => {
-      expect(chunks).toContain("<html>");
-      done();
+  let port = 8322;
+  const url=`https://${process.env.HOST}:${port}`;
+  let server = new Server(8322,process.env.HOST);
+  server.start();
+  server.server.once("listening",()=>{
+    ["/","/pcm","/rt","/samples",'midi'].map(path=>{
+      testendpoint(url+path,(res)=>{
+        expect(res.statusCode).toBe(200)
+      })
+    })
+    testendpoint( "https://localhost:8332", function verify(){
+      expect(true)
     });
-    expect(res.headers.cookie).toContain("who=");
-    expect(activeSessions).toHaveLength(1);
-  });
-});
-test("/rt", (done): void => {
-  const server = new Server(9444);
-  const request: ClientRequest = get(
-    "https://localhost:8332/rt/song.mid?cookie=tester",
-    (res) => {
-      expect(res.statusCode).toBe(200);
-      let chunks = "";
-      res.on("data", (d) => {
-        expect(d.byteLength).toBe(1024);
-        request.destroy();
-        done();
-      });
-      expect(server.activeSessions.entries()).toBe(1);
-    }
-  );
+
+  })
+
 });
 
-test("/pcm", (done): void => {
-  const server = new Server(9444);
-  const request: ClientRequest = get(
-    "https://localhost:8332/pcm/song.mid?cookie=tester",
-    (res) => {
-      expect(res.statusCode).toBe(200);
-      let chunks = "";
-      res.on("data", (d) => {
-        expect(d.byteLength).toBe(1024);
-        request.destroy();
-        done();
-      });
-      expect(server.activeSessions.entries()).toBeTruthy();
-    }
-  );
-});
+function testendpoint(endpoint:string, verify:(res:ServerResponse)=>void){ ////} activeSessions: Map<string, import("/Users/yisheng/Documents/GitHub/ssr-bach/src/ssr-remote-control.types").SessionContext>) {
+  get(endpoint, (res)=> verify);
+}

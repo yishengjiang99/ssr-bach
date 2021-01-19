@@ -39,4 +39,4 @@ export const rfcGet = (req, res, session) => {
 	</body>
 	</html>`);
 };
-''
+("");

@@ -1,18 +1,12 @@
-import { readFileSync } from "fs";
 import { ServerHttp2Stream } from "http2";
 import { createSecureServer } from "http2";
-import { notelist } from "./filelist";
-import { hotreloadOrPreload, parseUrl, pushFile } from "./fsr";
+import { hotreloadOrPreload } from "./fsr";
 import { httpsTLS } from "./tls";
-import { cspawn, std_settings } from "./utils";
 import { LSSource, LSGraph, ReadlineTransform } from "grep-transform";
-import stream, { Transform } from "stream";
-import { produce } from "./sound-sprites";
+import { Transform } from "stream";
 
-const savefont = `ffmpeg -i -af showwavepic=s=555x800 -frames:v 4`;
 const server = createSecureServer(httpsTLS);
 server.on("error", (err) => console.error(err));
-let [idx, idx1, idx2, idx3, css] = hotreloadOrPreload();
 
 const noteLink = (instrument, note) =>
   `<a target="_w1" href="${instrument}/${note}"> ${note} </a>`;
@@ -24,9 +18,7 @@ server.on("stream", (stream: ServerHttp2Stream, headers) => {
     });
   }
   const mid = "midi/song2.mid";
-  const rc = produce(mid, stream);
 
-  let output = 0;
   stream.write(`<main id='menu'>
     <iframe frameborder="0 "width="400" height="200" src="https://www.grepawk.com:8443/acoustic_grand_piano/3"></iframe>`);
   LSSource("./midisf")

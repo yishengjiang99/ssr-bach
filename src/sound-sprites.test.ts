@@ -1,8 +1,6 @@
-import { SSRContext, PumpProps } from "ssr-cxt";
-import { convertMidiASAP } from "./load-sort-midi";
-import { produce } from "./sound-sprites";
+import { SSRContext } from "ssr-cxt";
 import { PassThrough } from "stream";
-import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
+import { NoteEvent } from "./ssr-remote-control.types";
 import { Player } from "./player";
 const assert = require("assert").strict;
 const ctx = new SSRContext({
@@ -14,18 +12,19 @@ const ctx = new SSRContext({
 test("new player class (wrapped existing code to get more organized", (done) => {
   jest.mock("ssr-cxt");
   let ctx2 = new SSRContext();
-  ctx2.pump = jest.fn((props) => true);
+  ctx2.pump = jest.fn(() => true);
   let p = new Player();
   p.playTrack("./midi/song.mid", new PassThrough());
   expect(p.nowPlaying.state.paused).toBe(false);
   setTimeout(() => {
     expect(p.nowPlaying.state.time).toBeGreaterThan(0.05);
+    p.stop();
     done();
-  }, 80);
+  }, 111);
 });
 test("control player with function calls to seek resume stop pause start", (done) => {
   let ctx2 = new SSRContext();
-  ctx2.pump = jest.fn((props) => true);
+  ctx2.pump = jest.fn(() => true);
   let p = new Player();
   p.playTrack("./midi/song.mid", new PassThrough(), false);
   let rc = p.nowPlaying;
@@ -41,16 +40,16 @@ test("control player with function calls to seek resume stop pause start", (done
   setTimeout(() => {
     expect(p.nowPlaying.state.time).toBeGreaterThan(12);
 
+
     done();
   }, 80);
 });
 test("48000hz/32bit/2", () => {
-  const spriteBytePeSecond = 48000 * 1 * 4;
 
   assert(ctx.blockSize % 4 === 0);
 });
 test("never priest out NaN", () => {
-  ctx.on("data", (d) => {
+  ctx.once("data", (d) => {
     assert(d instanceof Buffer);
     for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
       assert(!isNaN(f));
@@ -58,27 +57,12 @@ test("never priest out NaN", () => {
   });
   ctx.pump();
 });
-test("event with real data", () => {
-  const pt = new PassThrough();
 
-  pt.on("data", (d) => {
-    // console.log(d.byteLength);
-    for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
-      expect(!isNaN(f)).toReturn;
-      // console.log(f);
-    }
-  });
-  const rc = produce("./song.mid", pt, null, 300, false);
-
-  ctx.on("data", (d) => {
-    expect(d.byteLength).toBe(ctx.blockSize * 2);
-  });
-});
 test("never priest out NaN", () => {
-  ctx.on("data", (d) => {
-    assert(d instanceof Buffer);
+  ctx.once("data", (d) => {
+    expect(d).toBeInstanceOf(Buffer); // instanceof Buffer);
     for (let f = d.readFloatLE(0); d.byteLength >= 4; d = d.slice(4)) {
-      assert(!isNaN(f));
+      expect(isNaN(f)).toBeFalsy(); //(!isNaN(f));
     }
   });
   ctx.pump();

@@ -13,7 +13,7 @@ import { parseQuery, handlePost, queryFs, parseCookies, hotreloadOrPreload } fro
 import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
 import { readAsCSV } from "./read-midi-sse-csv";
 
-import { handleSamples } from "./id2";
+import { handleSamples } from "./sound-font-samples";
 import { cspawn } from "./utils";
 import { Player } from "./player";
 import { fileserver } from "./fileserver";
@@ -33,10 +33,14 @@ export class Server {
   server: import("https").Server;
 
   indexPageParts: string[];
+  port: any;
+  host: string;
 
-  constructor(port, tls = httpsTLS) {
+  constructor(port, host:string = 'https://www.grepawk.com', tls = httpsTLS) {
     process.env.port = port;
     const fssd = fileserver();
+    this.indexPageParts = hotreloadOrPreload();
+
     this.server = createServer(tls, (req, res): any => {
       if (req.url.startsWith("/fs")) {
         return fssd(req, res);
@@ -44,12 +48,13 @@ export class Server {
     });
 
     this.server.on("upgrade", this.wshand);
-    this.server.listen(port); // 3000);
+    this.port=port;
+    this.host=host;
+  }
+  start(){
+    this.server.listen(this.host,this.port); // 3000);
 
-    process.on("uncaughtException", (e): void => {
-      console.log("f ", e);
-    });
-    this.indexPageParts = hotreloadOrPreload();
+
   }
 
   get httpsServer() {
@@ -178,6 +183,8 @@ export class Server {
         case "notes":
           this.sampleNote(p2, p3, res);
           break;
+
+          case "dbfs": //fallthrough
         case "upload":
           if (req.method === "POST") return handlePost(req, res, session.who);
 
@@ -289,7 +296,7 @@ export class Server {
   idUser(req: IncomingMessage): SessionContext {
     const [parts, query] = parseQuery(req);
     const cookies = parseCookies(req);
-    const who: string = cookies["who"] || query.cookie || `${process.hrtime()[0]}`;
+    const who: string = cookies["who"] || query['cookie'] || `${process.hrtime()[0]}`;
     this.activeSessions[who] = {
       t: new Date(),
       player: new Player(),
@@ -302,6 +309,9 @@ export class Server {
   }
 }
 
-if (require.main === module) {
-  new Server(process.argv[2] || 8443);
+if (require.main === module && process.argv[3]==='yisheng') {
+  new Server(process.argv[2] || process.env.PORT, process.env.HOST).start();
 }
+process.on("uncaughtException", (e): void => {
+  console.log("f ", e);
+});

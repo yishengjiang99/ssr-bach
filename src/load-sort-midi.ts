@@ -112,10 +112,14 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
       }
       let intval = Math.floor(state.time);
       emitter.emit("notes", notesstarting);
+
       state.time += await callback(notesstarting);
+
+
       if (Math.floor(state.time) > intval) {
         emitter.emit("#time", { seconds: state.time });
       }
+      
       if (state.paused) {
         await new Promise((resolve) => {
           emitter.once("resume", resolve);

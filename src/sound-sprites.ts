@@ -123,4 +123,3 @@ if (require.main === module) {
   //   })
   //   .listen(8111);
 }
-produce("./midi/song.mid", process.stdout, process.stdin);
