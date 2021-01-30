@@ -7,8 +7,8 @@ play hifi 32-bit audio really realy fast.
 
 ** js/src/proc2.ts
 
-```js/src/fetchworker.ts
+*js/src/fetchworker.ts
 
-```src/install.ts
+*src/install.ts
 
 everything else were mostly just procrastination.
