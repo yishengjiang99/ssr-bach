@@ -1,41 +1,33 @@
 import { existsSync, readdirSync, readFileSync, createWriteStream } from "fs";
 import { request } from "https";
 import * as zlib from "zlib";
-import { execSync, exec } from "child_process";
-import { cspawn } from "./utils";
+import {DrumKitByPatchID} from '@tonejs/midi/dist/InstrumentMaps'
+import { execSync, exec, execFile, execFileSync, spawnSync } from "child_process";
+import { cspawn, std_inst_names } from "./utils";
 import { qclause } from "./ffmpeg-templates";
-export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
+import { Midi } from "@tonejs/midi";
+export const installNotesFromCsv = (midiname:string, setname = "FatBoy"): void => {
   const sfUrl = (setname, fontname) =>
     `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
 
-  const format = (str) =>
-    str
-      .replace(" ", "_")
-      .replace(" ", "_")
-      .replace(" ", "_")
-      .replace(" ", "_")
-      .replace("(", "")
-      .replace(")", "")
-      .trim();
 
   const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
-  "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
-  for (const name of execSync(
-    "cat " + csvfile + "|grep -v '#'|cut -f7 -d','|sort |uniq|grep -v ^$"
-  )
-    .toString()
-    .trim()
+  // "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
+  
+  new Midi(readFileSync(midiname)).tracks.map(t=>{
+    t.instrument.percussion
+      ? spawnSync("installdrums", [t.instrument.number + ""])
+      : spawnSync("./installsf", [t.instrument.number + ""]);
+  })
+  
+  function installfont(fontname) {
+    if (fontname === "") return;
 
-    .split("\n")) {
-    if (name === "") continue;
-    const fontname = format(name).replace("\t", "");
-    if (!fontname) continue;
-    if (fontname === "Binary_file_standard_input_matches") continue;
     const localname = "mp3/" + setname + "_" + fontname + ".js";
     if (!existsSync(localname)) {
       execSync(
-        `curl -s "${sfUrl(
-          setname,
+        `curl -S "${sfUrl(
+          setname, 
           fontname
         )}" -o - |grep 'data:audio/mp3;base64,' |awk -F 'data:audio/mp3;base64,' '{print $2}'|tr '\"\n,\"' '\n'| grep -v ^$ |base64 --decode > ${localname}`
       );
@@ -58,7 +50,7 @@ export const installNotesFromCsv = (csvfile, setname = "FatBoy") => {
           console.log(pcmname);
 
           execSync(
-            `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -f f32le -ac 2 -ar 48000 ${pcmname}`
+            `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -vol 390 -f f32le -ac 2 -ar 48000 ${pcmname}`
           );
         }
       } catch (e) {
@@ -104,4 +96,6 @@ export const installPiano = (vel) => {
 };
 if (process.argv[2]) {
   installNotesFromCsv(process.argv[2]);
+}else{
+  installNotesFromCsv('./midi/song.mid')
 }

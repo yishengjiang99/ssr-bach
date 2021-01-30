@@ -31,6 +31,7 @@ export type NoteEvent = {
   durationTicks: number;
   durationTime: seconds;
   instrument: string;
+  instrumentNumber?: number;
   midi: number;
   name: string;
 };

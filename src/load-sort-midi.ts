@@ -98,6 +98,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
               start: header.ticksToSeconds(note.ticks),
               durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
               velocity: note.velocity,
+              instrumentNumber: tracks[i].instrument.number,
               instrument: std_inst_names[tracks[i].instrument.number],
             };
             notesstarting.push(noteEvent);

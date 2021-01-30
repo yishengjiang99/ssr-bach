@@ -6,7 +6,7 @@ import { sleep } from "./utils";
 test("ssr remote ", () => {
   const ctx = new SSRContext();
   const { start, state, stop, emitter, pause, resume, seek, ff } = convertMidi(
-    "./mid/song.mid",
+    "./midi/song.mid",
     async (notes) => {
       await sleep(ctx.secondsPerFrame * 100);
       emitter.once("#time", ({ seconds }) => {

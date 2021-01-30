@@ -1,4 +1,4 @@
-import { existsSync, openSync, readSync, closeSync } from "fs";
+import { existsSync, closeSync } from "fs";
 import { cspawn } from "./utils";
 import { PulseSource, SSRContext } from "ssr-cxt";
 import { Writable } from "stream";
@@ -7,6 +7,8 @@ import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { get } from "https";
 import { execSync } from "child_process";
+import { resolveBuffer } from "./bytesPerNote";
+import { ffp } from "./sinks";
 
 const spriteBytePeSecond = 48000 * 2 * 4;
 class PulseTrackSource extends PulseSource {
@@ -87,28 +89,13 @@ export class Player {
 
         notes.map((note, i) => {
           const bytelength = spriteBytePeSecond * note.durationTime;
-          let file = getFilePath(note);
-          if (!file) {
-            console.log("skipping " + note + " not found");
-            return;
-          }
-
-          let ob;
-          if (file.includes("https")) {
-            ob = bufferRemote(file);
-          } else {
-            const fd = openSync(file, "r");
-            ob = Buffer.allocUnsafe(bytelength);
-            readSync(fd, ob, 0, bytelength, 0);
-            closeSync(fd);
-          }
 
           if (this.tracks[note.trackId]) {
             this.tracks[note.trackId].buffer = Buffer.alloc(0);
             this.tracks[note.trackId] = null;
           }
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: ob,
+            buffer: resolveBuffer(note, bytelength),
             trackId: note.trackId,
             note: note,
           });
@@ -152,24 +139,4 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
-
-function getFilePath(note): string {
-  let file;
-  const cdn = "https://grep32bit.blob.core.windows.net/pcm";
-  if (note.instrument.includes("piano")) {
-    const v = `${note.velocity > 0.6 ? "16" : note.velocity > 0.23 ? "8.5-PA" : "1-PA"}`;
-    file = `${cdn}/${note.midi - 21}v${v}.pcm`;
-  } else {
-    file = `./midisf/${note.instrument}/stero-${note.midi - 21}.pcm`;
-  }
-
-  if (!existsSync(file)) {
-    file = `./midisf/oboe/stero-${note.midi - 21}.pcm`;
-  }
-
-  return file;
-}
-
-function bufferRemote(url: string): Buffer {
-  return execSync(`curl -s ${url} -o -`);
-}
+// new Player().playTrack("./midi/song.mid",ffp());
