@@ -30,12 +30,12 @@ int main(int argc, char **argv)
 	
 	tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, 48000, 0);
 
-	int durationMS = 500;
-	int velocity = 124;
+	int durationMS = 2500;
+	int velocity = 64;
 	int n = durationMS * 48;
 	char filename[55];
 
-	sprintf(filename, "fast-a-%d-0-88.pcm", presetIndex);
+	sprintf(filename, "mid-a-%d-0-88.pcm", presetIndex);
 	FILE *fd = fopen(filename, "wb+");
 	float *b = malloc(n * sizeof(float) * 2);
 	for (int midi=21; midi<= 109; midi++)
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
 			// tsf_channel_set_presetindex(g_TinySoundFont, 0, presetIndex);
 		tsf_note_off_all(g_TinySoundFont);
-		tsf_note_on(g_TinySoundFont, presetIndex, midi, velocity / 128.0f);
+		tsf_note_on(g_TinySoundFont, presetIndex, midi, velocity / 127.0f);
 		tsf_render_float(g_TinySoundFont, b, n, 0);
 		fwrite(b, 4, n * 2, fd);
 	}
