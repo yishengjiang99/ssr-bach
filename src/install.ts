@@ -15,8 +15,9 @@ export const installNotesFromCsv = (midiname:string, setname = "FatBoy"): void =
   // "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
   
   new Midi(readFileSync(midiname)).tracks.map(t=>{
+    console.log(process.uptime())
     t.instrument.percussion
-      ? spawnSync("installdrums", [t.instrument.number + ""])
+      ? spawnSync("./installdrums", [t.instrument.number + ""])
       : spawnSync("./installsf", [t.instrument.number + ""]);
   })
   
