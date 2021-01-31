@@ -1,64 +1,26 @@
 import { existsSync, readdirSync, readFileSync, createWriteStream } from "fs";
 import { request } from "https";
 import * as zlib from "zlib";
-import {DrumKitByPatchID} from '@tonejs/midi/dist/InstrumentMaps'
+import { DrumKitByPatchID } from "@tonejs/midi/dist/InstrumentMaps";
 import { execSync, exec, execFile, execFileSync, spawnSync } from "child_process";
-import { cspawn, std_inst_names } from "./utils";
+import { cspawn, std_drums, std_inst_names } from "./utils";
 import { qclause } from "./ffmpeg-templates";
 import { Midi } from "@tonejs/midi";
-export const installNotesFromCsv = (midiname:string, setname = "FatBoy"): void => {
+export const installNotesFromCsv = (midiname: string, setname = "FatBoy"): void => {
   const sfUrl = (setname, fontname) =>
     `https://gleitz.github.io/midi-js-soundfonts/${setname}/${fontname}-mp3.js`;
 
-
   const mkfolder = (folder) => existsSync(folder) || execSync(`mkdir ${folder}`);
   // "midisf,db,csv,mp3".split(",").map((f) => f && mkfolder(f));
-  
-  new Midi(readFileSync(midiname)).tracks.map(t=>{
-    console.log(process.uptime())
+
+  new Midi(readFileSync(midiname)).tracks.map((t) => {
+    console.log(process.uptime());
     t.instrument.percussion
-      ? spawnSync("./installdrums", [t.instrument.number + ""])
-      : spawnSync("./installsf", [t.instrument.number + ""]);
-  })
-  
-  function installfont(fontname) {
-    if (fontname === "") return;
-
-    const localname = "mp3/" + setname + "_" + fontname + ".js";
-    if (!existsSync(localname)) {
-      execSync(
-        `curl -S "${sfUrl(
-          setname, 
-          fontname
-        )}" -o - |grep 'data:audio/mp3;base64,' |awk -F 'data:audio/mp3;base64,' '{print $2}'|tr '\"\n,\"' '\n'| grep -v ^$ |base64 --decode > ${localname}`
-      );
-    }
-
-    mkfolder(`midisf/${fontname}`);
-
-    const byteswrote = parseInt(
-      execSync("wc -c " + localname)
-        .toString()
-        .trim()
-        .split(/\s+/)[0]
-    );
-    const bytesPerNote = ~~(byteswrote / 88 / 4) * 4;
-
-    for (let index = 0; index < 88; index++) {
-      const pcmname = `midisf/${fontname}/stero-${index}.pcm`;
-      try {
-        if (!existsSync(pcmname)) {
-          console.log(pcmname);
-
-          execSync(
-            `dd if=${localname} bs=${bytesPerNote} skip=${index} count=1 |ffmpeg -y -hide_banner -loglevel panic -f mp3 -i pipe:0 -vol 390 -f f32le -ac 2 -ar 48000 ${pcmname}`
-          );
-        }
-      } catch (e) {
-        console.log(e);
-      }
-    }
-  }
+      ? existsSync("fast-a-" + std_drums[t.instrument.number] + "-0-88.pcm") ||
+        spawnSync("./installsf", [std_drums[t.instrument.number] + "", "fast"])
+      : existsSync("mid-a-" + t.instrument.number + "-0-88.pcm") ||
+        spawnSync("./installsf", [t.instrument.number + "", "mid"]);
+  });
 };
 
 export const installPiano = (vel) => {
@@ -97,6 +59,7 @@ export const installPiano = (vel) => {
 };
 if (process.argv[2]) {
   installNotesFromCsv(process.argv[2]);
-}else{
-  installNotesFromCsv('./midi/song.mid')
+} else {
+  installNotesFromCsv("./midi/song.mid");
 }
+

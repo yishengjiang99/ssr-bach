@@ -1,5 +1,5 @@
 import { Header, Midi } from "@tonejs/midi";
-import { Instrument } from "@tonejs/midi/dist/Instrument";
+import { DrumKitByPatchID } from "@tonejs/midi/dist/InstrumentMaps";
 import { EventEmitter } from "events";
 
 import { createWriteStream, readFileSync } from "fs";
@@ -12,7 +12,7 @@ import {
   CallbackFunction,
   Ticks,
 } from "./ssr-remote-control.types";
-import { sleep, std_inst_names } from "./utils";
+import { sleep, std_drums, std_inst_names } from "./utils";
 
 export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteControl {
   const emitter = new EventEmitter();
@@ -24,19 +24,22 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     stop: false,
     tracks: tracks.map((t, i) => ({
       trackId: i,
-      instrument: std_inst_names[t.instrument.number],
+      percussion: t.instrument.percussion,
+      instrument: t.instrument.percussion
+        ? DrumKitByPatchID[t.instrument.number]
+        : std_inst_names[t.instrument.number],
       mute: false,
     })),
     duration: durationTicks / header.ppq,
     midifile: source,
-    tempo: tempos[0] || {bpm:60},
+    tempo: tempos[0] || { bpm: 60 },
     timeSignature: header.timeSignatures[0],
   };
 
   function setCallback(_cb: CallbackFunction) {
     return (cb = _cb);
   }
-  function setState(update: { [key: string]: string | boolean | number; }) {
+  function setState(update: { [key: string]: string | boolean | number }) {
     Object.keys(update).forEach((k) => (state[k] = update[k]));
   }
   const controller: RemoteControl = {
@@ -94,11 +97,14 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
               ...note,
               name: note.name,
               trackId: i,
-              instId: tracks[i].instrument.number,
+              channelId: tracks[i].channelId, //tracks[i].instrument.number,
               start: header.ticksToSeconds(note.ticks),
               durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
               velocity: note.velocity,
-              instrumentNumber: tracks[i].instrument.number,
+              instrumentNumber:
+                tracks[i].channelId === 9
+                  ? std_drums[tracks[i].instrument.number]
+                  : tracks[i].instrument.number,
               instrument: std_inst_names[tracks[i].instrument.number],
             };
             notesstarting.push(noteEvent);
@@ -118,11 +124,10 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
 
       state.time += await callback(notesstarting);
 
-
       if (Math.floor(state.time) > intval) {
         emitter.emit("#time", { seconds: state.time });
       }
-      
+
       if (state.paused) {
         await new Promise((resolve) => {
           emitter.once("resume", resolve);

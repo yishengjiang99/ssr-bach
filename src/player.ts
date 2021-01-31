@@ -1,23 +1,33 @@
 import { existsSync, closeSync } from "fs";
 import { cspawn } from "./utils";
-import { PulseSource, SSRContext } from "ssr-cxt";
-import { Writable } from "stream";
+import { PulseSource, SSRContext, Envelope } from "ssr-cxt";
+import { PassThrough, Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
 import { get } from "https";
 import { execSync } from "child_process";
 import { resolveBuffer } from "./bytesPerNote";
-import { ffp } from "./sinks";
+import { ffp, lowpassFilter } from "./sinks";
 
 const spriteBytePeSecond = 48000 * 2 * 4;
 class PulseTrackSource extends PulseSource {
   note: NoteEvent;
   trackId: number;
-  constructor(ctx, props: { buffer: Buffer; note: NoteEvent; trackId: number }) {
+  envelope: Envelope;
+  constructor(
+    ctx,
+    props: { buffer: Buffer; note: NoteEvent; trackId: number; velocity: number }
+  ) {
     super(ctx, { buffer: props.buffer });
     this.note = props.note;
     this.trackId = props.trackId;
+    this.envelope = new Envelope(48000, [
+      ((145 - props.velocity) / 144) * 0.1,
+      0.1,
+      0.4,
+      0.4,
+    ]);
   }
 }
 export class Player {
@@ -98,6 +108,7 @@ export class Player {
             buffer: resolveBuffer(note, bytelength),
             trackId: note.trackId,
             note: note,
+            velocity: note.velocity,
           });
         });
         const elapsed = process.uptime() - startloop;
@@ -119,9 +130,9 @@ export class Player {
 
       for (let k = 0; k < ctx.blockSize; k += 4) {
         let sum = 0;
+
         for (let j = n - 1; j >= 0; j--) {
-          sum +=
-            (inputViews[j][0].readFloatLE(k) * inputViews[j][1].note.velocity * 1) / 2;
+          sum = sum + inputViews[j][0].readFloatLE(k) * inputViews[j][1].envelope.shift();
         }
 
         summingbuffer.setFloat32(k, sum, true);
@@ -139,4 +150,10 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
-// new Player().playTrack("./midi/song.mid",ffp());
+if (process.argv[2]) {
+  //  const pt = new PassThrough();
+  new Player().playTrack(
+    process.argv[2],
+    new PassThrough().pipe(lowpassFilter(3000).stdout.pipe(ffp()))
+  ); // lowpassFiler(4000).stdout.pipe(ffp()));
+}
