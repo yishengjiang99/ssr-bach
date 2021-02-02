@@ -2,7 +2,8 @@
 import { convertMidi, convertMidiASAP, msPerBeat } from "./load-sort-midi";
 import { Transform, Writable } from "stream";
 import { header } from "grep-wss";
-import { cspawn, sleep } from "./utils";
+import { sleep } from "./utils";
+import { cspawn } from "./cspawn";
 import { createReadStream, existsSync, readSync, statSync, write, open } from "fs";
 import { RemoteControl } from "./ssr-remote-control.types";
 import { createServer, ServerResponse } from "http";

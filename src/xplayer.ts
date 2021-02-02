@@ -1,35 +1,13 @@
-import { existsSync, closeSync } from "fs";
-import { cspawn } from "./utils";
+import { cspawn } from "./cspawn";
 import { PulseSource, SSRContext, Envelope } from "ssr-cxt";
-import { PassThrough, Writable } from "stream";
+import { Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-import { get } from "https";
-import { execSync } from "child_process";
-import { resolveBuffer } from "./bytesPerNote";
-import { ffp, lowpassFilter } from "./sinks";
 
-const spriteBytePeSecond = 48000 * 2 * 4;
-class PulseTrackSource extends PulseSource {
-  note: NoteEvent;
-  trackId: number;
-  envelope: Envelope;
-  constructor(
-    ctx,
-    props: { buffer: Buffer; note: NoteEvent; trackId: number; velocity: number }
-  ) {
-    super(ctx, { buffer: props.buffer });
-    this.note = props.note;
-    this.trackId = props.trackId;
-    this.envelope = new Envelope(48000, [
-      ((145 - props.velocity) / 144) * 0.1,
-      0.1,
-      0.4,
-      0.4,
-    ]);
-  }
-}
+import { resolveBuffer } from "./bytesPerNote";
+import { PulseTrackSource } from "./PulseTrackSource";
+
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
@@ -56,6 +34,8 @@ export class Player {
     if (this.timer) clearInterval(this.timer);
   };
   msg = (msg: string, reply: { write: (string) => void }): void => {
+    const spriteBytePeSecond = 48000 * 2 * 4;
+
     let tt: string[] = msg.split(" ");
     const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
     if (cmd === "config") {
@@ -98,7 +78,7 @@ export class Player {
         const startloop = process.uptime();
 
         notes.map((note, i) => {
-          const bytelength = spriteBytePeSecond * note.durationTime;
+          const bytelength = ctx.blockSize * note.durationTime;
 
           if (this.tracks[note.trackId]) {
             this.tracks[note.trackId].buffer = Buffer.alloc(0);
@@ -147,13 +127,6 @@ export class Player {
     });
     return controller;
   };
-  timer: NodeJS.Timeout;
+  timer: any;
   tracks: PulseTrackSource[];
-}
-if (process.argv[2]) {
-  //  const pt = new PassThrough();
-  new Player().playTrack(
-    process.argv[2],
-    new PassThrough().pipe(lowpassFilter(3000).stdout.pipe(ffp()))
-  ); // lowpassFiler(4000).stdout.pipe(ffp()));
 }

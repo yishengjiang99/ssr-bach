@@ -1,7 +1,6 @@
 import { EventEmitter } from "events";
 import { TempoEvent, TimeSignatureEvent } from "@tonejs/midi/dist/Header";
-import { ChildProcess } from "child_process";
-import { Player } from "./player";
+import { Player } from "./xplayer";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
 

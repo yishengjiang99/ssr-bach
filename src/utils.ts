@@ -1,5 +1,4 @@
 import { Midi } from "@tonejs/midi";
-import { spawn } from "child_process";
 import { existsSync, readFileSync } from "fs";
 export const change_ext = (file, ext) => file.slice(0, file.lastIndexOf(".")) + "." + ext;
 
@@ -183,19 +182,6 @@ export const std_drums = {
   40: 266, // "Jazz",
 };
 
-export function cspawn(
-  str,
-  { debug }: { debug: boolean } = { debug: false }
-): { stdout; stdin; stderr } {
-  let t = str.split(" ");
-
-  const { stdin, stdout, stderr } = spawn(t.shift(), t);
-  if (debug) {
-    stdout.on("error", (e) => console.log(e.toString(), str));
-    stderr.pipe(process.stderr);
-  }
-  return { stdin, stdout, stderr };
-}
 export function WAVheader(n) {
   const buffer = Buffer.alloc(44);
   let view = new DataView(buffer.buffer);

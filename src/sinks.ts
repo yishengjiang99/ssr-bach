@@ -1,6 +1,6 @@
 import { spawn, execSync } from "child_process";
 import { PassThrough, Readable, Writable } from "stream";
-import { cspawn } from "./utils";
+import { cspawn } from "./cspawn";
 import { createWriteStream, WriteStream } from "fs";
 
 export const lowpassFilter = (cutoff) => {

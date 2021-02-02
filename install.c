@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 	tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, 48000, 0);
 
 	int durationMS = strcmp(argv[2], "fast") == 0 ? 500 : 2000;
-	int velocity = strcmp(argv[2], "fast") == 9 ? 120 : strcmp(argv[2], "slow") == 0 ? 40
+	int velocity = strcmp(argv[2], "fast") == 0 ? 120 : strcmp(argv[2], "slow") == 0 ? 40
 													: strcmp(argv[2], "mid") == 0	 ? 75
 																					 : (int)argv[2];
 	int n = durationMS * 48;
