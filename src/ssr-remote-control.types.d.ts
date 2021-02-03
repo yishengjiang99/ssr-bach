@@ -1,7 +1,8 @@
 import { EventEmitter } from "events";
 import { TempoEvent, TimeSignatureEvent } from "@tonejs/midi/dist/Header";
-import { ChildProcess } from "child_process";
 import { Player } from "./player";
+import { Instrument } from "@tonejs/midi/dist/Instrument";
+import { NoteEvent } from "./NoteEvent";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
 
@@ -22,20 +23,6 @@ export type SessionContext = {
   query: Map<string, string>; // /index.php?a=3&b=3
 };
 export type seconds = number;
-export type NoteEvent = {
-  start: seconds;
-  trackId: number;
-  end: seconds;
-  velocity: number;
-  ticks: Ticks;
-  durationTicks: number;
-  durationTime: seconds;
-  instrument: string;
-  instrumentNumber?: number;
-  midi: number;
-  name: string;
-};
-
 export type Ticks = number;
 export type CallbackFunction = (notes: NoteEvent[]) => Promise<Ticks>;
 

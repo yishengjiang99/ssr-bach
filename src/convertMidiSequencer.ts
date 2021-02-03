@@ -1,7 +1,7 @@
 import { Workbook, stream } from "exceljs";
 import { basename } from "path";
 import { Writable } from "stream";
-import { NoteEvent } from "./ssr-remote-control.types";
+import { NoteEvent } from "./NoteEvent";
 import { sleep } from "./utils";
 import { convertMidi } from "./load-sort-midi";
 

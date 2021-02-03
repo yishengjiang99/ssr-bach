@@ -1,6 +1,6 @@
 import { SSRContext } from "ssr-cxt";
 import { PassThrough } from "stream";
-import { NoteEvent } from "./ssr-remote-control.types";
+import { NoteEvent } from "./NoteEvent";
 import { Player } from "./player";
 const assert = require("assert").strict;
 const ctx = new SSRContext({
@@ -14,7 +14,7 @@ test("new player class (wrapped existing code to get more organized", (done) => 
   let ctx2 = new SSRContext();
   ctx2.pump = jest.fn(() => true);
   let p = new Player();
-  p.playTrack("./midi/song.mid", new PassThrough());
+  p.playTrack("./midi/song.mid", ffp());
   expect(p.nowPlaying.state.paused).toBe(false);
   setTimeout(() => {
     expect(p.nowPlaying.state.time).toBeGreaterThan(0.05);
@@ -40,12 +40,10 @@ test("control player with function calls to seek resume stop pause start", (done
   setTimeout(() => {
     expect(p.nowPlaying.state.time).toBeGreaterThan(12);
 
-
     done();
   }, 80);
 });
 test("48000hz/32bit/2", () => {
-
   assert(ctx.blockSize % 4 === 0);
 });
 test("never priest out NaN", () => {

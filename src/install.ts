@@ -3,7 +3,8 @@ import { request } from "https";
 import * as zlib from "zlib";
 import { DrumKitByPatchID } from "@tonejs/midi/dist/InstrumentMaps";
 import { execSync, exec, execFile, execFileSync, spawnSync } from "child_process";
-import { cspawn, std_drums, std_inst_names } from "./utils";
+import { std_drums, std_inst_names } from "./utils";
+import { cspawn } from "./cspawn";
 import { qclause } from "./ffmpeg-templates";
 import { Midi } from "@tonejs/midi";
 export const installNotesFromCsv = (midiname: string, setname = "FatBoy"): void => {
@@ -62,4 +63,3 @@ if (process.argv[2]) {
 } else {
   installNotesFromCsv("./midi/song.mid");
 }
-

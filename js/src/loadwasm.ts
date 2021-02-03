@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 export const wsm = async (path: string): Promise<any> => {
   // const memory = new WebAssembly.Memory({ initial: 256 });
   // @ts-ignore
@@ -8,11 +10,9 @@ export const wsm = async (path: string): Promise<any> => {
     shared: true,
   });
 
-  const res = await fetch("path");
+  const ab = new Uint8Array(fs.readFileSync(path));
 
-  const ab = await res.arrayBuffer();
-
-  const { instance } = await WebAssembly.instantiate(new Uint8Array(ab), {
+  const { instance } = await WebAssembly.instantiate(ab, {
     env: {
       memory: memory,
       table: new WebAssembly.Table({
@@ -37,4 +37,4 @@ export const wsm = async (path: string): Promise<any> => {
   };
 };
 
-export const fishwasm = wsm("./fish.wasm");
+export const fishwasm = wsm("./sample.wasm");

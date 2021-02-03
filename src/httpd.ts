@@ -9,15 +9,23 @@ import { IncomingMessage, ServerResponse } from "http";
 import { Socket } from "net";
 import { decodeWsMessage } from "grep-wss/dist/decoder";
 import { httpsTLS } from "./tls";
-import { parseQuery, handlePost, queryFs, parseCookies, hotreloadOrPreload, HTML } from "./fsr";
-import { NoteEvent, SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
+import {
+  parseQuery,
+  handlePost,
+  queryFs,
+  parseCookies,
+  hotreloadOrPreload,
+  HTML,
+} from "./fsr";
+import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
 import { readAsCSV } from "./read-midi-sse-csv";
-import {PassThrough}from'stream';
+import { PassThrough } from "stream";
 import { handleSamples } from "./sound-font-samples";
-import { cspawn, keys88, sleep, tagResponse } from "./utils";
+import { keys88, sleep, tagResponse } from "./utils";
+import { cspawn } from "./cspawn";
 import { Player } from "./player";
 import { fileserver } from "./fileserver";
-import {Workbook,Column }from'exceljs';
+import { Workbook, Column } from "exceljs";
 import { convertMidiSequencer } from "./convertMidiSequencer";
 import { stdformat } from "./ffmpeg-templates";
 import { convertMidi } from "./load-sort-midi";
@@ -33,29 +41,29 @@ export class Server {
 
   server: import("https").Server;
 
-  indexPageParts: HTML
+  indexPageParts: HTML;
   port: any;
   host: string;
 
-  constructor(port, host:string = 'https://www.grepawk.com', tls = httpsTLS) {
+  constructor(port, host: string = "https://www.grepawk.com", tls = httpsTLS) {
     process.env.port = port;
     const fssd = fileserver();
     this.indexPageParts = hotreloadOrPreload();
 
     this.server = createServer(tls, (req, res): any => {
-      console.log(req.url)
+      console.log(req.url);
       if (req.url.startsWith("/fs")) {
         return fssd(req, res);
       } else return this.handler(req, res);
     });
 
     this.server.on("upgrade", this.wshand);
-    this.port=port;
-    this.host=host;
+    this.port = port;
+    this.host = host;
   }
-  start(){
-    console.log("starting server on :"+this.host,this.port)
-    this.server.listen(this.port,this.host); // 3000);
+  start() {
+    console.log("starting server on :" + this.host, this.port);
+    this.server.listen(this.port, this.host); // 3000);
   }
 
   get httpsServer() {
@@ -76,12 +84,12 @@ export class Server {
   handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const indexhtml = this.indexPageParts;
-      let {header, beforeMain, afterMain, end, css} = indexhtml; // ();
+      let { header, beforeMain, afterMain, end, css } = indexhtml; // ();
       const session = this.idUser(req);
       const { who, parts } = session;
 
       if (req.url.includes("refresh")) {
-         let {header, beforeMain, afterMain, end, css} =  hotreloadOrPreload();
+        let { header, beforeMain, afterMain, end, css } = hotreloadOrPreload();
       }
 
       const [, , p2, p3] = parts;
@@ -101,9 +109,11 @@ export class Server {
 
           res.write(beforeMain);
 
-          const selectbar = /* html */`
+          const selectbar = /* html */ `
           <select id='menu'>
-          ${midifiles.map((name) => /* html */`<option value='${name}'>${name}</option>`)}
+          ${midifiles.map(
+            (name) => /* html */ `<option value='${name}'>${name}</option>`
+          )}
           </select>
           <div id='cp'> 
             <button oncClick='start()'>
@@ -111,15 +121,18 @@ export class Server {
             </button>
           </div>
           <footer>
-          ${'pause,resume,ff,rwd,next,prev,play'.split(',')
-              .map(msg => /* html */ `
+          ${"pause,resume,ff,rwd,next,prev,play"
+            .split(",")
+            .map(
+              (msg) => /* html */ `
           <button msg='${msg}'>${msg}</button>
-          `).join('')}</footer>`;
+          `
+            )
+            .join("")}</footer>`;
 
-          res.write(selectbar)
+          res.write(selectbar);
 
-       
-          res.write(/*html*/`
+          res.write(/*html*/ `
           <aside>
              <form action='/fs' method="post" enctype="multipart/form-data">
                <label for='uploadfile'>Upload Midi</label>
@@ -132,7 +145,7 @@ export class Server {
           res.end(end);
           break;
         case "midi":
-          if(p2==='js') return queryFs(req,res);
+          if (p2 === "js") return queryFs(req, res);
 
           res.writeHead(200, {
             "Content-Type": "text/HTML",
@@ -160,10 +173,10 @@ export class Server {
           break;
         case "excel":
           res.setHeader(
-            'Content-Type',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           );
-          res.setHeader('Content-Disposition', 'attachment; filename=Report.xlsx');
+          res.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
           const wbook = new Workbook();
 
           const ws = wbook.addWorksheet("1", {
@@ -183,18 +196,17 @@ export class Server {
             state: "visible",
           });
           ws.eachColumnKey((col: Column, index: number) => {
-            col.header=keys88[index];
-          })
-           const bitmap=await   convertMidiSequencer({file, page:1});
-           bitmap.forEach(r=>{
-             ws.addRow(r).commit();
-           })
-          wbook.xlsx.write(res).then(()=>{
-            res.end()
+            col.header = keys88[index];
           });
-  
-//          res.end();
+          const bitmap = await convertMidiSequencer({ file, page: 1 });
+          bitmap.forEach((r) => {
+            ws.addRow(r).commit();
+          });
+          wbook.xlsx.write(res).then(() => {
+            res.end();
+          });
 
+          //          res.end();
 
           break;
         case "rt":
@@ -221,7 +233,7 @@ export class Server {
           this.sampleNote(p2, p3, res);
           break;
 
-          case "dbfs": //fallthrough
+        case "dbfs": //fallthrough
         case "upload":
           if (req.method === "POST") return handlePost(req, res, session.who);
 
@@ -265,79 +277,6 @@ export class Server {
     });
   };
 
-//   private async writeSpreadsheet(res: ServerResponse, file: string) {
-//     res.write(htmlheader());
-//     const notesrec = [];
-//     const bitmap =new Map<number, any[]>();
-//     let row = 0;
-//     const { start, emitter, setCallback } = convertMidi(file);
-//     setCallback(async (notes: NoteEvent[]) => {
-//       notes.forEach((note) =>{
-//         notesrec.push({
-//           midi: note.midi,
-//           trackId: note.trackId,
-//           _ticks: note.durationTicks / 256 / 8,
-//           get ticks() {
-//             return this._ticks;
-//           },
-//           set ticks(value) {
-//             this._ticks = value;
-//           },
-//         })
-//       });
-//       const rowdata=[]
-//      for (let i = 0; i < notesrec.length; i++)
-//       {
-//         const note = notesrec[i];
-//         if (!note || note.ticks <=0)
-//           continue;
-
-//         note.ticks -= 256 / 8;
-//         res.write(rowdata)
-//       }
-//       bitmap.set(row,rowdata);
-//       row++;
-
-//       return 1/4;
-//     });
-//     start();
-
-//     await new Promise(resolve=>{
-//       emitter.on('#time',(info)=>{
-//         info.seconds > 100 && resolve(info);
-//       });
-//     });
-//     console.log(bitmap)
-//     res.write(/* javascript */ `
-// <script>
-// document.body.onload=()=>{
-//   var xs = x_spreadsheet('#x-spreadsheet-demo', {showToolbar: false, showGrid: true})
-//         .loadData([{
-//           styles: [
-//             {
-//               bgcolor: '#f4f5f8',
-//               textwrap: true,
-//               color: '#900b09'
-//             },
-//           ],
-//           cols: {
-//             len: 80,
-//            1:{ width: 20 },
-//           },
-//           rows:{
-//             len: 600*8,
-//             ${JSON.stringify(bitmap)}
-//           }
-//         }]);
-//     }
-// </script>
-// <script src="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.js"></script>`);
-// res.write(/*javascript*/`<script>`);
-// res.end(`</script>
-// </body>
-// </html>`);
-//   }
-
   private sampleNote(p2: string, p3: string, res: ServerResponse) {
     if (!existsSync(`./midisf/${p2}/${p3}.pcm`)) res.writeHead(404);
     res.writeHead(200, { "Content-Type": "audio/raw" });
@@ -374,21 +313,21 @@ export class Server {
     session: SessionContext,
     res: ServerResponse
   ) {
-    if(!session || !session.rc){
+    if (!session || !session.rc) {
       res.writeHead(403);
       res.end();
       return;
     }
-    req.on("data",(d:Buffer)=>{
-      const [cmd, ...args]= d.toString().split(',');
-      switch(cmd){
+    req.on("data", (d: Buffer) => {
+      const [cmd, ...args] = d.toString().split(",");
+      switch (cmd) {
         case "pause":
           session.player.nowPlaying.pause();
-          res.end(session.player.nowPlaying.state.paused)
+          res.end(session.player.nowPlaying.state.paused);
           break;
         case "resume":
           session.player.nowPlaying.resume();
-          res.end(session.player.nowPlaying.state.paused)
+          res.end(session.player.nowPlaying.state.paused);
           break;
         case "seek":
           session.rc.seek(parseInt(args[0]));
@@ -400,20 +339,19 @@ export class Server {
           session.rc.rwd();
           break;
         case "volume":
-          session.player.tracks[args.shift()] = parseFloat(args.shift())
+          session.player.tracks[args.shift()] = parseFloat(args.shift());
           break; // .track = parseInt(t[1]);
         default:
           break;
       }
     });
     res.end();
-
   }
 
   idUser(req: IncomingMessage): SessionContext {
     const [parts, query] = parseQuery(req);
     const cookies = parseCookies(req);
-    const who: string = cookies["who"] || query['cookie'] || `${process.hrtime()[0]}`;
+    const who: string = cookies["who"] || query["cookie"] || `${process.hrtime()[0]}`;
     this.activeSessions[who] = {
       t: new Date(),
       player: new Player(),
@@ -426,7 +364,7 @@ export class Server {
   }
 }
 
-if (require.main === module && process.argv[3]==='yisheng') {
+if (require.main === module && process.argv[3] === "yisheng") {
   new Server(process.argv[2] || process.env.PORT, process.env.HOST).start();
 }
 process.on("uncaughtException", (e): void => {

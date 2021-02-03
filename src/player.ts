@@ -1,35 +1,17 @@
 import { existsSync, closeSync } from "fs";
-import { cspawn } from "./utils";
-import { PulseSource, SSRContext, Envelope } from "ssr-cxt";
+import { cspawn } from "./cspawn";
+import { SSRContext } from "ssr-cxt";
 import { PassThrough, Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
-import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
+import { RemoteControl } from "./ssr-remote-control.types";
+import { NoteEvent } from "./NoteEvent";
 import { sleep } from "./utils";
-import { get } from "https";
-import { execSync } from "child_process";
-import { resolveBuffer } from "./bytesPerNote";
-import { ffp, lowpassFilter } from "./sinks";
 
+import { ffp, lowpassFilter } from "./sinks";
+import { PulseTrackSource } from "./PulseTrackSource";
+import { init, resolveBuffer } from "./resolvebuffer";
 const spriteBytePeSecond = 48000 * 2 * 4;
-class PulseTrackSource extends PulseSource {
-  note: NoteEvent;
-  trackId: number;
-  envelope: Envelope;
-  constructor(
-    ctx,
-    props: { buffer: Buffer; note: NoteEvent; trackId: number; velocity: number }
-  ) {
-    super(ctx, { buffer: props.buffer });
-    this.note = props.note;
-    this.trackId = props.trackId;
-    this.envelope = new Envelope(48000, [
-      ((145 - props.velocity) / 144) * 0.1,
-      0.1,
-      0.4,
-      0.4,
-    ]);
-  }
-}
+init();
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
@@ -105,7 +87,7 @@ export class Player {
             this.tracks[note.trackId] = null;
           }
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: resolveBuffer(note, bytelength),
+            buffer: resolveBuffer(note),
             trackId: note.trackId,
             note: note,
             velocity: note.velocity,
@@ -149,11 +131,4 @@ export class Player {
   };
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
-}
-if (process.argv[2]) {
-  //  const pt = new PassThrough();
-  new Player().playTrack(
-    process.argv[2],
-    new PassThrough().pipe(lowpassFilter(3000).stdout.pipe(ffp()))
-  ); // lowpassFiler(4000).stdout.pipe(ffp()));
 }
