@@ -1,12 +1,12 @@
-import { PulseSource, Envelope } from "ssr-cxt";
-import { NoteEvent } from "./ssr-remote-control.types";
+import { PulseSource, Envelope, SSRContext } from "ssr-cxt";
+import { NoteEvent } from "./NoteEvent";
 
 export class PulseTrackSource extends PulseSource {
   note: NoteEvent;
   trackId: number;
   envelope: Envelope;
   constructor(
-    ctx,
+    ctx: SSRContext,
     props: { buffer: Buffer; note: NoteEvent; trackId: number; velocity: number }
   ) {
     super(ctx, { buffer: props.buffer });
