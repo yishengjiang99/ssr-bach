@@ -1,3 +1,6 @@
+/* eslint-disable radix */
+/* eslint-disable no-case-declarations */
+/* eslint-disable no-return-assign */
 import { basename } from "path";
 import { createReadStream, existsSync, readFileSync, readdirSync } from "fs";
 import { WsSocket, shakeHand } from "grep-wss";
@@ -14,13 +17,18 @@ import {
   hotreloadOrPreload,
   HTML,
 } from "./fsr";
-import { NoteEvent, SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
+import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
 import { readAsCSV } from "./read-midi-sse-csv";
+import { PassThrough } from "stream";
 import { handleSamples } from "./sound-font-samples";
+import { keys88, sleep, tagResponse } from "./utils";
 import { cspawn } from "./cspawn";
-import { Player } from "./xplayer";
+import { Player } from "./player";
 import { fileserver } from "./fileserver";
+import { Workbook, Column } from "exceljs";
+import { convertMidiSequencer } from "./convertMidiSequencer";
 import { stdformat } from "./ffmpeg-templates";
+import { convertMidi } from "./load-sort-midi";
 
 export const midifiles = readdirSync("./midi");
 
@@ -162,6 +170,44 @@ export class Server {
           } else {
             createReadStream(`./js/build/${basename(req.url)}`).pipe(res);
           }
+          break;
+        case "excel":
+          res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          );
+          res.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
+          const wbook = new Workbook();
+
+          const ws = wbook.addWorksheet("1", {
+            properties: { showGridLines: true },
+            pageSetup: {
+              fitToWidth: 1,
+              margins: {
+                left: 0.7,
+                right: 0.7,
+                top: 0.75,
+                bottom: 0.75,
+                header: 0.3,
+                footer: 0.3,
+              },
+            },
+            headerFooter: { firstHeader: "Hello Exceljs", firstFooter: "Hello World" },
+            state: "visible",
+          });
+          ws.eachColumnKey((col: Column, index: number) => {
+            col.header = keys88[index];
+          });
+          const bitmap = await convertMidiSequencer({ file, page: 1 });
+          bitmap.forEach((r) => {
+            ws.addRow(r).commit();
+          });
+          wbook.xlsx.write(res).then(() => {
+            res.end();
+          });
+
+          //          res.end();
+
           break;
         case "rt":
           res.writeHead(200, {
@@ -324,3 +370,17 @@ if (require.main === module && process.argv[3] === "yisheng") {
 process.on("uncaughtException", (e): void => {
   console.log("f ", e);
 });
+
+function htmlheader(): any {
+  return `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>jsp</title>
+              <style></style> 
+              <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.css">
+            </head>
+            <body onload='load()'>
+              <div id="x-spreadsheet-demo"></div>`;
+}

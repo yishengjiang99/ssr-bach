@@ -230,7 +230,7 @@ extern "C"
 // end header
 // ---------------------------------------------------------------------------------------------------------
 #endif //TSF_INCLUDE_TSF_INL
-#define TSF_IMPLEMENTATION
+
 #ifdef TSF_IMPLEMENTATION
 #undef TSF_IMPLEMENTATION
 
@@ -529,7 +529,8 @@ extern "C"
 		TSFR(sampleRate)
 		TSFR(originalPitch)
 		TSFR(pitchCorrection)
-		TSFR(sampleLink) TSFR(sampleType)
+		TSFR(sampleLink)
+		TSFR(sampleType)
 	}
 #undef TSFR
 
@@ -1172,14 +1173,13 @@ extern "C"
 			{
 				if (!e->isAmpEnv)
 				{
-					//(145-v)/144*attack
 					//mod env attack duration scales with velocity (velocity of 1 is full duration, max velocity is 0.125 times duration)
 					e->samplesUntilNextSegment = (int)(e->parameters.attack * ((145 - e->midiVelocity) / 144.0f) * outSampleRate);
 				}
 				e->segment = TSF_SEGMENT_ATTACK;
 				e->segmentIsExponential = TSF_FALSE;
 				e->level = 0.0f;
-				e->slope = 1.0f / e->samplesUntilNextSegment;
+				e->slope = 1.0f / (e->parameters.attack * outSampleRate);
 				return;
 			}
 			/* fall through */
@@ -1203,7 +1203,6 @@ extern "C"
 				if (e->isAmpEnv)
 				{
 					// I don't truly understand this; just following what LinuxSampler does.
-					//
 					float mysterySlope = -9.226f / e->samplesUntilNextSegment;
 					e->slope = TSF_EXPF(mysterySlope);
 					e->segmentIsExponential = TSF_TRUE;
@@ -1513,7 +1512,7 @@ extern "C"
 					unsigned int pos = (unsigned int)tmpSourceSamplePosition, nextPos = (pos >= tmpLoopEnd && isLooping ? tmpLoopStart : pos + 1);
 
 					// Simple linear interpolation.
-					float alpha = (float)(tmpSourceSamplePosition - pos), val = (input[pos] * (1.0f - alpha) + input[nextPos] * alpha);
+					float alpha = (float)(tmpSourceSamplePosition - pos), val = (input[pos] * (1.0f - alpha) + input[pos] * alpha);
 
 					// Low-pass filter.
 					if (tmpLowpass.active)
@@ -2270,4 +2269,3 @@ extern "C"
 #endif
 
 #endif //TSF_IMPLEMENTATION
-static tsf *instance;

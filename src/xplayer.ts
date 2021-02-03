@@ -1,13 +1,17 @@
+import { existsSync, closeSync } from "fs";
 import { cspawn } from "./cspawn";
-import { PulseSource, SSRContext, Envelope } from "ssr-cxt";
-import { Writable } from "stream";
+import { SSRContext } from "ssr-cxt";
+import { PassThrough, Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
-import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
+import { RemoteControl } from "./ssr-remote-control.types";
+import { NoteEvent } from "./NoteEvent";
 import { sleep } from "./utils";
 
-import { resolveBuffer } from "./bytesPerNote";
+import { ffp, lowpassFilter } from "./sinks";
 import { PulseTrackSource } from "./PulseTrackSource";
-
+import { init, resolveBuffer } from "./resolvebuffer";
+const spriteBytePeSecond = 48000 * 2 * 4;
+init();
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
@@ -34,8 +38,6 @@ export class Player {
     if (this.timer) clearInterval(this.timer);
   };
   msg = (msg: string, reply: { write: (string) => void }): void => {
-    const spriteBytePeSecond = 48000 * 2 * 4;
-
     let tt: string[] = msg.split(" ");
     const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
     if (cmd === "config") {
@@ -78,14 +80,14 @@ export class Player {
         const startloop = process.uptime();
 
         notes.map((note, i) => {
-          const bytelength = ctx.blockSize * note.durationTime;
+          const bytelength = spriteBytePeSecond * note.durationTime;
 
           if (this.tracks[note.trackId]) {
             this.tracks[note.trackId].buffer = Buffer.alloc(0);
             this.tracks[note.trackId] = null;
           }
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: resolveBuffer(note, bytelength),
+            buffer: resolveBuffer(note),
             trackId: note.trackId,
             note: note,
             velocity: note.velocity,
@@ -127,6 +129,6 @@ export class Player {
     });
     return controller;
   };
-  timer: any;
+  timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }

@@ -7,11 +7,11 @@ import {
   Filename,
   RemoteControl,
   MidiFile,
-  NoteEvent,
   ControllerState,
   CallbackFunction,
   Ticks,
 } from "./ssr-remote-control.types";
+import { NoteEvent } from "./NoteEvent";
 import { sleep, std_drums, std_inst_names } from "./utils";
 
 export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteControl {
@@ -101,11 +101,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
               start: header.ticksToSeconds(note.ticks),
               durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
               velocity: note.velocity,
-              instrumentNumber:
-                tracks[i].channelId === 9
-                  ? std_drums[tracks[i].instrument.number]
-                  : tracks[i].instrument.number,
-              instrument: std_inst_names[tracks[i].instrument.number],
+              instrument: tracks.instrument,
             };
             notesstarting.push(noteEvent);
             emitter.emit("note", noteEvent);

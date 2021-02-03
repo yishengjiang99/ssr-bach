@@ -53,7 +53,6 @@ export const std_inst_names = [
   "celesta",
   "glockenspiel",
   "music_box",
-
   "vibraphone",
   "marimba",
   "xylophone",

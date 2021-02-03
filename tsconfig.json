@@ -2,8 +2,11 @@
   "compilerOptions": {
     "outDir": "./dist",
     "module": "CommonJS",
+    "esModuleInterop": true,
     "target": "ES2020",
     "moduleResolution": "node",
+    "preserveConstEnums": true,
+    "jsx": "react",
     "declaration": true,
     "types": ["node", "jest"]
   },
