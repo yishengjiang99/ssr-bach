@@ -1,28 +1,12 @@
-
-
 let controller;
 const queue: { from: number; to: number; url: string }[] = [];
 /* @ts-ignore */
 let procPort: MessagePort;
 
 onmessage = (e) => {
-  let wschan=new BroadcastChannel("wschan")
+  let wschan = new BroadcastChannel("wschan");
   const { data } = e;
-  const { cmd, msg, port, url, procReset } = data;
-
-  if (port) {
-    if (procPort) {
-      procPort.onmessage = null;
-    }
-    procPort = port;
-  }
-  if (cmd) {
-    if (procPort) procPort.postMessage({ cmd: cmd });
-  }
-  if (procReset) {
-    if (procPort) procPort.postMessage({ reset: 1 });
-  }
-
+  const { port, url } = data;
   if (url && procPort) {
     procPort.onmessage = (e) => {
       // @ts-ignore

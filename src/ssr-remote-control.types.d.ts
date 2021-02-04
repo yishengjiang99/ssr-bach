@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { TempoEvent, TimeSignatureEvent } from "@tonejs/midi/dist/Header";
 import { Player } from "./player";
-import { Instrument } from "@tonejs/midi/dist/Instrument";
+import { Track } from "@tonejs/midi";
 import { NoteEvent } from "./NoteEvent";
 /*
    Server-Side Rendering of Low Latency 32-bit Floating Point Audio
@@ -24,7 +24,7 @@ export type SessionContext = {
 };
 export type seconds = number;
 export type Ticks = number;
-export type CallbackFunction = (notes: NoteEvent[]) => Promise<Ticks>;
+export type CallbackFunction = (notes: NoteEvent[]) => Promise<number>;
 
 export type Filename = string;
 
@@ -40,7 +40,7 @@ export type ControllerState = {
   stop: boolean;
   midifile: MidiFile;
   time: number;
-  tracks?: { trackId: number; instrument: string; mute: boolean }[];
+  tracks: Track[];
   tempo: TempoEvent;
   duration: number;
   timeSignature: TimeSignatureEvent;

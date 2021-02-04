@@ -22,12 +22,14 @@
     "morgan": "^1.7.0",
     "multer": "^1.4.2",
     "multiparty": "^4.2.2",
+    "napi": "^0.0.0",
     "node-addon-api": "^3.1.0",
     "sequelize": "^5.21.2",
     "soundfont2": "^0.3.0",
     "sqlite3": "^4.1.1",
     "ssr-cxt": "file:../ssr-ctx",
     "ts-jest": "^26.4.4",
+    "wasi": "^0.0.6",
     "websocket-extensions": "^0.1.4"
   },
   "devDependencies": {

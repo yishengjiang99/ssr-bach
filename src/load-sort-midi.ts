@@ -1,4 +1,4 @@
-import { Header, Midi } from "@tonejs/midi";
+import { Header, Track, Midi } from "@tonejs/midi";
 import { DrumKitByPatchID } from "@tonejs/midi/dist/InstrumentMaps";
 import { EventEmitter } from "events";
 
@@ -22,14 +22,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     paused: true,
     time: 0,
     stop: false,
-    tracks: tracks.map((t, i) => ({
-      trackId: i,
-      percussion: t.instrument.percussion,
-      instrument: t.instrument.percussion
-        ? DrumKitByPatchID[t.instrument.number]
-        : std_inst_names[t.instrument.number],
-      mute: false,
-    })),
+    tracks: tracks,
     duration: durationTicks / header.ppq,
     midifile: source,
     tempo: tempos[0] || { bpm: 60 },
@@ -75,7 +68,13 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     callback: CallbackFunction;
   };
 
-  const pullMidiTrack = async ({ tracks, callback }: NewType): Promise<void> => {
+  const pullMidiTrack = async ({
+    tracks,
+    callback,
+  }: {
+    tracks: Track[];
+    callback: CallbackFunction;
+  }): Promise<void> => {
     let done = 0;
     let doneSet = new Set();
 
@@ -90,6 +89,7 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
           done++;
           continue;
         }
+        const { percussion, number, family } = tracks[i].instrument;
         if (tracks[i].notes[0] && tracks[i].notes[0].ticks <= currentTick) {
           const note = tracks[i].notes.shift();
           if (currentTick - note.ticks < 500) {
@@ -97,11 +97,11 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
               ...note,
               name: note.name,
               trackId: i,
-              channelId: tracks[i].channelId, //tracks[i].instrument.number,
+              channelId: tracks[i].channel, //tracks[i].instrument.number,
               start: header.ticksToSeconds(note.ticks),
               durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
               velocity: note.velocity,
-              instrument: tracks.instrument,
+              instrument: { percussion, number, family },
             };
             notesstarting.push(noteEvent);
             emitter.emit("note", noteEvent);
@@ -161,3 +161,14 @@ export const secondsPerTick = (bpm) => 60 / bpm / 256;
 function format(str) {
   return str.replace(" ", "_").replace(" ", "_").replace(" ", "_").replace(" ", "_");
 }
+export const testNote = (midi) => {
+  return {
+    instrument: {
+      percussion: false,
+      number: 0,
+    },
+    midi: midi,
+    durationTime: 0.5,
+    velocity: 120,
+  };
+};

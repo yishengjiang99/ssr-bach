@@ -7,17 +7,17 @@ import { RemoteControl } from "./ssr-remote-control.types";
 import { NoteEvent } from "./NoteEvent";
 import { sleep } from "./utils";
 
-import { ffp, lowpassFilter } from "./sinks";
+import { devnull, ffp, lowpassFilter } from "./sinks";
 import { PulseTrackSource } from "./PulseTrackSource";
-import { init, resolveBuffer } from "./resolvebuffer";
+import { resolveBuffer } from "./resolvebuffer";
 const spriteBytePeSecond = 48000 * 2 * 4;
-init();
+
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
-    nChannels: 2,
-    bitDepth: 32,
-    sampleRate: 48000,
+    nChannels: 1,
+    bitDepth: 16,
+    sampleRate: 44100,
     fps: 375,
   });
   settings = {
@@ -87,7 +87,7 @@ export class Player {
             this.tracks[note.trackId] = null;
           }
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: resolveBuffer(note),
+            buffer: resolveBuffer(note, ctx),
             trackId: note.trackId,
             note: note,
             velocity: note.velocity,
@@ -101,25 +101,29 @@ export class Player {
     this.output = output;
 
     if (autoStart) controller.start();
-
+    ctx.nChannels = 1;
+    ctx.bitDepth = 16;
+    ctx.sampleRate = 44100;
     this.timer = setInterval(() => {
-      const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
+      const summingbuffer = Buffer.alloc(ctx.blockSize);
       let inputViews: [Buffer, PulseTrackSource][] = this.tracks
-        .filter((t, i) => t && t.buffer && t.buffer.byteLength >= ctx.blockSize)
+        .filter((t) => t.buffer)
         .map((t) => [t.read(), t]);
 
       const n = inputViews.length;
-
-      for (let k = 0; k < ctx.blockSize; k += 4) {
+      let rsum = 0;
+      for (let k = 0; k < ctx.blockSize - 2; k += 2) {
         let sum = 0;
+        summingbuffer.setUint16(k, 0, true);
 
         for (let j = n - 1; j >= 0; j--) {
-          sum = sum + inputViews[j][0].readFloatLE(k) * inputViews[j][1].envelope.shift();
+          sum = sum + inputViews[j][0].readUInt16LE(k) / n;
+          // break;
         }
-
-        summingbuffer.setFloat32(k, sum, true);
+        rsum += sum;
+        summingbuffer.setUint16(k, sum, true);
       }
-
+      // console.log(rsum / 120);
       if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
     }, (ctx.secondsPerFrame * 1000) / playbackRate);
 
@@ -132,3 +136,7 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
+new Player().playTrack(
+  "./midi/song.mid",
+  cspawn("ffplay -f s16le -i pipe:0 -ac 1 -ar 44100").stdin
+);

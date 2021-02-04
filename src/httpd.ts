@@ -116,7 +116,7 @@ export class Server {
           )}
           </select>
           <div id='cp'> 
-            <button oncClick='start()'>
+            <button id='start'>
             Play/Pause
             </button>
           </div>
@@ -313,11 +313,6 @@ export class Server {
     session: SessionContext,
     res: ServerResponse
   ) {
-    if (!session || !session.rc) {
-      res.writeHead(403);
-      res.end();
-      return;
-    }
     req.on("data", (d: Buffer) => {
       const [cmd, ...args] = d.toString().split(",");
       switch (cmd) {

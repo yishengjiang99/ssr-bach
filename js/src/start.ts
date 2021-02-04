@@ -31,7 +31,7 @@ export default (async function (midifile: string) {
     worker.postMessage({ port: proc.port, url: "/pcm/" + midifile }, [proc.port]);
 
     drawCanvasNextTickStart();
-    panel.start('/rt/'+midifile);
+    panel.start("/rt/" + midifile);
   } catch (e) {
     stdout("<font color='red'>" + e.message + "</font>");
   }
