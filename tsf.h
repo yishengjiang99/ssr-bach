@@ -339,6 +339,7 @@ extern "C"
 			return TSF_NULL;
 		}
 		stream.data = f;
+
 		res = tsf_load(&stream);
 		fclose(f);
 		return res;
@@ -633,6 +634,12 @@ extern "C"
 		if (parent)
 			parent->size -= sizeof(tsf_fourcc) + sizeof(tsf_u32) + chunk->size;
 		IsRiff = TSF_FourCCEquals(chunk->id, "RIFF"), IsList = TSF_FourCCEquals(chunk->id, "LIST");
+
+		// printf("\n%u %c%c%c%c", chunk->size, chunk->id[0], chunk->id[1], chunk->id[2], chunk->id[3]);
+		// fpos_t d;
+		// fgetpos(stream->data, &d);
+		// printf("fpos: %lli \n", d);
+
 		if (IsRiff && parent)
 			return TSF_FALSE; //not allowed
 		if (!IsRiff && !IsList)
@@ -1141,14 +1148,17 @@ extern "C"
 		for (; samplesLeft; samplesLeft -= samplesToRead)
 		{
 			short sampleBuffer[1024], *in = sampleBuffer;
-			;
 			samplesToRead = (samplesLeft > 1024 ? 1024 : samplesLeft);
 			stream->read(stream->data, sampleBuffer, samplesToRead * sizeof(short));
 
 			// Convert from signed 16-bit to float.
 			for (samplesToConvert = samplesToRead; samplesToConvert > 0; --samplesToConvert)
 				// If we ever need to compile for big-endian platforms, we'll need to byte-swap here.
-				*out++ = (float)(*in++ / 32767.0);
+				{
+				
+					*out++ = (float)(*in++ / 32767.0);
+				
+				}
 		}
 	}
 
@@ -1179,7 +1189,7 @@ extern "C"
 				e->segment = TSF_SEGMENT_ATTACK;
 				e->segmentIsExponential = TSF_FALSE;
 				e->level = 0.0f;
-				e->slope = 1.0f / (e->parameters.attack * outSampleRate);
+				e->slope = 1.0f / e->samplesUntilNextSegment;
 				return;
 			}
 			/* fall through */
@@ -1467,7 +1477,8 @@ extern "C"
 					unsigned int pos = (unsigned int)tmpSourceSamplePosition, nextPos = (pos >= tmpLoopEnd && isLooping ? tmpLoopStart : pos + 1);
 
 					// Simple linear interpolation.
-					float alpha = (float)(tmpSourceSamplePosition - pos), val = (input[pos] * (1.0f - alpha) + input[nextPos] * alpha);
+					float alpha = (float)(tmpSourceSamplePosition - pos);
+					float val = (input[pos] * (1.0f - alpha) + input[nextPos] * alpha);
 
 					// Low-pass filter.
 					if (tmpLowpass.active)
@@ -1512,7 +1523,7 @@ extern "C"
 					unsigned int pos = (unsigned int)tmpSourceSamplePosition, nextPos = (pos >= tmpLoopEnd && isLooping ? tmpLoopStart : pos + 1);
 
 					// Simple linear interpolation.
-					float alpha = (float)(tmpSourceSamplePosition - pos), val = (input[pos] * (1.0f - alpha) + input[pos] * alpha);
+					float alpha = (float)(tmpSourceSamplePosition - pos), val = (input[pos] * (1.0f - alpha) + input[nextPos] * alpha);
 
 					// Low-pass filter.
 					if (tmpLowpass.active)
@@ -1562,6 +1573,7 @@ extern "C"
 			struct tsf_riffchunk chunk;
 			if (TSF_FourCCEquals(chunkList.id, "pdta"))
 			{
+
 				while (tsf_riffchunk_read(&chunkList, &chunk, stream))
 				{
 #define HandleChunk(chunkName)                                                                                       \

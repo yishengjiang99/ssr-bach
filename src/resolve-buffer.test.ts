@@ -12,7 +12,7 @@ import { ffp } from "./sinks";
 import { sleep } from "./utils";
 
 const pipe1 = createWriteStream("here.pcm");
-const sp1 = [spawn("./sampled 2"), spawn("./sampled 1"), spawn("./sampled 0")];
+const sp1 = [cspawn("./sampled 2"), cspawn("./sampled 1"), cspawn("./sampled 0")];
 
 let mix: (ReadStream | string)[] = [];
 const sampleStr = (sample: NoteEvent) =>

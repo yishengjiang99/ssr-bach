@@ -114,14 +114,17 @@ export class Player {
       let rsum = 0;
       for (let k = 0; k < ctx.blockSize - 2; k += 2) {
         let sum = 0;
-        summingbuffer.setUint16(k, 0, true);
+        summingbuffer.writeInt16LE(0, k);
 
         for (let j = n - 1; j >= 0; j--) {
-          sum = sum + inputViews[j][0].readUInt16LE(k) / n;
+          sum = sum + inputViews[j][0].readInt16LE(k) / n;
           // break;
+          break;
         }
         rsum += sum;
-        summingbuffer.setUint16(k, sum, true);
+        if (sum > 0x7fff) sum = 0x7fff;
+        if (sum < -0x8000) sum = -0x7fff;
+        summingbuffer.writeInt16LE(sum, k);
       }
       // console.log(rsum / 120);
       if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));

@@ -2,6 +2,7 @@ import { SSRContext } from "ssr-cxt";
 import { PassThrough } from "stream";
 import { NoteEvent } from "./NoteEvent";
 import { Player } from "./player";
+import { ffp } from "./sinks";
 const assert = require("assert").strict;
 const ctx = new SSRContext({
   nChannels: 1,

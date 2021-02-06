@@ -1,1 +1,2 @@
-diskutil erasevolume HFS+ 'RAM Disk' `hdiutil attach -nobrowse -nomount ram://4194304`
+diskutil erasevolume HFS+ 'RAMDisk' `hdiutil attach -nobrowse -nomount ram://4194304`
+cp FluidR3_GM.sf2 /Volumes/RamDisk;

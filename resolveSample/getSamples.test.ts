@@ -1,5 +1,5 @@
-const mod = require("./sample.wasmmodule.js")();
-mod();
+// const mod = require("./sample.wasmmodule.js")();
+// mod();
 
 let Module;
 export async function ggetSample(instrumentId, midi, durationMs, velocity) {
@@ -19,7 +19,7 @@ export async function ggetSample(instrumentId, midi, durationMs, velocity) {
 /**
  * emcc sample.c -o sample.wasmmodule.js --post-js ff.js \
  -s EXPORTED_FUNCTIONS='["_sample","drumSample"]' \
-  -s EXTRA_RUNTIME_FUNCTIONS='["_getValue"]
+  -s EXTRA_RUNTIME_FUNCTIONS='["_getValue"]'
  */
 // function getSample(instrumentId, midi, durationMs, velocity) {
 //   Module["onRuntimeInitiated"] = () => {

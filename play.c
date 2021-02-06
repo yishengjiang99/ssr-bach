@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 		int preset, midi, velocity, duration;
 		sscanf(str, "%d %d %d %d", &preset, &midi, &velocity, &duration);
 		float *buff = malloc(duration * 48000 * 2 * sizeof(float));
-		tsf_channel_set_presetindex(g_MidiMessage, 0, preset);
+		tsf_channel_set_presetindex(g_TinySoundFont, 0, preset);
 		tsf_note_on(g_TinySoundFont, preset, midi, velocity / 128.0f);
 		tsf_render_float(g_TinySoundFont, &buff, duration * 48000, 0);
 		fwrite(&buff, 4, duration * 48000 * 2, stdout);

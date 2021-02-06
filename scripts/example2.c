@@ -8,9 +8,9 @@ static tsf *g_TinySoundFont;
 int main(int argc, char *argv[])
 {
 	int i, Notes[7] = {48, 50, 52, 53, 55, 57, 59};
-	int fd = fopen("./p.pcm", "wb");
+	FILE* fd = fopen("./p.pcm", "a+b");
 	// Load the SoundFont from a file
-	g_TinySoundFont = tsf_load_filename("default.sf2");
+	g_TinySoundFont = tsf_load_filename("./FluidR3_GM.sf2");//cpefault.sf2");
 	if (!g_TinySoundFont)
 	{
 		fprintf(stderr, "Could not load SoundFont\n");
@@ -28,16 +28,15 @@ int main(int argc, char *argv[])
 		//Get exclusive mutex lock, end the previous note and play a new note
 		printf("Play note %d with preset #%d '%s'\n", Notes[i % 7], i, tsf_get_presetname(g_TinySoundFont, i));
 
-		tsf_note_off(g_TinySoundFont, i - 1, Notes[(i - 1) % 7]);
-		tsf_note_on(g_TinySoundFont, i, Notes[i % 7], 1.0f);
+//tsf_note_off(g_TinySoundFont, i - 1, Notes[(i - 1) % 7]);
+		tsf_note_on(g_TinySoundFont, i, Notes[(i - 1) % 7], 1.0f);
 
 		// //get exclusive lock
 		int n = 10240;
-		float *stream = (float *)malloc(n * 2 * 4);
+		float *stream = (float *)malloc(n * 2 * sizeof(float));
 
-		tsf_render_float(g_TinySoundFont, (float *)stream, n, 0);
-		write(fd, &stream, n * 2 * 4);
-		break;
+		tsf_render_float(g_TinySoundFont, (float *)stream, n, 1);
+		fwrite( stream, 4,n * 2,stdout);
 	}
 
 	// We could call tsf_close(g_TinySoundFont) and SDL_DestroyMutex(g_Mutex)

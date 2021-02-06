@@ -9,10 +9,7 @@ import { sleep } from "./utils";
 
 import { ffp, lowpassFilter } from "./sinks";
 import { PulseTrackSource } from "./PulseTrackSource";
-import { getInstance, init } from "./resolvebuffer";
 import { spawn } from "child_process";
-const spriteBytePeSecond = 48000 * 2 * 4;
-init();
 export class Player {
   nowPlaying: RemoteControl = null;
   ctx: SSRContext = new SSRContext({
@@ -77,22 +74,23 @@ export class Player {
     this.nowPlaying = controller;
     // this.tracks = new Array(controller.state.tracks.length);
     let tracks = new Array(controller.state.tracks.length);
-    const sp = spawn("./sampled");
+    tracks.forEach((t,i)=>{
+      sp.stdin.write(`prog ${i}, ${t.instrument.number}`)
+    });
+    const sp = cspawn("fluidsynth -a file -o audio.file.name=/tmp/fl.raw -o audio.file.format=float file.sf2");
 
     controller.setCallback(
       async (notes: NoteEvent[]): Promise<number> => {
         const startloop = process.uptime();
         notes.forEach((sample) => {
           sp.stdin.write(
-            `p ${sample.instrument.number} ${sample.midi} ${~~(
+            `noteon ${sample.instrument.number} ${sample.midi} ${~~(
               sample.durationTime * 1000
-            )} ${~~(sample.velocity * 0x7f)}`
+            )} ${~~(sample.velocity * 0x7f)} ${sample.trackId} \n`
           );
-        });
-
-        sp.stdin.write("r");
-        tracks[0] = new FileSource(ctx, {
-          filePath: "/tmp/sampled",
+          console.log(`s ${sample.instrument.number} ${sample.midi} ${~~(
+              sample.durationTime * 1000
+            )} ${~~(sample.velocity * 0x7f)} ${sample.trackId} \n`);
         });
         const elapsed = process.uptime() - startloop;
         await sleep((ctx.secondsPerFrame * 1000 - elapsed * 1000) / playbackRate);
@@ -104,30 +102,16 @@ export class Player {
 
     if (autoStart) controller.start();
 
-    this.timer = setInterval(() => {
-      const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
-      let inputViews: Buffer[] = tracks
-        .filter((v) => v)
-        .map((t) => t.read(ctx.blockSize));
+    // this.timer = setInterval(() => {
+    //      sp.stdin.write('r\n');
+    //  // this.mixtrack(ctx, tracks, output);
+    // }, (ctx.secondsPerFrame * 1000) / playbackRate);
 
-      const n = inputViews.length;
-      // console.log(n + " inputs");
-      let rs = 0;
-      for (let k = 0; k < ctx.blockSize; k += 4) {
-        let sum = 0;
-
-        for (let j = n - 1; j >= 0; j--) {
-          sum = sum + inputViews[j].readFloatLE(k);
-        }
-
-        summingbuffer.setFloat32(k, sum, true);
-        rs += sum * sum;
-      }
-      // console.log(Math.sqrt(rs));
-
-      if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
-    }, (ctx.secondsPerFrame * 1000) / playbackRate);
-
+  createReadStream("/Volumes/RAMDisk/song.pcm").on("data",d=>{
+   if (!output.writableEnded){}
+     // output.write(d);
+  });
+  
     output.on("close", () => {
       controller.stop();
       this.stop();
@@ -136,6 +120,33 @@ export class Player {
   };
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
-}
 
-new Player().playTrack("./midi/song.mid", ffp());
+  private mixtrack(ctx: any, tracks: any[], output: Writable) {
+    const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
+    let inputViews: Buffer[] = tracks
+      .filter((v) => v)
+      .map((t) => t.read(ctx.blockSize));
+
+    const n = inputViews.length;
+    // console.log(n + " inputs");
+    let rs = 0;
+    for (let k = 0; k < ctx.blockSize; k += 4)
+    {
+      let sum = 0;
+
+      for (let j = n - 1; j >= 0; j--)
+      {
+        sum = sum + inputViews[j].readFloatLE(k);
+      }
+
+      summingbuffer.setFloat32(k, sum, true);
+      rs += sum * sum;
+    }
+    // console.log(Math.sqrt(rs));
+    if (!output.writableEnded)
+      output.write(Buffer.from(summingbuffer.buffer));
+  }
+}
+if (require.main === module && process.argv[2]) {
+new Player().playTrack(process.argv[2], process.stdout);
+}
