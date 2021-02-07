@@ -29,7 +29,7 @@ float* ssample(int preset, int midi, int vel,unsigned int n)
 	float *b = (float *)malloc(n * sizeof(float));
 	float *head=b;
 	struct tsf_region r;
-	struct tsf_preset p = g_TinySoundFont->presets[preset];
+	struct tsf_preset p = g_TinySoundFont->banks[0]->presets[preset];
 	for (int j = 0; j < p.regionNum; j++)
 	{
 		r = p.regions[j];

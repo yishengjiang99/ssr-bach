@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include "read.c"
 #include <math.h>
+
 int main()
 {
 	init();
