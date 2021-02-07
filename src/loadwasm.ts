@@ -5,7 +5,14 @@ const fs = require("fs");
 const flsf: Buffer = fs.readFileSync("./file.sf2");
 const ab = new Uint8Array(fs.readFileSync("./re2ad.wasm"));
 
-export const loadReader = async (): Promise<(presetId:number, midiNote:number, velocity:number, duration:number)=>Buffer> => {
+export async function loadReader(): Promise<{
+  sample: (
+    presetId: number,
+    midiNote: number,
+    velocity: number,
+    duration: number
+  ) => Buffer
+}> {
   // const memory = new WebAssembly.Memory({ initial: 256 });
   // @ts-ignore
   let memory = new WebAssembly.Memory({
@@ -15,16 +22,21 @@ export const loadReader = async (): Promise<(presetId:number, midiNote:number, v
   });
 
   const optimizedPow = (n, b) => {
-    if (b < 0) {
+    if (b < 0)
+    {
       return 1 / optimizedPow(n, -1 * b);
-    } else if (n == 2 && b > 0.083 && b < 0.08333) {
+    } else if (n == 2 && b > 0.083 && b < 0.08333)
+    {
       return 1.059463094359295;
-    } else if (n == 2 && b > 0.16 && b < 0.1666) {
+    } else if (n == 2 && b > 0.16 && b < 0.1666)
+    {
       return 1.122462048309373;
-    } else if (n == 2 && b == 0.25) {
+    } else if (n == 2 && b == 0.25)
+    {
       // && b<0.17){
       return 1.189207115002721;
-    } else {
+    } else
+    {
       return Math.pow(n, b);
     }
   };
@@ -54,27 +66,27 @@ export const loadReader = async (): Promise<(presetId:number, midiNote:number, v
   //@ts-ignore
   instance.exports.load_sf(sfptr, flsf.byteLength);
   let wptr = 0;
+  return {
+   sample: (preset: number, midi: number, velocity: number, seconds: number): Buffer => {
+     const n = seconds * 31000;
 
-  //@ts-ignore
-  return function sample(preset, midi, velocity, seconds) {
-    const n = seconds * 31000;
+     //@ts-ignore
+     const ptr = instance.exports.ssample(preset, midi, velocity, n);
 
-    //@ts-ignore
-    const ptr = instance.exports.ssample(preset, midi, velocity, n);
-
-    const cp = Buffer.from(
-      memory.buffer.slice(ptr, ptr + n * Float32Array.BYTES_PER_ELEMENT)
-    );
-    //@ts-ignore
-    instance.exports.free(ptr);
-    return cp;
-  };
-};
+     const cp = Buffer.from(
+       memory.buffer.slice(ptr, ptr + n * Float32Array.BYTES_PER_ELEMENT)
+     );
+     //@ts-ignore
+     instance.exports.free(ptr);
+     return cp;
+   }
+  }
+}
 
 
-let m = 42;
-loadReader().then((sample) => {
+// let m = 42;
+// loadReader().then((sample) => {
 
-  process.stdout.write(sample(4, (m += 2), 120, 0.5));
-});
+//   process.stdout.write(sample(4, (m += 2), 120, 0.5));
+// });
 
