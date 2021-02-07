@@ -2,87 +2,80 @@
 #define TSF_IMPLEMENTATION
 #define TSF_NO_STDIO
 #include "tsf.h"
+#include <stdint.h>
 
-static tsf *g_TinySoundFont;
+static tsf *f;
 
-float* ssample(int preset, int midi, int vel,unsigned int n);
- float poww(int n, int b);
- 
+	
+static uint8_t *srcPtr;
+static float pow2over2table[12] = {
+	1,
+	1.0594630943592953,
+	1.122462048309373,
+	1.189207115002721,
+	1.2599210498948732,
+	1.3348398541700344,
+	1.4983070768766815,
+	1.5874010519681994,
+	1.6817928305074292,
+	1.7817974362806788,
+	1.887748625363387
+	};
 
-struct tsf *load_sf(void*ptr, int length)
+unsigned int ssample(float *ptr, int preset, int midi, int vel, int n);
+float poww(int n, int b);
+float lerp(float v0, float v1, float t);
+	
+struct tsf *load_sf(uint8_t *ptr, int length)
 {
-	g_TinySoundFont = tsf_load_memory(ptr, length);
-	return g_TinySoundFont;
+	f = tsf_load_memory(ptr, length);
+	srcPtr = ptr;
+	return f;
 }
 
-int sanecheck()
+unsigned int ssample(float *ptr, int preset, int midi, int vel, int n)
 {
-	return g_TinySoundFont != NULL ? g_TinySoundFont->voiceNum : -1;
-}
 
-float* ssample(int preset, int midi, int vel,unsigned int n)
-{
-	// if (!g_TinySoundFont)
-	// 	g_TinySoundFont = tsf_load_filename("./file.sf2");
+	int pos;
 
-	tsf_get_presetindex(g_TinySoundFont, 0, preset);
-	float *b = (float *)malloc(n * sizeof(float));
-	float *head=b;
 	struct tsf_region r;
-	struct tsf_preset p = g_TinySoundFont->banks[0]->presets[preset];
+	struct tsf_preset p = f->presets[preset];
 	for (int j = 0; j < p.regionNum; j++)
 	{
 		r = p.regions[j];
-
 		if (r.lokey <= midi && r.hikey >= midi && r.lovel <= vel && r.hivel >= vel)
 		{
-			unsigned int pos = r.offset;
-			for (unsigned int i = 0; i < n; i++)
+
+			double shift = poww(2, (midi - r.pitch_keycenter) / 12.0) * 48000 / r.sample_rate;
+
+			double iterator = pos;
+			int loopr = (r.loop_end - r.loop_start);
+
+			while (n--)
 			{
-				*(b++) =  g_TinySoundFont->fontSamples[pos++];
-				
-				if(pos >= r.end) {
-					pos = r.loop_start;
-				}
-
+				int p = (int)iterator;
+				*ptr++ = lerp(f->fontSamples[p], f->fontSamples[p + 1], iterator - p);
+				iterator += 2 * shift;
+				if (iterator > r.loop_end + 1)
+					iterator -= loopr;
 			}
-
 		}
 	}
-	//printf("nothing found");
-	return b;
+	return 0;
 }
-
-// int main()
-// {
-// 		g_TinySoundFont = tsf_load_memory(ptr, length);
-
-// 	g_TinySoundFont = tsf_load_filename("./file.sf2");
-
-// 	int sr;
-// 	unsigned int n = 31000;
-// 	ffplay = popen("ffplay -i pipe:0 -f f32le -ac 1 -ar 31000", "w");
-// 	void *b = (void *)malloc(n * sizeof(float));
-// 	sr=ssample(0, 4, 34, b, n);
-// 	// for(int midi = 34; midi<64; midi++){
-// 	// 	ssample(0, midi, 120-midi, b, n);
-// 	// 	fwrite(b, n, sizeof(float), ffplay);
-	
-// 	// }
-// 	return 0;
-// }
-
-  float poww(int n, int b)  {
-    if (b < 0) {
-      return 1 / poww(n, -1 * b);
-    } else if (n == 2 && b > 0.083 && b < 0.08333) {
-      return 1.05946309f;
-    } else if (n == 2 && b > 0.16 && b < 0.1666) {
-      return 1.122462048f;
-    } else if (n == 2 && b == 0.25) {
-      // && b<0.17){
-      return 1.1892071f;
-    } else {
-      return powf(n, b);
-    }
-  };
+float lerp(float v0, float v1, float t)
+{
+	return v0 + t * (v1 - v0);
+}
+float poww(int base, int n)
+{ //int b){
+	if (base != 2)
+		return powf(base, n);
+	if (n < 0)
+		return 1 / poww(2, -1 * n);
+	if (n >= 12)
+		return 2 * poww(2, n - 12);
+	return pow2over2table[n];
+}
+ 
+ 
