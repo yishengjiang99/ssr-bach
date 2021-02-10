@@ -1,13 +1,15 @@
 import { PulseSource, Envelope, SSRContext } from "ssr-cxt";
 import { NoteEvent } from "./NoteEvent";
+import { BufferIndex } from "./ssr-remote-control.types";
 
 export class PulseTrackSource extends PulseSource {
   note: NoteEvent;
   trackId: number;
+  bufferIndex: BufferIndex;
   envelope: Envelope;
   constructor(
     ctx: SSRContext,
-    props: { buffer: Buffer; note: NoteEvent; trackId: number; velocity: number }
+    props: { bufferIndex?:BufferIndex, buffer?: Buffer; note: NoteEvent; trackId: number; velocity: number }
   ) {
     super(ctx, { buffer: props.buffer });
     this.note = props.note;
@@ -21,7 +23,10 @@ export class PulseTrackSource extends PulseSource {
   }
   read(): Buffer {
     const n = this.ctx.blockSize;
-    if (this.buffer.byteLength < this.ctx.blockSize) {
+    if(this.bufferIndex){
+
+    }
+    else if (this.buffer.byteLength < this.ctx.blockSize) {
       const b = Buffer.alloc(n);
       b.set(this.buffer, 0);
       for (let i = this.buffer.byteLength; i < n - 2; i += 2) {

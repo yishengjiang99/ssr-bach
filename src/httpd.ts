@@ -1,7 +1,7 @@
 /* eslint-disable radix */
 /* eslint-disable no-case-declarations */
 /* eslint-disable no-return-assign */
-import { basename } from "path";
+import { basename, resolve } from "path";
 import { createReadStream, existsSync, readFileSync, readdirSync } from "fs";
 import { WsSocket, shakeHand } from "grep-wss";
 import { createServer } from "https";
@@ -23,7 +23,7 @@ import { PassThrough } from "stream";
 import { handleSamples } from "./sound-font-samples";
 import { keys88, sleep, tagResponse } from "./utils";
 import { cspawn } from "./cspawn";
-import { Player } from "./player";
+import { Player } from "./xplayer";
 import { fileserver } from "./fileserver";
 import { Workbook, Column } from "exceljs";
 import { convertMidiSequencer } from "./convertMidiSequencer";
@@ -89,7 +89,8 @@ export class Server {
       const { who, parts } = session;
 
       if (req.url.includes("refresh")) {
-        let { header, beforeMain, afterMain, end, css } = hotreloadOrPreload();
+         let html = hotreloadOrPreload();
+        let { header, beforeMain, afterMain, end, css } = html
       }
 
       const [, , p2, p3] = parts;
@@ -97,7 +98,13 @@ export class Server {
         parts[2] && existsSync(`midi/${decodeURIComponent(parts[2])}`)
           ? `midi/${decodeURIComponent(parts[2])}`
           : "midi/song.mid";
+
       const file = file3 || parts[2] || "song.mid";
+
+      // if(parts[1].match(/(\w).mid/)){
+      //   return midiapp(req,res);
+        
+      // }
       switch (parts[1]) {
         case "":
           res.writeHead(200, {
@@ -115,11 +122,24 @@ export class Server {
             (name) => /* html */ `<option value='${name}'>${name}</option>`
           )}
           </select>
+          
           <div id='cp'> 
             <button id='start'>
             Play/Pause
             </button>
           </div>
+          ${midifiles.map(f=> /*html*/`           
+          <article class="relative br2 mv3 mv3-m mv4-l shadow-6">
+              <a class="pointer no-underline fw4 white underline-hover" href="${f}"
+                title="${f}">
+
+                <div class="br2 bg-dark-blue pv2 ph3 flex br--bottom">
+                  <h2 class="flex-auto f4 mv0 lh-copy truncate underline-hover">
+                    Star-Wars-Theme-(From-'Star-Wars').mid
+                  </h2>
+                </div>
+              </a>
+            </article>`)}
           <footer>
           ${"pause,resume,ff,rwd,next,prev,play"
             .split(",")
@@ -159,17 +179,7 @@ export class Server {
           res.end(end);
           break;
         case "js":
-          res.writeHead(200, {
-            "Content-Type": "application/javascript",
-          });
-          if (basename(req.url) === "ws-worker.js") {
-            const str = readFileSync("./js/build/ws-worker.js")
-              .toString()
-              .replace("%WSHOST%", `wss://${this.host}:${process.env.port}`);
-            res.end(str);
-          } else {
-            createReadStream(`./js/build/${basename(req.url)}`).pipe(res);
-          }
+          this.severjsfiles(res, req);
           break;
         case "excel":
           res.setHeader(
@@ -179,32 +189,7 @@ export class Server {
           res.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
           const wbook = new Workbook();
 
-          const ws = wbook.addWorksheet("1", {
-            properties: { showGridLines: true },
-            pageSetup: {
-              fitToWidth: 1,
-              margins: {
-                left: 0.7,
-                right: 0.7,
-                top: 0.75,
-                bottom: 0.75,
-                header: 0.3,
-                footer: 0.3,
-              },
-            },
-            headerFooter: { firstHeader: "Hello Exceljs", firstFooter: "Hello World" },
-            state: "visible",
-          });
-          ws.eachColumnKey((col: Column, index: number) => {
-            col.header = keys88[index];
-          });
-          const bitmap = await convertMidiSequencer({ file, page: 1 });
-          bitmap.forEach((r) => {
-            ws.addRow(r).commit();
-          });
-          wbook.xlsx.write(res).then(() => {
-            res.end();
-          });
+          await mkspreaqdsheet(wbook, file, res);
 
           //          res.end();
 
@@ -276,6 +261,22 @@ export class Server {
       wsSocket.write(`ack ${msg}`);
     });
   };
+
+  private severjsfiles(res: ServerResponse, req: IncomingMessage) {
+    res.writeHead(200, {
+      "Content-Type": "application/javascript",
+    });
+    if (basename(req.url) === "ws-worker.js")
+    {
+      const str = readFileSync("./js/build/ws-worker.js")
+        .toString()
+        .replace("%WSHOST%", `wss://${this.host}:${process.env.port}`);
+      res.end(str);
+    } else
+    {
+      createReadStream(`./js/build/${basename(req.url)}`).pipe(res);
+    }
+  }
 
   private sampleNote(p2: string, p3: string, res: ServerResponse) {
     if (!existsSync(`./midisf/${p2}/${p3}.pcm`)) res.writeHead(404);
@@ -366,16 +367,44 @@ process.on("uncaughtException", (e): void => {
   console.log("f ", e);
 });
 
-function htmlheader(): any {
-  return `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8" />
-              <title>jsp</title>
-              <style></style> 
-              <link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet@1.1.5/dist/xspreadsheet.css">
-            </head>
-            <body onload='load()'>
-              <div id="x-spreadsheet-demo"></div>`;
+async function mkspreaqdsheet(wbook: Workbook, file: string, res: ServerResponse) {
+  const ws = wbook.addWorksheet("1", {
+    properties: { showGridLines: true },
+    pageSetup: {
+      fitToWidth: 1,
+      margins: {
+        left: 0.7,
+        right: 0.7,
+        top: 0.75,
+        bottom: 0.75,
+        header: 0.3,
+        footer: 0.3,
+      },
+    },
+    headerFooter: { firstHeader: "Hello Exceljs", firstFooter: "Hello World" },
+    state: "visible",
+  });
+  ws.eachColumnKey((col: Column, index: number) => {
+    col.header = keys88[index];
+  });
+  const bitmap = await convertMidiSequencer({ file, page: 1 });
+  bitmap.forEach((r) => {
+    ws.addRow(r).commit();
+  });
+  wbook.xlsx.write(res).then(() => {
+    res.end();
+  });
 }
+
+
+// function midiapp(req: IncomingMessage, res: ServerResponse): void | PromiseLike<void> {
+//     if(!existsSync(resolve("midi",req.url.substring(1)))){
+//       res.statusCode=404;
+//       res.end();
+//       return;
+//     }
+
+    
+
+// }
+

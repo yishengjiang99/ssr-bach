@@ -5,11 +5,11 @@ import { PassThrough, Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
 import { RemoteControl } from "./ssr-remote-control.types";
 import { NoteEvent } from "./NoteEvent";
-import { sleep } from "./utils";
+import { sleep, std_drums } from "./utils";
 
 import { devnull, ffp, lowpassFilter } from "./sinks";
 import { PulseTrackSource } from "./PulseTrackSource";
-import { resolveBuffer } from "./resolvebuffer";
+import { load,findIndex,memcopy } from "./resolvebuffer";
 const spriteBytePeSecond = 48000 * 2 * 4;
 
 export class Player {
@@ -86,8 +86,9 @@ export class Player {
             this.tracks[note.trackId].buffer = Buffer.alloc(0);
             this.tracks[note.trackId] = null;
           }
+          const{durationTime,midi,velocity,instrument:{percussion,number}}=note;
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: resolveBuffer(note, ctx),
+            bufferIndex: findIndex(percussion?std_drums[number]:number,midi,velocity),// ctx),
             trackId: note.trackId,
             note: note,
             velocity: note.velocity,
@@ -139,7 +140,8 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
-new Player().playTrack(
-  "./midi/song.mid",
-  cspawn("ffplay -f s16le -i pipe:0 -ac 1 -ar 44100").stdin
-);
+
+let sfdata;
+if(!sfdata) {
+  sfdata= load();
+}

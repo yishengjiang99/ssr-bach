@@ -60,3 +60,6 @@ export type RemoteControl = {
   setCallback: (cb: CallbackFunction) => void;
   meta: any;
 };
+export type BufferIndex = {
+  offset: number; loop: number; endloop: number; pitchratio: number; looplength;
+};

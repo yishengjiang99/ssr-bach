@@ -16,7 +16,7 @@
       "name": "(lldb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/sample",
+      "program": "${workspaceFolder}/a.out",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
