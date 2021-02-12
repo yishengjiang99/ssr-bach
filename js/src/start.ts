@@ -22,7 +22,8 @@ export default (async function (midifile: string) {
   if (!ctx) await initCtx();
   if (proc) disconnectExistingProc(proc);
 
-  try {
+  try
+  {
     proc = new AudioWorkletNode(ctx, "playback-processor", {
       outputChannelCount: [2],
     });
@@ -32,7 +33,8 @@ export default (async function (midifile: string) {
 
     drawCanvasNextTickStart();
     panel.start("/rt/" + midifile);
-  } catch (e) {
+  } catch (e)
+  {
     stdout("<font color='red'>" + e.message + "</font>");
   }
 });
@@ -40,6 +42,9 @@ export default (async function (midifile: string) {
 async function initCtx() {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
   await ctx.audioWorklet.addModule("/js/build/proc2.js");
+  new AudioWorkletNode(this.ctx, "playback-processor", {
+    outputChannelCount: [2],
+  });
   [gainNode, slider] = initGain(ctx);
   av = new AnalyserNode(ctx);
   gainNode.connect(av).connect(ctx.destination);
@@ -51,7 +56,8 @@ function drawCanvasNextTickStart() {
   setTimeout(() => avcanvas.start(), 400);
 }
 function disconnectExistingProc(proc) {
-  if (proc) {
+  if (proc)
+  {
     proc.disconnect();
     proc.port.onmessage = null;
     proc = null;

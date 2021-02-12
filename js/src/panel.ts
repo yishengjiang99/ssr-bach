@@ -1,7 +1,7 @@
 import { pallet } from "./pallet.js";
 
 const wschan = new BroadcastChannel("wschan");
-wschan.onmessage = (e) => {};
+wschan.onmessage = (e) => { };
 
 export type NoteEvent = {
   midi: number;
@@ -49,10 +49,10 @@ export class EventsPanel {
     let t0;
     this.evt = wschan;
     let now = 0;
-   this.bars = await fetch(rtlink)
+    this.bars = await fetch(rtlink)
       .then((res) => res.text())
       .then((t) =>
-         t.split("\n").map((lines) => {
+        t.split("\n").map((lines) => {
           const [
             start,
             midi,
@@ -64,13 +64,13 @@ export class EventsPanel {
             trackId,
           ] = lines.split(",");
           return {
-            midi:parseInt(midi),
+            midi: parseInt(midi),
             instrument,
-            start: parseInt(start)/256*60, 
-            durationTime: parseInt(durationTicks)/256*300,
-            trackId:parseInt(trackId)
+            start: parseInt(start) / 256 * 60,
+            durationTime: parseInt(durationTicks) / 256 * 300,
+            trackId: parseInt(trackId)
           }
-           
+
         })
       );
 
@@ -81,17 +81,21 @@ export class EventsPanel {
       this.offset += elapsed;
       t0 = now;
 
-      while (true && this.bars.length) {
+      while (true && this.bars.length)
+      {
         const { start, durationTime } = this.bars[this.bars.length - 1];
-        if (start + durationTime > this.offset - this.lookbackWindow) {
+        if (start + durationTime > this.offset - this.lookbackWindow)
+        {
           this.bars.shift();
-        } else {
+        } else
+        {
           break;
         }
       }
 
       canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
-      for (const bar of this.bars) {
+      for (const bar of this.bars)
+      {
         canvasCtx.fillStyle = `red`;
         canvasCtx.fillRect(
           (WIDTH / 88) * bar.midi,
