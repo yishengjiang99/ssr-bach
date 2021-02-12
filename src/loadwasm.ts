@@ -3,7 +3,7 @@ import { ffp } from "./sinks";
 
 const fs = require("fs");
 const flsf: Buffer = fs.readFileSync("./file.sf2");
-const ab = new Uint8Array(fs.readFileSync("./re2ad.wasm"));
+const ab = new Uint8Array(fs.readFileSync("./read-wasm-sfno/re2ad.wasm"));
 
 export async function loadReader(): Promise<{
   sample: (
@@ -67,19 +67,19 @@ export async function loadReader(): Promise<{
   instance.exports.load_sf(sfptr, flsf.byteLength);
   let wptr = 0;
   return {
-   sample: (preset: number, midi: number, velocity: number, seconds: number): Buffer => {
-     const n = seconds * 31000;
+    sample: (preset: number, midi: number, velocity: number, seconds: number): Buffer => {
+      const n = seconds * 31000;
 
-     //@ts-ignore
-     const ptr = instance.exports.ssample(preset, midi, velocity, n);
+      //@ts-ignore
+      const ptr = instance.exports.ssample(preset, midi, velocity, n);
 
-     const cp = Buffer.from(
-       memory.buffer.slice(ptr, ptr + n * Float32Array.BYTES_PER_ELEMENT)
-     );
-     //@ts-ignore
-     instance.exports.free(ptr);
-     return cp;
-   }
+      const cp = Buffer.from(
+        memory.buffer.slice(ptr, ptr + n * Float32Array.BYTES_PER_ELEMENT)
+      );
+      //@ts-ignore
+      instance.exports.free(ptr);
+      return cp;
+    }
   }
 }
 

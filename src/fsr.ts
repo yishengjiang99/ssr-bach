@@ -88,10 +88,10 @@ export function parseCookies(request) {
   return list;
 }
 
-export const queryFsUrl = (url: string, res): any => {
-  if (url === "") return false;
+export const queryFsUrl = (url: string, res, baseName=""): any => {
+  if (url+baseName === "") return false;
   const [parts, query] = parseUrl(url);
-  const filename = resolve(__dirname, "..", parts.slice(1).join("/"));
+  const filename = resolve(__dirname, "..",baseName, parts.slice(1).join("/"));
   if (!existsSync(filename)) {
     return false;
   }
@@ -112,7 +112,7 @@ export const queryFsUrl = (url: string, res): any => {
       if (f.endsWith(".mp4") || f.endsWith(".webm")) {
         return ` <a href='#' video='${url}/${f}'>${f}</a>`;
       }
-      return `<a href='#' preview='${url}/${f}'>${f}</a>`;
+      return `<a href='${url}/${f}'>${f}</a>`;
     };
     res.end(/* html */ `
       <html>

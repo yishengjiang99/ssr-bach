@@ -18,7 +18,7 @@ import {
   HTML,
 } from "./fsr";
 import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
-import { readAsCSV } from "./read-midi-sse-csv";
+import { readAsCSV, readMidiSSE } from "./read-midi-sse-csv";
 import { PassThrough } from "stream";
 import { handleSamples } from "./sound-font-samples";
 import { keys88, sleep, tagResponse } from "./utils";
@@ -28,8 +28,11 @@ import { fileserver } from "./fileserver";
 import { Workbook, Column } from "exceljs";
 import { convertMidiSequencer } from "./convertMidiSequencer";
 import { stdformat } from "./ffmpeg-templates";
-import { convertMidi } from "./load-sort-midi";
-
+import { convertMidi, convertMidiRealTime } from "./load-sort-midi";
+import { midrouter } from './midrouter';
+import { getSample } from "./adsr";
+import { memcopy } from "./resolvebuffer";
+import { stdout } from "process";
 export const midifiles = readdirSync("./midi");
 
 export class Server {
@@ -52,7 +55,8 @@ export class Server {
 
     this.server = createServer(tls, (req, res): any => {
       console.log(req.url);
-      if (req.url.startsWith("/fs")) {
+      if (req.url.startsWith("/fs"))
+      {
         return fssd(req, res);
       } else return this.handler(req, res);
     });
@@ -82,14 +86,16 @@ export class Server {
   }
 
   handler = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    try {
+    try
+    {
       const indexhtml = this.indexPageParts;
       let { header, beforeMain, afterMain, end, css } = indexhtml; // ();
       const session = this.idUser(req);
       const { who, parts } = session;
 
-      if (req.url.includes("refresh")) {
-         let html = hotreloadOrPreload();
+      if (req.url.includes("refresh"))
+      {
+        let html = hotreloadOrPreload();
         let { header, beforeMain, afterMain, end, css } = html
       }
 
@@ -103,9 +109,10 @@ export class Server {
 
       // if(parts[1].match(/(\w).mid/)){
       //   return midiapp(req,res);
-        
+
       // }
-      switch (parts[1]) {
+      switch (parts[1])
+      {
         case "":
           res.writeHead(200, {
             "Content-Type": "text/HTML",
@@ -128,27 +135,27 @@ export class Server {
             Play/Pause
             </button>
           </div>
-          ${midifiles.map(f=> /*html*/`           
+          ${midifiles.map(f => /*html*/`           
           <article class="relative br2 mv3 mv3-m mv4-l shadow-6">
               <a class="pointer no-underline fw4 white underline-hover" href="${f}"
                 title="${f}">
 
                 <div class="br2 bg-dark-blue pv2 ph3 flex br--bottom">
                   <h2 class="flex-auto f4 mv0 lh-copy truncate underline-hover">
-                    Star-Wars-Theme-(From-'Star-Wars').mid
+                    ${f}
                   </h2>
                 </div>
               </a>
             </article>`)}
           <footer>
           ${"pause,resume,ff,rwd,next,prev,play"
-            .split(",")
-            .map(
-              (msg) => /* html */ `
+              .split(",")
+              .map(
+                (msg) => /* html */ `
           <button msg='${msg}'>${msg}</button>
           `
-            )
-            .join("")}</footer>`;
+              )
+              .join("")}</footer>`;
 
           res.write(selectbar);
 
@@ -181,6 +188,18 @@ export class Server {
         case "js":
           this.severjsfiles(res, req);
           break;
+        case "sf":
+          console.log(parts);
+          const [offset, looplength, endloop, pitchratio] = parts[2].split("_").map((n, i) => {
+            if (i < 3) return parseInt(n);
+            else return parseFloat(n);
+          })
+          const ob = Buffer.alloc(48000);
+          //@ts-ignore
+          memcopy({ offset, endloop, pitchratio, looplength }, ob, 24000);
+          res.end(ob);
+
+          break;
         case "excel":
           res.setHeader(
             "Content-Type",
@@ -197,16 +216,25 @@ export class Server {
         case "rt":
           res.writeHead(200, {
             "Access-Control-Allow-Origin": "*",
-            "Content-Type": "text/csv",
+            "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
           });
-          readAsCSV(`./midi/${parts[2]}` || "song.mid").pipe(res);
+          const rc = convertMidiRealTime(file);
 
+          ["note", "#meta", "#time", "#tempo"].map((event) => {
+            rc.emitter.on(event, (d) => {
+              res.write(
+                ["event: ", event, "\n", "data: ", JSON.stringify(d), "\n\n"].join("")
+              );
+            });
+          });
           break;
         case "pcm":
-          if (req.method === "POST") {
+          if (req.method === "POST")
+          {
             this.playbackUpdate(req, session, res);
-          } else {
+          } else
+          {
             this.playback(res, session, who, file);
           }
           break;
@@ -241,7 +269,8 @@ export class Server {
 
           break;
       }
-    } catch (e) {
+    } catch (e)
+    {
       res.statusCode = 500;
       res.end(e.message);
     }
@@ -316,7 +345,8 @@ export class Server {
   ) {
     req.on("data", (d: Buffer) => {
       const [cmd, ...args] = d.toString().split(",");
-      switch (cmd) {
+      switch (cmd)
+      {
         case "pause":
           session.player.nowPlaying.pause();
           res.end(session.player.nowPlaying.state.paused);
@@ -360,7 +390,8 @@ export class Server {
   }
 }
 
-if (require.main === module && process.argv[3] === "yisheng") {
+if (require.main === module && process.argv[3] === "yisheng")
+{
   new Server(process.argv[2] || process.env.PORT, process.env.HOST).start();
 }
 process.on("uncaughtException", (e): void => {
@@ -404,7 +435,7 @@ async function mkspreaqdsheet(wbook: Workbook, file: string, res: ServerResponse
 //       return;
 //     }
 
-    
+
 
 // }
 

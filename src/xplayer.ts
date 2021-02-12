@@ -9,7 +9,7 @@ import { sleep, std_drums } from "./utils";
 
 import { devnull, ffp, lowpassFilter } from "./sinks";
 import { PulseTrackSource } from "./PulseTrackSource";
-import { load,findIndex,memcopy } from "./resolvebuffer";
+import { load, findIndex, memcopy, resolvebuffer } from "./resolvebuffer";
 const spriteBytePeSecond = 48000 * 2 * 4;
 
 export class Player {
@@ -40,15 +40,18 @@ export class Player {
   msg = (msg: string, reply: { write: (string) => void }): void => {
     let tt: string[] = msg.split(" ");
     const [cmd, arg1, arg2] = [tt.shift(), tt.shift(), tt.shift()];
-    if (cmd === "config") {
+    if (cmd === "config")
+    {
       this.setSetting(arg1, parseFloat(arg2));
       return reply.write("ack config " + arg1 + " " + arg2);
     }
-    if (this.nowPlaying && cmd === "seek") {
+    if (this.nowPlaying && cmd === "seek")
+    {
       this.nowPlaying.seek(parseInt(arg1));
       return reply.write({ rcstate: { seek: this.nowPlaying.state.time } });
     }
-    switch (cmd) {
+    switch (cmd)
+    {
       case "resume":
         this.nowPlaying.resume();
         break;
@@ -82,17 +85,19 @@ export class Player {
         notes.map((note, i) => {
           const bytelength = spriteBytePeSecond * note.durationTime;
 
-          if (this.tracks[note.trackId]) {
+          if (this.tracks[note.trackId])
+          {
             this.tracks[note.trackId].buffer = Buffer.alloc(0);
             this.tracks[note.trackId] = null;
           }
-          const{durationTime,midi,velocity,instrument:{percussion,number}}=note;
+          const { durationTime, midi, velocity, instrument: { percussion, number } } = note;
           this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            bufferIndex: findIndex(percussion?std_drums[number]:number,midi,velocity),// ctx),
+            buffer: resolvebuffer(percussion ? std_drums[number] : number, midi, velocity, durationTime),
             trackId: note.trackId,
             note: note,
             velocity: note.velocity,
           });
+
         });
         const elapsed = process.uptime() - startloop;
         await sleep((ctx.secondsPerFrame * 1000) / playbackRate);
@@ -107,25 +112,24 @@ export class Player {
     ctx.sampleRate = 44100;
     this.timer = setInterval(() => {
       const summingbuffer = Buffer.alloc(ctx.blockSize);
-      let inputViews: [Buffer, PulseTrackSource][] = this.tracks
-        .filter((t) => t.buffer)
-        .map((t) => [t.read(), t]);
+      const input = Buffer.alloc(ctx.blockSize);
+      const inputViews = this.tracks.filter(t => t && t.buffer && t.buffer.byteLength > 0).map(t => {
+        return t.read();
+      })
 
       const n = inputViews.length;
       let rsum = 0;
-      for (let k = 0; k < ctx.blockSize - 2; k += 2) {
+      for (let k = 0; k < ctx.blockSize - 4; k += 4)
+      {
         let sum = 0;
-        summingbuffer.writeInt16LE(0, k);
 
-        for (let j = n - 1; j >= 0; j--) {
-          sum = sum + inputViews[j][0].readInt16LE(k) / n;
+        for (let j = n - 1; j >= 0; j--)
+        {
+          sum = sum + inputViews[j].readFloatLE(k);
           // break;
           break;
         }
-        rsum += sum;
-        if (sum > 0x7fff) sum = 0x7fff;
-        if (sum < -0x8000) sum = -0x7fff;
-        summingbuffer.writeInt16LE(sum, k);
+        summingbuffer.writeFloatLE(sum, k);
       }
       // console.log(rsum / 120);
       if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
@@ -137,11 +141,15 @@ export class Player {
     });
     return controller;
   };
+  loadTrack = (filename) => {
+    return this.playTrack(filename, devnull(), false);
+  };
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
 
 let sfdata;
-if(!sfdata) {
-  sfdata= load();
+if (!sfdata)
+{
+  sfdata = load();
 }
