@@ -12,11 +12,13 @@ import { httpsTLS } from "./tls";
 import {
   parseQuery,
   handlePost,
-  queryFs,
+  queryFS,
   parseCookies,
-  hotreloadOrPreload,
-  HTML,
 } from "./fsr";
+import {
+  hotreloadOrPreload,
+  HTML
+} from "./HTML";
 import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
 import { readAsCSV, readMidiSSE } from "./read-midi-sse-csv";
 import { PassThrough } from "stream";
@@ -172,7 +174,7 @@ export class Server {
           res.end(end);
           break;
         case "midi":
-          if (p2 === "js") return queryFs(req, res);
+          if (p2 === "js") return queryFS(req, res);
 
           res.writeHead(200, {
             "Content-Type": "text/HTML",

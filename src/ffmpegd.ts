@@ -63,5 +63,5 @@ ffjmpegd({
   inputSampleRate: 44800,
   outputSampleRate: 44800,
 })
-  .runsample(readFileSync("midisf/mid-a-70-0-88.pcm"))
+  .runsample(readFileSync("./midisf/0-stereo-40.pcm"))
   .then((o) => console.log(o));

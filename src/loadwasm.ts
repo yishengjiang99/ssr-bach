@@ -3,7 +3,7 @@ import { ffp } from "./sinks";
 
 const fs = require("fs");
 const flsf: Buffer = fs.readFileSync("./file.sf2");
-const ab = new Uint8Array(fs.readFileSync("./read-wasm-sfno/re2ad.wasm"));
+const ab = new Uint8Array(fs.readFileSync("./re2ad.wasm"));
 
 export async function loadReader(): Promise<{
   sample: (
@@ -84,9 +84,9 @@ export async function loadReader(): Promise<{
 }
 
 
-// let m = 42;
-// loadReader().then((sample) => {
+let m = 42;
+loadReader().then(({sample}) => {
 
-//   process.stdout.write(sample(4, (m += 2), 120, 0.5));
-// });
+  process.stdout.write(sample(4, (m += 2), 120, 0.5));
+});
 

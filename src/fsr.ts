@@ -6,7 +6,6 @@ import {
   open,
   createReadStream,
   mkdirSync,
-  readFileSync,
   write,
   closeSync,
 } from "fs";
@@ -16,6 +15,7 @@ import { IncomingMessage, ServerResponse } from "http";
 import { ServerHttp2Stream } from "http2";
 import { Readable } from "stream";
 import { resjson } from "./utils";
+import {application} from 'express';
 
 export const dbfsroot = resolve(__dirname, "../dbfs");
 export const parseQuery = (req: IncomingMessage): [string[], Map<string, string>] =>
@@ -88,9 +88,10 @@ export function parseCookies(request) {
   return list;
 }
 
-export const queryFsUrl = (url: string, res, baseName=""): any => {
-  if (url+baseName === "") return false;
-  const [parts, query] = parseUrl(url);
+export const queryFs = (req, res, baseName=''): any => {
+  if (req.url === "") return false;
+  const url = req.url;
+  const [parts, query] = parseUrl(req.url);
   const filename = resolve(__dirname, "..",baseName, parts.slice(1).join("/"));
   if (!existsSync(filename)) {
     return false;
@@ -114,62 +115,8 @@ export const queryFsUrl = (url: string, res, baseName=""): any => {
       }
       return `<a href='${url}/${f}'>${f}</a>`;
     };
-    res.end(/* html */ `
-      <html>
-          <body>
-          <div style='display:grid;grid-template-columns:1fr 3fr'>
-          <div>
-        <pre>
-        ${readdirSync(filename)
-          .map((f) => mkLink(filename, f))
-          .join("\n")}
-        </pre></div>
-        <div>  <form method='post' action='/${parts
-          .slice(1)
-          .join("/")}/newfile${Math.random()}.txt'>
-        <textarea name='body' rows=30 cols=90></textarea>
-        <input type='submit' />
-        </form></div>
-        </div>
-          <script>window.onmousedown=(e)=>{
-              if(e.target.hasAttribute("video")){
-                  const pl=document.createElement("video");
-                pl.src=e.target.getAttribute("video");
-                document.body.append(pl);
-              }else  if(e.target.hasAttribute("preview")){
-              const url = e.target.getAttribute("preview");
-              fetch(url).then(async res=>{
-                const reader=res.body.pipeThrough(new TextDecoderStream()).getReader()
-                const textarea=document.querySelector('textarea');
-                textarea.value='';
-                while(true){
-                  const {value,done} = await reader.read();
-                  if(done)break;
-                  textarea.value +=value.toString();
-                }
-              }).catch(e=>{
-                document.body.innerHTML+=e.message;
-              })
-           
-            }
-          }</script></body></html>`);
+   return res.render
   }
-};
-export const queryFs = (req, res) => {
-  console.log(req.url);
-  return queryFsUrl(req.url, res);
-};
-export type HTML={
-  header:string, beforeMain:string, afterMain:string, end:string, css:string
-} 
-export const hotreloadOrPreload = (url = "./index.html"):HTML=> {
-  const idx = readFileSync(url).toString();
-  const header = idx.split("<style></style>")[0];
-  const beforeMain = `${idx.substr(header.length).split("<main></main>")[0]}<main>`;
-  const afterMain = idx.substr(header.length + beforeMain.length).split("</body>")[0];
-  const end = "</body></html>";
-  const css = `<style>${readFileSync("./style.css").toString()}</style>`;
-  return {header, beforeMain, afterMain, end, css}
 };
 
 type FD = number;
