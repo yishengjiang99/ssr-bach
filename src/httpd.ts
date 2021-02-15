@@ -12,29 +12,22 @@ import { httpsTLS } from "./tls";
 import {
   parseQuery,
   handlePost,
-  queryFS,
-  parseCookies,
+  queryFs,
+  parseCookies
 } from "./fsr";
-import {
-  hotreloadOrPreload,
-  HTML
-} from "./HTML";
 import { SessionContext, WebSocketRefStr } from "./ssr-remote-control.types";
 import { readAsCSV, readMidiSSE } from "./read-midi-sse-csv";
 import { PassThrough } from "stream";
 import { handleSamples } from "./sound-font-samples";
-import { keys88, sleep, tagResponse } from "./utils";
+import { sleep, tagResponse } from "./utils";
 import { cspawn } from "./cspawn";
 import { Player } from "./xplayer";
 import { fileserver } from "./fileserver";
-import { Workbook, Column } from "exceljs";
-import { convertMidiSequencer } from "./convertMidiSequencer";
+import { Workbook } from "exceljs";
 import { stdformat } from "./ffmpeg-templates";
 import { convertMidi, convertMidiRealTime } from "./load-sort-midi";
-import { midrouter } from './midrouter';
-import { getSample } from "./adsr";
 import { memcopy } from "./resolvebuffer";
-import { stdout } from "process";
+import { HTML, hotreloadOrPreload } from "./HTML";
 export const midifiles = readdirSync("./midi");
 
 export class Server {
@@ -174,7 +167,7 @@ export class Server {
           res.end(end);
           break;
         case "midi":
-          if (p2 === "js") return queryFS(req, res);
+          if (p2 === "js") return queryFs(req, res);
 
           res.writeHead(200, {
             "Content-Type": "text/HTML",
@@ -210,10 +203,7 @@ export class Server {
           res.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
           const wbook = new Workbook();
 
-          await mkspreaqdsheet(wbook, file, res);
-
-          //          res.end();
-
+            
           break;
         case "rt":
           res.writeHead(200, {
@@ -400,44 +390,4 @@ process.on("uncaughtException", (e): void => {
   console.log("f ", e);
 });
 
-async function mkspreaqdsheet(wbook: Workbook, file: string, res: ServerResponse) {
-  const ws = wbook.addWorksheet("1", {
-    properties: { showGridLines: true },
-    pageSetup: {
-      fitToWidth: 1,
-      margins: {
-        left: 0.7,
-        right: 0.7,
-        top: 0.75,
-        bottom: 0.75,
-        header: 0.3,
-        footer: 0.3,
-      },
-    },
-    headerFooter: { firstHeader: "Hello Exceljs", firstFooter: "Hello World" },
-    state: "visible",
-  });
-  ws.eachColumnKey((col: Column, index: number) => {
-    col.header = keys88[index];
-  });
-  const bitmap = await convertMidiSequencer({ file, page: 1 });
-  bitmap.forEach((r) => {
-    ws.addRow(r).commit();
-  });
-  wbook.xlsx.write(res).then(() => {
-    res.end();
-  });
-}
-
-
-// function midiapp(req: IncomingMessage, res: ServerResponse): void | PromiseLike<void> {
-//     if(!existsSync(resolve("midi",req.url.substring(1)))){
-//       res.statusCode=404;
-//       res.end();
-//       return;
-//     }
-
-
-
-// }
 

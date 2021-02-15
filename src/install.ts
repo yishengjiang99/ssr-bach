@@ -32,13 +32,10 @@ export const installPiano = (vel) => {
       const refmidi = (octave - 1) * 12 + index * 3 + 3;
       [0, 1, 2].map((ref) => {
         const file = `midisf/acoustic_grand_piano/${refmidi + ref}v${vel}.pcm`;
-        console.log(
-          `ffmpeg ${qclause} -i SlenderSalamander48khz24bit/samples/${note}${octave}v${vel}.wav -af atempo=${Math.pow(
-            2,
-            ref / 12
-          )} -f f32le ${file};`
-        );
-        console.log(`node_modules/grepupload/bin/upload.js ${file};`);
+        execSync(`ffmpeg ${qclause} -i /Users/yisheng/Documents/GitHub/ssr-bach/48khz24bit/${note}${octave}v${vel}.wav -af atempo=${Math.pow(
+          2,
+          ref / 12
+        )} -f f32le ${file}`)
         //  process.exit();
       });
     });
@@ -46,20 +43,13 @@ export const installPiano = (vel) => {
 
   let aa = "A0";
 
-  [0, 1, 2].map((ref) => {
-    const file = `midisf/acoustic_grand_piano/${0 + ref}v${vel}.pcm`;
-    execSync(
-      `ffmpeg ${qclause} -i SlenderSalamander48khz24bit/samples/${aa}}v${vel}.wav -af atempo=${Math.pow(
-        2,
-        ref / 12
-      )} -f f32le ${file}`
-    );
-    console.log(`node_modules/grepupload/bin/upload.js ${file};`);
-    //  process.exit();
-  });
+
 };
 if (process.argv[2]) {
   installNotesFromCsv(process.argv[2]);
 } else {
   installNotesFromCsv("./midi/song.mid");
 }
+// installPiano(1);
+// installPiano(16);
+// installPiano(5);

@@ -66,7 +66,7 @@ export function findIndex(presetId, midi, velocity): BufferIndex {
   if (!match) return null;
 
   const { offset, end, loop, endloop, pitch, samplerate } = match;
-  const pitchratio = (Math.pow(2, (midi - pitch) / 12) * samplerate) / 48000;
+  const pitchratio = 1;
   const looplength = endloop - loop;
   assert(looplength != NaN);
   return { offset, loop, endloop, pitchratio, looplength };
@@ -86,7 +86,7 @@ export function memcopy({ offset, endloop, pitchratio, looplength }: BufferIndex
 
     const v = filemem.readInt16LE(index);
     const f = s16tof32(v);
-    if (j * 4 >= output.byteLength) break;
+    if (j >= output.byteLength) break;
     output.writeFloatLE(f, j * 4);
     output.writeFloatLE(f, j * 4 + 4);
   }

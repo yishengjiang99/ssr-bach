@@ -155,9 +155,9 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
-// if (process.argv[2]) {
-//   //  const pt = new PassThrough();
-//   new Player().playTrack(
-//     process.argv[2],ffp({ac:1, ar:12000})
-//   ); // lowpassFiler(4000).stdout.pipe(ffp()));
-// }
+if (process.argv[2]) {
+  //  const pt = new PassThrough();
+  new Player().playTrack(
+    process.argv[2],ffp({ac:1, ar:12000})
+  ); // lowpassFiler(4000).stdout.pipe(ffp()));
+}

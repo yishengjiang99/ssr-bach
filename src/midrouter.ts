@@ -1,11 +1,5 @@
-import { Track } from "@tonejs/midi";
-import { existsSync, write } from "fs";
-import { createServer, ServerResponse } from "http";
-import { IncomingMessage } from "http";
-import { createSecureServer } from "http2";
 import { resolve } from "path";
-import { queryFsUrl } from "./fsr";
-import { findIndex, memcopy } from "./resolvebuffer";
+import { findIndex } from "./resolvebuffer";
 import { BufferIndex } from "./ssr-remote-control.types";
 import { std_drums } from "./utils";
 import { Player } from "./xplayer";
@@ -13,7 +7,7 @@ export const midrouter = (req, res) => {
 	const filename = decodeURIComponent(resolve("midi", req.url.substring(1)));
 	//decodeURIComponent(filename)
 	const player = new Player();
-	const { emitter, state: { tracks }, setCallback } = player.loadTrack(filename); //
+	const { state: { tracks } } = player.loadTrack(filename); //
 	const bufferQueue = []; ''
 	res.write(/* html*/ `
 			<script src='./js/build/playsample.js'></script>

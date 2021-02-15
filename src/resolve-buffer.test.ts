@@ -11,7 +11,7 @@ test("preload", ()=>{
 test("resolve",()=>{
   const bufdex=findIndex(0, 44, 120)
   const buf=Buffer.allocUnsafe(48000*2*4)
- memcopy(bufdex,buf,48000);
+  memcopy(bufdex,buf,48000);
   
   for(let n=4000;n>0;n--)   {
     const flsample=buf.readFloatLE(Math.floor(Math.random()*50/4)*4)
