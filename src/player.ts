@@ -6,10 +6,7 @@ import { RemoteControl } from "./ssr-remote-control.types";
 import { sleep, std_drums } from "./utils";
 
 import { ffp, lowpassFilter } from "./sinks";
-import { loadReader } from "./loadwasm";
 import { NoteEvent } from "./NoteEvent";
-
-const spriteBytePeSecond = 48000 * 2 * 4;
 class PulseTrackSource extends PulseSource {
   note: NoteEvent;
   trackId: number;
@@ -94,7 +91,7 @@ export class Player {
     this.tracks = new Array(controller.state.tracks.length);
     
     (async ()=>{
-      const {sample}=await loadReader();
+   
        controller.setCallback(
          async (notes: NoteEvent[]): Promise<number> => {
            const startloop = process.uptime();
