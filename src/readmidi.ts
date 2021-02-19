@@ -1,154 +1,281 @@
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 import { readFileSync } from "fs";
-
-const file = process.argv[2] || 'midi/song.mid';
-const buffer = readFileSync("midi/song.mid");
-const fileLimit = buffer.byteLength;
-
-const tracks = execSync(`strings -o ${file}|grep -i mtrk`).toString().split("\n").map(line => {
-  var _offset = parseInt(line.trim().split(" ")[0]);
-  if(!_offset) return null;
-  var t = 0;
-  const fgetc = () => {
-    if(_offset>=fileLimit) {
-      console.trace();
-      console.log(length);
-      return null;
-    
-    }
-    return buffer.readUInt8(_offset++);
-  }
-  const mthk = [fgetc(), fgetc(), fgetc(), fgetc()];
-  const reader = {
-    fgetc,
-    fgets: (n) => {
-      const _ = (n) => n == 1 ? fgetc() : [fgetc(), ..._(n - 1)];
-      return _(n);
-    },
-    readVarLength: () => {
+export function readMidi(buffer: Buffer) {
+  let offset = 0;
+  function bufferReader(buffer: Buffer) {
+    const bl = buffer.byteLength;
+    const dv = new DataView(buffer.buffer);
+    const fgetc = () => offset < bl && dv.getUint8(offset++);
+    const btoa = () => String.fromCharCode(fgetc());
+    const read32 = () => (fgetc() << 24) | (fgetc() << 16) | (fgetc() << 8) | fgetc();
+    const read16 = () => (fgetc() << 8) | fgetc();
+    const read24 = () => (fgetc() << 16) | (fgetc() << 8) | fgetc();
+    const fgets = (n: number) => (n > 1 ? btoa() + fgets(n - 1) : btoa());
+    const fgetnc = (n: number) => (n > 1 ? fgetnc(n - 1).concat(fgetc()) : [fgetc()]);
+    const readVarLength = () => {
       let v = 0;
       let n = fgetc();
-      if(!n) return 0;
       v = n & 0x7f;
-      while (n & 0x80)
-      {
+      while (n & 0x80) {
         n = fgetc();
         v = (v << 7) | (n & 0x7f);
       }
       return v;
-    },
-    btoa: ()=>String.fromCharCode(fgetc()),
-    read24:()=> (fgetc() << 16) | (fgetc() << 8) | fgetc(),
-    read32: ()=>(fgetc() << 24) | (fgetc() << 16) | (fgetc() << 8) | fgetc(),
-  };
-  const length = reader.read32();
+    };
+    return {
+      fgetc,
+      dv,
+      btoa,
+      read32,
+      read16,
+      read24,
+      fgetnc,
+      readVarLength,
+      fgets,
+    };
+  }
+  const reader = bufferReader(buffer);
+  const { fgetc, btoa, read32, read16, read24, fgets, fgetnc, readVarLength } = reader;
+  readHeader();
+  function readHeader() {
+    const chunkType = [btoa(), btoa(), btoa(), btoa()].join("");
+    const headerLength = read32();
+    const format = read16();
+    const ntracks = read16();
+    const division = read16();
+    console.log({ chunkType, headerLength, format, ntracks, division });
+  }
+  let g_time = -1000;
+  const tracks = [];
+  const limit = buffer.byteLength;
+  const tempos = [];
+  const metainfo = [];
+  const timesigs = [];
+  while (offset < limit) {
+    const mhrk = [btoa(), btoa(), btoa(), btoa()].join("");
+    let mhrkLength = read32();
+    const endofTrack = offset + mhrkLength;
+    tracks.push({endofTrack,offset,time:0, program:0});
+    offset =endofTrack;
+  }
 
-  const nextEvent = () => {
-    if(_offset>fileLimit) return false;
-    t += reader.readVarLength();
-    const msg = fgetc();
-    return msg < 0x80 ? systemMsg(msg, reader) : channelMsg(msg, reader);
+
+
+  function readAt(g_time, sp_hug){
+    for(const track of tracks){
+      offset = track.offset;
+      while(track.time <= g_time && offset<track.endofTrack){
+        track.time += readVarLength();
+        const event = readMessage(track);
+      }
+      track.offset=offset;
+    }
+    function readMessage(track) {
+      const msg = fgetc();
+      if (!msg) return false;
+      let meta;
+
+      let info = [];
+      if (msg >= 0xf0) {
+        switch (msg) {
+          case 0xff:
+            meta = fgetc();
+            var len = readVarLength();
+            let cmd = "";
+            switch (meta) {
+              case 0x01:
+                cmd = "done";
+                break;
+
+              case 0x02:
+              case 0x03:
+              case 0x05:
+              case 0x06:
+              case 0x07:
+                metainfo.push(fgets(len));
+                cmd = "etc";
+                break;
+              case 0x04:
+                info.push(fgets(len));
+                cmd = "instrument";
+                break;
+              case 0x51:
+                tempos.push({ tempo: read24() });
+                cmd = "tempo";
+                break;
+              case 0x54:
+                const [framerateAndhour, min, sec, frame, subframe] = [
+                  fgetc(),
+                  fgetc(),
+                  fgetc(),
+                  fgetc(),
+                  fgetc(),
+                ];
+                const framerate = [24, 25, 29, 30][framerateAndhour & 0x60];
+                const hour = framerate & 0x1f;
+                info = JSON.stringify({
+                  framerate,
+                  hour,
+                  min,
+                  sec,
+                  frame,
+                  subframe,
+                }).split(/,s+/);
+                break;
+              case 0x58:
+                cmd = "timesig";
+                timesigs.push({
+                  qnpm: fgetc(),
+                  beat: fgetc(),
+                  ticks: fgetc(),
+                  measure: fgetc(),
+                });
+
+                break;
+              case 0x59:
+                info.push({
+                  scale: fgetc() & 0x7f,
+                });
+                info.push({
+                  majminor: fgetc() & 0x7f,
+                });
+                cmd = "note pitch change";
+                break;
+              case 0x2f:
+                //END OF TRACK;
+                break;
+              default:
+                cmd = "unkown " + meta;
+                info.push({ "type:": meta, info: fgets(len) });
+                break;
+            }
+            // console.log("meta ", msg, cmd, info);
+            break;
+          case 0xf2:
+            return ["Song Position Pointer", read16()];
+          case 0xf1:
+            console.log("smpte:", [fgetc(), fgetc(), fgetc(), fgetc()]);
+            break;
+          case 0xf3:
+          case 0xf4:
+            console.log("icd,", fgetc());
+            break;
+          case 0xf6:
+            console.log("list tunes");
+            break;
+          case 0xf7:
+          case 0xf8:
+            console.log("timing");
+            break;
+          case 0xfa:
+            console.log("start");
+            break;
+          case 0xfb:
+            console.log("Continue");
+            break;
+          case 0xfc:
+            console.log("stop");
+            break;
+          default:
+            console.log(msg);
+            console.log("wtf");
+            break;
+        }
+      } else {
+        
+        const channel = msg & 0x0f;
+        const cmd = msg >> 4;
+        switch(cmd){
+          case 0x08:
+            return {
+              channel,
+              notesOff: fgetc(),
+              vel: fgetc()
+            }
+          case 0x09:
+            const note = fgetc();
+            const vel =  fgetc();
+            sp_hug(track.program, note, vel);
+            return {
+              channel,
+              notesOn: note,
+              vel: vel
+            }
+          case 0x0a: return [fgetc(), fgetc()];;
+          case 0x0b: return ["cc change", fgetc(), 'value', fgetc()];
+          case 0x0c: track.program = fgetc(); break;
+          case 0x0e: return ["0x0e", fgetc(), fgetc()];
+          default: return [cmd,fgetc()];
+        }
+ 
+      }
+    }
   }
   return {
-    length,
-    _offset, nextEvent, reader, t
-  }
-}).filter(v=>v!=null);
-
-
-
-function systemMsg(msg, reader) {
-  const { fgetc, btoa, readVarLength, fgets, read24 } = reader;
-  switch (msg)
-  {
-    case 0xff:
-      switch (fgetc())
-      {
-        case 0x51:
-         return{ ticksPerQuarterNote: read24()}
-          break;
-        default:
-          return fgets(readVarLength());
-      }
-      break;
-    case 0xf7:
-      return ['sysEx', fgets(readVarLength())];
-    case 0x7f:
-      return ['endSysEx', fgets(readVarLength())];
-    case 0xf2:
-      return ["Song Position Pointer", fgets(2)];
-    case 0xf1:
-      return ["smte", fgetc(), fgetc(), fgetc(), fgetc()];
-    case 0xf3:
-    case 0xf4:
-      console.log("icd,", fgetc());
-      break;
-    case 0xf6:
-      console.log("list tunes");
-      break;
-    case 0xf7:
-      console.log('endsysex');
-      return []
-    case 0xf8:
-      console.log("timing");
-      break;
-    case 0xfa:
-      console.log("start");
-      break;
-    case 0xfb:
-      console.log("Continue");
-      break;
-    case 0xfc:
-      console.log("stop");
-      break;
-    default:
-      console.log(msg);
-      break;
-  }
-  return true;
-}
-
-function channelMsg(msg, reader) {
-  const { fgetc } = reader;
-  const event = (msg >> 4);
-  const channel = event & 0x0f;
-  switch (event)
-  {
-    case 0x08:
-      return {
-        channel,
-        notesOff: fgetc(),
-        vel: fgetc()
-      }
-    case 0x09:
-      return {
-        channel,
-        notesOn: fgetc(),
-        vel: fgetc()
-      }
-    case 0x0a: return [fgetc(), fgetc()];;
-    case 0x0b: return ["cc change", fgetc(), 'value', fgetc()];
-    case 0x0c: return ['program number', fgetc()];
-    case 0x0e: return ["0x0e", fgetc(), fgetc()];
-    default: console.log("???", event); return event;
-
-
-
-  }
-}
-
-var time = -1000;
-let activeTracks=tracks;
-setInterval(() => {
-  console.log(time);
-  activeTracks=activeTracks.filter(t=>t._offset<fileLimit);
-  activeTracks.map(track => {
-    while (track.t <= time + 1000){
-      console.log(time,track._offset);
-      const e=track.nextEvent();
-      if(e===false) break;
-      console.log(e)
+    tracks,
+    tempos,
+    timesigs,
+    metainfo,
+    readAt,
+    tick:(signal)=>{
+      g_time = g_time+500;
+      console.log(g_time);
+      readAt(g_time, signal);
     }
-  });
-  time += 250;
-}, 250);
+  };
+}
+
+
+const {readAt,tick} = readMidi(readFileSync(process.argv[2]||"midi/song.mid"));
+
+
+const sp = spawn("./read_signal",{
+  stdio:['ipc','pipe','pipe']
+});
+
+sp.stderr.setEncoding("ascii");
+sp.stderr.pipe(process.stderr);
+sp.stdout.on("data",d=>console.log(d.toString()));
+sp.on("message",d=>{
+  console.log(d.toString())
+})
+sp.channel.ref()
+const  shift=11;
+
+let locked=0;
+let sp_hug=(sig)=> sp.kill(sig+shift);
+
+function send_signal(prog,note,vel){
+  if(locked) {
+    console.log(prog,note,vel,"wait lock");
+  }
+  locked=1;
+  [prog,note,vel].map(v=>v.toString(2).split("").map(b=>{
+    if(b=='0') sp_hug(0);
+    else sp_hug(1);
+  }));
+  sp_hug(16);
+  locked=0;
+}
+console.log(sp.pid);
+
+process.stdin.on("data",d=>{
+  const sign = parseInt(d.toString().trim());
+  switch(d.toString().trim()){
+    case "a": send_signal(0, 64, 100); break; //(1);break;
+    case "d": send_signal(0, 65, 80); break;
+    case "f": send_signal(0, 66, 84); break;
+
+    case "?":   console.log(sp);break;
+    case "c": tick(send_signal);break;
+    case "r":
+      setInterval(()=>{
+        tick(send_signal)
+      },250);
+      break;
+    default: break;
+  }
+})
+setInterval(()=>{
+  tick(send_signal)
+},250);
