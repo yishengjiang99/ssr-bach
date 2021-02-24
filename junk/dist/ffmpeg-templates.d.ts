@@ -1,0 +1,18 @@
+declare type GlobalClause = string;
+declare type DemuxClause = string;
+declare type FilterChainClause = string;
+declare type TXTFileContent = string;
+export declare const qclause: GlobalClause;
+export declare const stdformat: string;
+export declare const outputFFPlay: (format?: string) => string;
+export declare const outputFile: (outputFileName: any) => string;
+export declare const filter = "-filter_complex0";
+export declare const acopy: DemuxClause;
+export declare const afadeout: FilterChainClause;
+export declare const fflists: string[];
+export declare const demuxer_template: (demuxer: any, input: any) => string;
+export declare const concat = "-af concat -i playlist.txt";
+export declare const concatPlaylist: TXTFileContent;
+export declare const recordmic = "ffmpeg -re -f avfoundation -i :1 -f mpegts output.ts";
+export declare function build51(...inputs: any[]): void;
+export {};
