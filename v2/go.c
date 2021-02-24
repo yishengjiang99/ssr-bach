@@ -21,15 +21,15 @@ void render(float *output, int size);
 void _render(float *output, int size, track_t *t);
 
 EMSCRIPTEN_KEEPALIVE
-void init(void *input, int n)
+void init(int16_t *input, int n)
 {
-    data = (float *)malloc(n * sizeof(float));
-    uint16_t *shorts = (uint16_t *)(&input);
-
-    for (int i = 0; i < n; i++)
+    data = (float *)malloc(n * 4);
+    for (int i = 0; i < n - 2; i++)
     {
-        *(data + i) = *(shorts++) / 0x7fff * 1.0f;
+        data[i] = input[i] / 32767.0f;
+        //	printf("\n%d, %d %f", n, i, *(data + i));
     }
+
     tracks = (track_t *)malloc(sizeof(track_t) * polyphony);
 }
 
@@ -58,8 +58,13 @@ void render(float *output, int size)
         if (ptr->length > 0)
         {
             _render(output, size, ptr);
+            ptr->length -= size;
         }
     }
+    // for (int i = 0; i < size; i++)
+    // {
+    // //	printf("\n%f", *(output + i));
+    // }
 }
 EMSCRIPTEN_KEEPALIVE
 void _render(float *output, int size, track_t *t)
@@ -75,7 +80,7 @@ void _render(float *output, int size, track_t *t)
 
         if (i == 0)
         {
-            *(output + i) += t->lastOutput;
+            *output += t->lastOutput;
         }
         else if (i == size - 1)
         {
@@ -110,4 +115,28 @@ float hermite4(float frac_pos, float xm1, float x0, float x1, float x2)
     const float b_neg = w + a;
 
     return ((((a * frac_pos) - b_neg) * frac_pos + c) * frac_pos + x0);
+}
+
+int test()
+{
+    FILE *output;
+    int size = 31026308;
+    int start = 2426;
+    FILE *fd = fopen("./file.sf2", "r+b");
+
+    int16_t *ptr = (int16_t *)malloc(size);
+    fseek(fd, start, SEEK_CUR);
+    fread(ptr, size / 2, 2, fd);
+    init(ptr, size / 2);
+
+    noteOn(6586882, 6650289, 6619732, 6650288, 48000, 0, 2);
+    noteOn(6586882, 6650289, 6619732, 6650288, 48000, 1, 4);
+    output = popen("ffplay -i output.pcm -ac 1 -ar 30000 -f f32le", "w");
+
+    float *ff = (float *)malloc(128 * sizeof(float));
+    for (int i = 0; i < 48000; i += 128)
+    {
+        render(ff, 128);
+        fwrite(ff, sizeof(float), 128, output);
+    }
 }

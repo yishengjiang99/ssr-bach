@@ -1,4 +1,6 @@
 import assert from "assert";
+import { writeFileSync } from "fs";
+
 import { parsePDTA } from "./pdta";
 
 import { reader } from "./reader";
@@ -26,6 +28,7 @@ export function sffile(path: string) {
       sections.sdta = {
         offset: r.getOffset(),
         data: r.readN(sectionSize),
+        sectionSize,
       };
     } else {
       r.skip(sectionSize);
@@ -42,7 +45,12 @@ export function sffile(path: string) {
      * @param key
      * @param vel
      */
-    getSample: function (bankId: number, presetId: number, key: number, vel: number): Zone | null {
+    getSample: function (
+      bankId: number,
+      presetId: number,
+      key: number,
+      vel: number
+    ): Zone | null {
       if (
         !sections.pdta.data[bankId] ||
         !sections.pdta.data[bankId][presetId] ||
@@ -65,7 +73,25 @@ export function sffile(path: string) {
           aggreDiff = diff;
         }
       }
+
       return candidate;
     },
   };
 }
+const fff = sffile("./file.sf2");
+
+const zone = fff.getSample(0, 0, 55, 33);
+if (zone?.sample) {
+  console.log(zone.sample);
+  const sample = fff.sdta.data.slice(zone.sample.start * 2, zone.sample.end * 2);
+  writeFileSync("here.pcm", sample);
+
+  // const output = Buffer.alloc(48000 * 2);
+  // for (let i = 0; i < 48000; i++) {
+  //   const offset = zone.sample.start + i * 2;
+  //   const number = fff.sdta.data.readInt16LE(offset);
+  //   output.writeFloatLE(s16tof32(number), i * 4);
+  // }
+  // writeFileSync("here.pcm", output);
+}
+console.log(fff.sdta);

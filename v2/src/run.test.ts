@@ -4,7 +4,6 @@ import { Zone } from "./sf.types";
 import { ffp } from "./ffp";
 
 const { sdta, getSample } = sffile("./file.sf2");
-
 initGo(sdta.data, sdta.sectionSize / 2)
   .then(({ noteOn, render }) => {
     const zone: Zone = getSample(0, 0, 44, 33);
