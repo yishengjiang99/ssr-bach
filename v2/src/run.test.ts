@@ -1,7 +1,6 @@
 import { initGo } from "./run";
 import { sffile } from "./sffile";
 import { Zone } from "./sf.types";
-import { ffp } from "./ffp";
 
 const { sdta, getSample } = sffile("./file.sf2");
 initGo(sdta.data, sdta.sectionSize / 2)
@@ -10,9 +9,12 @@ initGo(sdta.data, sdta.sectionSize / 2)
 
     const { start, end, startLoop, endLoop, originalPitch, sampleRate } = zone.sample;
     const ratio = (Math.pow(2, (originalPitch - 44) / 12) * sampleRate) / 48000;
-    noteOn(start, end, startLoop, endLoop, originalPitch, 0, ratio);
-    const buffer = render(48000);
-    ffp({ ac: 1, format: "f32le", ar: 48000 }).write(buffer);
+    noteOn(start, end, startLoop, endLoop, 48000, 0, ratio);
+    // const output = ffp({ ac: 1, format: "f32le", ar: 48000 });
+    for (let i = 0; i < 48000; i += 128) {
+      process.stdout.write(render(128));
+    }
+    //ffp({ ac: 1, format: "f32le", ar: 48000 }).write(buffer);
   })
   .catch((e) => {
     console.error(e);

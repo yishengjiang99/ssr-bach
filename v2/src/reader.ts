@@ -11,6 +11,7 @@ export type Reader = {
   setOffset: (n: number) => void;
   readN: (n: number) => Buffer;
   readNString: (n: number) => string;
+  readVarLength: () => number;
 };
 export function reader(path: string): Reader {
   let offset: number = 0;
@@ -18,8 +19,8 @@ export function reader(path: string): Reader {
   const fd = openSync(path, "r");
 
   const getc = function (): number {
-    const buffer: Buffer = Buffer.alloc(4);
-    readSync(fd, buffer, 0, 4, offset);
+    const buffer: Buffer = Buffer.alloc(1);
+    readSync(fd, buffer, 0, 1, offset);
     offset++;
     return buffer.readUInt8();
   };
@@ -30,8 +31,8 @@ export function reader(path: string): Reader {
     return get8() | (get8() << 8);
   };
   const get32 = function (): number {
-    const buffer: Buffer = Buffer.alloc(16);
-    readSync(fd, buffer, 0, 16, offset);
+    const buffer: Buffer = Buffer.alloc(8);
+    readSync(fd, buffer, 0, 8, offset);
     offset += 4;
     return buffer.readUInt32LE(0);
   };
@@ -69,6 +70,16 @@ export function reader(path: string): Reader {
     offset += n;
     return buffer.toString("ascii", 0, buffer.indexOf(0x00));
   }
+  function readVarLength() {
+    let v = 0;
+    let n = get8();
+    v = n & 0x7f;
+    while (n & 0x80) {
+      n = get8();
+      v = (v << 7) | (n & 0x7f);
+    }
+    return v;
+  }
   return {
     getc,
     get8,
@@ -81,5 +92,6 @@ export function reader(path: string): Reader {
     setOffset,
     readN,
     readNString,
+    readVarLength,
   };
 }

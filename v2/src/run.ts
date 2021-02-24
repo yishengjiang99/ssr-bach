@@ -1,5 +1,4 @@
-import assert from "assert";
-
+const assert = require("assert");
 let Module = require("../go.js");
 
 export async function initGo(buffer: Buffer, n: number) {
@@ -8,6 +7,8 @@ export async function initGo(buffer: Buffer, n: number) {
   });
   assert(buffer.byteLength / 2 >= n);
   assert(Module._malloc !== null);
+  const g = Module._malloc(n * 2);
+  Module.HEAPU8.set(buffer, g);
   Module._init(buffer, n);
   return {
     /**
@@ -40,7 +41,7 @@ export async function initGo(buffer: Buffer, n: number) {
       Module._render(ptr, size);
       const r = new Float32Array(Module.HEAPF32.buffer, ptr, size);
       Module._free(ptr);
-      return r;
+      return Buffer.from(r.buffer);
     },
   };
 }
