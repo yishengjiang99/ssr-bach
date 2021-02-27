@@ -1,5 +1,3 @@
-import { spawn } from "child_process";
-import { readFileSync } from "fs";
 export function readMidi(buffer: Buffer) {
   let offset = 0;
   function bufferReader(buffer: Buffer) {
@@ -51,20 +49,18 @@ export function readMidi(buffer: Buffer) {
     const mhrk = [btoa(), btoa(), btoa(), btoa()].join("");
     let mhrkLength = read32();
     const endofTrack = offset + mhrkLength;
-    tracks.push({endofTrack,offset,time:0, program:0});
+    tracks.push({ endofTrack, offset, time: 0, program: 0 });
     offset = endofTrack;
   }
 
-
-
-  function readAt(g_time, sp_hug){
-    for(const track of tracks){
+  function readAt(g_time, cb) {
+    for (const track of tracks) {
       offset = track.offset;
-      while(track.time <= g_time && offset<track.endofTrack){
+      while (track.time <= g_time && offset < track.endofTrack) {
         track.time += readVarLength();
         const event = readMessage(track);
       }
-      track.offset=offset;
+      track.offset = offset;
     }
     function readMessage(track) {
       const msg = fgetc();
@@ -178,32 +174,36 @@ export function readMidi(buffer: Buffer) {
             break;
         }
       } else {
-        
         const channel = msg & 0x0f;
         const cmd = msg >> 4;
-        switch(cmd){
+        switch (cmd) {
           case 0x08:
             return {
               channel,
               notesOff: fgetc(),
-              vel: fgetc()
-            }
+              vel: fgetc(),
+            };
           case 0x09:
             const note = fgetc();
-            const vel =  fgetc();
-            sp_hug(track.program, note, vel);
+            const vel = fgetc();
+            cb(track.program, note, vel);
             return {
               channel,
               notesOn: note,
-              vel: vel
-            }
-          case 0x0a: return [fgetc(), fgetc()];;
-          case 0x0b: return ["cc change", fgetc(), 'value', fgetc()];
-          case 0x0c: track.program = fgetc(); break;
-          case 0x0e: return ["0x0e", fgetc(), fgetc()];
-          default: return [cmd,fgetc()];
+              vel: vel,
+            };
+          case 0x0a:
+            return [fgetc(), fgetc()];
+          case 0x0b:
+            return ["cc change", fgetc(), "value", fgetc()];
+          case 0x0c:
+            track.program = fgetc();
+            break;
+          case 0x0e:
+            return ["0x0e", fgetc(), fgetc()];
+          default:
+            return [cmd, fgetc()];
         }
- 
       }
     }
   }
@@ -213,14 +213,12 @@ export function readMidi(buffer: Buffer) {
     timesigs,
     metainfo,
     readAt,
-    tick:(signal)=>{
-      g_time = g_time+500;
-      console.log(g_time);
-      readAt(g_time, signal);
-    }
+    tick: (cb) => {
+      g_time = g_time + 500;
+      readAt(g_time, cb);
+    },
   };
 }
-
 
 // const sp = spawn("./read_signal",{
 //   stdio:['ipc','pipe','pipe']

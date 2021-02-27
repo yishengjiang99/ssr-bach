@@ -65,6 +65,7 @@ extern "C"
 	// On error the tsf_load* functions will return NULL most likely due to invalid
 	// data (or if the file did not exist in tsf_load_filename).
 	typedef struct tsf tsf;
+#define TSF_IMPLEMENTATION
 
 #ifndef TSF_NO_STDIO
 	// Directly load a SoundFont from a .sf2 file path
@@ -1153,12 +1154,11 @@ extern "C"
 
 			// Convert from signed 16-bit to float.
 			for (samplesToConvert = samplesToRead; samplesToConvert > 0; --samplesToConvert)
-				// If we ever need to compile for big-endian platforms, we'll need to byte-swap here.
-				{
-				
-					*out++ = (float)(*in++ / 32767.0);
-				
-				}
+			// If we ever need to compile for big-endian platforms, we'll need to byte-swap here.
+			{
+
+				*out++ = (float)(*in++ / 32767.0);
+			}
 		}
 	}
 
@@ -2281,3 +2281,7 @@ extern "C"
 #endif
 
 #endif //TSF_IMPLEMENTATION
+int main()
+{
+	tsf_load_filename("./file.sf2");
+}

@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.readMidi = void 0;
+
 function readMidi(buffer) {
     let offset = 0;
+
     function bufferReader(buffer) {
         const bl = buffer.byteLength;
         const dv = new DataView(buffer.buffer);
@@ -33,6 +35,9 @@ function readMidi(buffer) {
             fgetnc,
             readVarLength,
             fgets,
+            append: (buffer) => {
+
+            }
         };
     }
     const reader = bufferReader(buffer);
@@ -55,7 +60,8 @@ function readMidi(buffer) {
         tracks.push({ endofTrack, offset, time: 0, program: 0 });
         offset = endofTrack;
     }
-    function readAt(g_time, sp_hug) {
+
+    function readAt(g_time, cb) {
         for (const track of tracks) {
             offset = track.offset;
             while (track.time <= g_time && offset < track.endofTrack) {
@@ -64,6 +70,7 @@ function readMidi(buffer) {
             }
             track.offset = offset;
         }
+
         function readMessage(track) {
             const msg = fgetc();
             if (!msg)
@@ -173,8 +180,7 @@ function readMidi(buffer) {
                         console.log("wtf");
                         break;
                 }
-            }
-            else {
+            } else {
                 const channel = msg & 0x0f;
                 const cmd = msg >> 4;
                 switch (cmd) {
@@ -194,14 +200,16 @@ function readMidi(buffer) {
                             vel: vel
                         };
                     case 0x0a:
-                        return [fgetc(), fgetc()];
-                        ;
-                    case 0x0b: return ["cc change", fgetc(), 'value', fgetc()];
+                        return [fgetc(), fgetc()];;
+                    case 0x0b:
+                        return ["cc change", fgetc(), 'value', fgetc()];
                     case 0x0c:
                         track.program = fgetc();
                         break;
-                    case 0x0e: return ["0x0e", fgetc(), fgetc()];
-                    default: return [cmd, fgetc()];
+                    case 0x0e:
+                        return ["0x0e", fgetc(), fgetc()];
+                    default:
+                        return [cmd, fgetc()];
                 }
             }
         }
