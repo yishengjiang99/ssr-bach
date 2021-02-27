@@ -4,8 +4,7 @@ import { reader } from "./reader";
 import { s16tof32 } from "./s16tof32";
 import { Channel, FindPresetProps, generatorNames, generators, RIFFSFBK, Zone } from "./sf.types";
 import assert from "assert";
-import { ffp } from "./ffp";
-import { createWriteStream } from "fs";
+import { compression, Envelope } from "ssr-cxt";
 
 const defaultBlockLength = 128;
 
@@ -58,7 +57,8 @@ export class SF2File {
     for (const z of presetZones) {
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
       if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
-      const diff = vel - z.velRange.lo;
+
+      const diff = vel - z.velRange.lo + (z.sample.originalPitch > key ? 30 : 0) + (z.sample.originalPitch - key) * 10;
       candidate = candidate || z;
       aggreDiff = aggreDiff || diff;
       if (diff < aggreDiff) {
@@ -72,12 +72,18 @@ export class SF2File {
     const preset = this.findPreset({ bankId, presetId, key, vel });
     //if (channelId != 2) return;
     const length = ~~(duration * 48000);
+    const [delay, a, hold, d, r, s] = preset.adsr;
+    const envelope = new Envelope(48000, [a, d, s, r]);
+
     this.channels[channelId] = {
       smpl: preset.sample,
       length: length,
-      ratio: (Math.pow(2, ((key - preset.sample.originalPitch) * 1000) / 12000) * preset.sample.sampleRate) / 48000,
+      ratio: (Math.pow(2, (key - preset.sample.originalPitch) / 12) * preset.sample.sampleRate) / 48000,
       iterator: preset.sample.start,
+      lowPassFilter: lpf()
+      envelope,
     };
+    return this.channels[channelId];
   }
 
   _render(channel: Channel, outputArr: Buffer, blockLength = defaultBlockLength) {
@@ -88,15 +94,15 @@ export class SF2File {
     let iterator = channel.iterator || channel.smpl.start;
     for (let offset = 0; offset < blockLength; offset++) {
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT;
-      const fade = channel.length > 0 ? 1 : 1 / (1 + channel.length);
+      const fade = channel.length > 0 ? 1 : 1 - (-1 * channel.length * channel.envelope.tau) / 48000; //note is releasing and fading
+      const currentVal = outputArr.readFloatLE(outputByteOffset);
 
       const val = input.readInt16LE(iterator * Int16Array.BYTES_PER_ELEMENT) * fade;
-      let valFloat = val / 0x7fff;
-      if (valFloat > 0.9) valFloat = 0.9 + (valFloat - 0.9) / 5;
-      if (valFloat > 0.9999) valFloat = 0.9999;
+      const valFloat = (val / 0x7fff) * channel.envelope.shift();
 
-      const currentVal = outputArr.readFloatLE(outputByteOffset);
-      outputArr.writeFloatLE(currentVal + valFloat, outputByteOffset);
+      const sum = compression(currentVal + valFloat, 0.6, 3, 0.8);
+
+      outputArr.writeFloatLE(sum, outputByteOffset);
       shift += channel.ratio;
       while (shift >= 1) {
         iterator++;
@@ -117,15 +123,14 @@ export class SF2File {
       this._render(c, output, blockSize);
       c.length -= blockSize;
     });
-    console.log(this.channels.length);
     return output;
   }
 }
 
-const gg = new SF2File("file.sf2");
-let pz = gg.findPreset({ bankId: 0, presetId: 3, vel: 55, key: 44 });
-console.log(pz, pz.attributes);
-for (let vel = 30; vel < 55; vel++) {
-  pz = gg.findPreset({ bankId: 0, presetId: 3, vel: vel, key: 44 });
-  console.log(pz.attributes);
-}
+// const gg = new SF2File("file.sf2");
+// let pz = gg.findPreset({ bankId: 0, presetId: 3, vel: 55, key: 44 });
+// console.log(pz, pz.attributes);
+// for (let vel = 30; vel < 55; vel++) {
+//   pz = gg.findPreset({ bankId: 0, presetId: 3, vel: vel, key: 44 });
+//   console.log(pz.attributes);
+// }

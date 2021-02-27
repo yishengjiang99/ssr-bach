@@ -8,7 +8,7 @@ export async function playMidi(output: Writable, midiFile: string, sf2file: stri
 
   const readDone = loadMidi(midiFile, async function (notes) {
     for (const { note, track } of notes) {
-      sf.keyOn(
+      const info = sf.keyOn(
         {
           bankId: track.instrument.percussion ? 128 : 0,
           presetId: track.instrument.number,
@@ -18,6 +18,7 @@ export async function playMidi(output: Writable, midiFile: string, sf2file: stri
         note.duration,
         track.channel
       );
+      // const { sample, attributes, adsr } = info;
     }
     await new Promise((resolve) => {
       setTimeout(resolve, 2.5);
@@ -40,4 +41,10 @@ export async function playMidi(output: Writable, midiFile: string, sf2file: stri
     });
 }
 
-playMidi(ffp({ ac: 1, ar: 48000 }), process.argv[2] || "song.mid");
+require("http")
+  .createServer((req, res) => {
+    playMidi(res, process.argv[2] || "song.mid");
+  })
+  .listen(3000);
+
+//playMidi(process.stdout, process.argv[2] || "song.mid");

@@ -13,6 +13,7 @@ import {
   Zone,
 } from "./sf.types";
 import { Reader } from "./reader";
+import { Envelope } from "ssr-cxt";
 const sampleId_gen = 53;
 
 const velRangeGeneratorId = 44;
@@ -26,7 +27,6 @@ const pbagLength = 4;
 const pgenLength = 4;
 const pmodLength = 10;
 const instLength = 22;
-const adsrDefaults = [-12000, -12000, 1000, -12000];
 export function parsePDTA(r: Reader): Preset[][] {
   //const sections: Map<string, any> = new Map<string, any>();
   let n = 0;
@@ -151,8 +151,9 @@ export function parsePDTA(r: Reader): Preset[][] {
         pgenMap[_pgen.operator] = _pgen;
       }
       const pbagZone = makeZone(pgenMap, shdr);
-      if (pbagZone.sample) preset.zones.push(pbagZone);
-
+      if (pgenMap[generators.sampleID]) {
+        if (pbagZone.sample) preset.zones.push(pbagZone);
+      }
       if (pgenMap[instrumentGenerator]) {
         const instId = pgenMap[instrumentGenerator]!.amount;
         const instHeader = inst[instId];
@@ -167,8 +168,10 @@ export function parsePDTA(r: Reader): Preset[][] {
             const _igen = igen[igenIndex];
             igenMap[_igen.operator] = _igen;
           }
-          const izone = makeZone(igenMap, shdr, pbagZone);
-          preset.zones.push(izone);
+          if (igenMap[generators.sampleID] && shdr[igenMap[generators.sampleID].amount]) {
+            const izone = makeZone(igenMap, shdr, pbagZone);
+            preset.zones.push(izone);
+          }
         }
       }
     }
@@ -188,18 +191,33 @@ function makeZone(pgenMap: Generator[], shdr: Shdr[], baseZone?: Zone): Zone {
         lo: 0,
         hi: 127,
       },
-    adsr: adsrParams.map(
-      (param, idx) => pgenMap[param]?.amount || baseZone?.generators[param]?.amount || adsrDefaults[idx]
-    ),
+    adsr: adsrParams // [delay, attack, hold, release, sustain]
+      .map((param, idx) => pgenMap[param]?.signed || baseZone?.generators[param]?.signed || -12000.0)
+      .map((val, idx) => (val <= -11950 ? 0 : Math.pow(2, val / 1200)))
+      .concat(Math.log10(pgenMap[generators.sustainVolEnv]?.amount || (1000 / 10) * 0.05)),
     parent: baseZone,
     sample: shdr[pgenMap[sampleId_gen]?.amount] || null,
-    generators: pgenMap,
+    get generators() {
+      return pgenMap;
+    },
+    get lowPassFilter() {
+      return {
+        centerFreq:
+          pgenMap[generators.initialFilterFc]?.signed || baseZone.generators[generators.initialFilterFc]?.signed,
+        q: pgenMap[generators.initialFilterQ]?.signed || baseZone.generators[generators.initialFilterQ]?.signed,
+      };
+    },
+
+    rootKey: pgenMap[generators.overridingRootKey]?.amount || shdr[pgenMap[sampleId_gen]?.amount]?.originalPitch || 69, //should raelly not have default,
+    attentuation:
+      baseZone && baseZone.attentuation
+        ? baseZone.attentuation - pgenMap[generators.initialAttenuation]?.signed
+        : pgenMap[generators.initialAttenuation]?.signed,
     get attributes() {
       return parseAttributes(pgenMap, baseZone?.attributes);
     },
   };
 }
-
 function parseAttributes(pgenMap: Generator[], baseValues): {} {
   return pgenMap.reduce((gmap, g) => {
     if (!g) return gmap;

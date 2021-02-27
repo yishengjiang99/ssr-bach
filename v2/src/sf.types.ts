@@ -1,3 +1,5 @@
+import { Envelope } from "ssr-cxt";
+
 export type FindPresetProps = {
   bankId: number;
   presetId: number;
@@ -10,6 +12,8 @@ export type Channel = {
   length: number;
   ratio: number;
   iterator: number;
+  envelope: Envelope;
+  ztransform?: (input: number) => number;
 };
 export type RIFFSFBK = {
   pdta?: {
@@ -61,6 +65,12 @@ export type Zone = {
   generators?: Generator[];
   attributes?: {};
   parent?: Zone;
+  rootKey?: number;
+  lowPassFilter?: {
+    centerFreq: number;
+    q: number;
+  };
+  attentuation?: number;
 };
 export type Preset = Phdr & {
   zones?: Zone[];
@@ -196,9 +206,10 @@ export enum generators {
 }
 
 export const adsrParams: number[] = [
+  generators.delayVolEnv,
   generators.attackVolEnv,
-  generators.decayVolEnv,
   generators.holdVolEnv,
+  generators.decayVolEnv,
   generators.releaseVolEnv,
 ];
 const {
