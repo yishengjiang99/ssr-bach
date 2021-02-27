@@ -1,20 +1,33 @@
-import { Phdr, Pbag, Generator, Mod, InstrHeader, IBag, Shdr, Preset, adsrParams } from "./sf.types";
+import {
+  Phdr,
+  Pbag,
+  Generator,
+  Mod,
+  InstrHeader,
+  IBag,
+  Shdr,
+  Preset,
+  adsrParams,
+  generatorNames,
+  generators,
+  Zone,
+} from "./sf.types";
 import { Reader } from "./reader";
+const sampleId_gen = 53;
 
-export function parsePDTA(r: Reader) {
-  const sampleId_gen = 53;
-  const velRangeGeneratorId = 44;
-  const keyRangeGeneratorId = 43;
-  const instrumentGenerator = 41;
-  const ShdrLength = 46;
-  const ibagLength = 4;
-  const imodLength = 10;
-  const phdrLength = 38;
-  const pbagLength = 4;
-  const pgenLength = 4;
-  const pmodLength = 10;
-  const instLength = 22;
-  const adsrDefaults = [-12000, -12000, 1000, -12000];
+const velRangeGeneratorId = 44;
+const keyRangeGeneratorId = 43;
+const instrumentGenerator = 41;
+const ShdrLength = 46;
+const ibagLength = 4;
+const imodLength = 10;
+const phdrLength = 38;
+const pbagLength = 4;
+const pgenLength = 4;
+const pmodLength = 10;
+const instLength = 22;
+const adsrDefaults = [-12000, -12000, 1000, -12000];
+export function parsePDTA(r: Reader): Preset[][] {
   //const sections: Map<string, any> = new Map<string, any>();
   let n = 0;
   const pheaders: Phdr[] = [],
@@ -52,6 +65,7 @@ export function parsePDTA(r: Reader) {
             operator,
             range: { lo, hi },
             amount: lo | (hi << 8),
+            signed: hi & 0x80 ? -0x10000 + (lo | (hi << 8)) : lo | (hi << 8),
           });
         }
         break;
@@ -82,6 +96,7 @@ export function parsePDTA(r: Reader) {
             operator,
             range: { lo, hi },
             amount: lo | (hi << 8),
+            signed: hi & 0x80 ? -0x10000 + (lo | (hi << 8)) : lo | (hi << 8),
           });
         }
         break;
@@ -135,17 +150,9 @@ export function parsePDTA(r: Reader) {
         const _pgen = pgen[pgenIndex];
         pgenMap[_pgen.operator] = _pgen;
       }
+      const pbagZone = makeZone(pgenMap, shdr);
+      if (pbagZone.sample) preset.zones.push(pbagZone);
 
-      const presetVelRange = pgenMap[velRangeGeneratorId]?.range || { lo: 0, hi: 127 };
-      const presetKeyRange = pgenMap[keyRangeGeneratorId]?.range || { lo: 0, hi: 127 };
-      if (pgenMap[sampleId_gen] && shdr[pgenMap[sampleId_gen]!.amount]) {
-        preset.zones!.push({
-          velRange: presetVelRange,
-          keyRange: presetKeyRange,
-          sample: shdr[pgenMap[sampleId_gen].amount],
-          adsr: adsrParams.map((param, idx) => pgenMap[param]?.amount || adsrDefaults[idx]),
-        });
-      }
       if (pgenMap[instrumentGenerator]) {
         const instId = pgenMap[instrumentGenerator]!.amount;
         const instHeader = inst[instId];
@@ -160,17 +167,8 @@ export function parsePDTA(r: Reader) {
             const _igen = igen[igenIndex];
             igenMap[_igen.operator] = _igen;
           }
-          const instrKeyRange = igenMap[keyRangeGeneratorId]?.range || presetKeyRange;
-          const insttVelRange = igenMap[velRangeGeneratorId]?.range || presetVelRange;
-
-          if (igenMap[sampleId_gen] && shdr[igenMap[sampleId_gen]!.amount]) {
-            preset.zones!.push({
-              velRange: insttVelRange,
-              keyRange: instrKeyRange,
-              sample: shdr[igenMap[sampleId_gen]!.amount],
-              adsr: adsrParams.map((param, idx) => pgenMap[param]?.amount || adsrDefaults[idx]),
-            });
-          }
+          const izone = makeZone(igenMap, shdr, pbagZone);
+          preset.zones.push(izone);
         }
       }
     }
@@ -178,6 +176,65 @@ export function parsePDTA(r: Reader) {
   }
   return presets;
 }
+function makeZone(pgenMap: Generator[], shdr: Shdr[], baseZone?: Zone): Zone {
+  return {
+    velRange: pgenMap[velRangeGeneratorId]?.range ||
+      baseZone?.velRange || {
+        lo: 0,
+        hi: 127,
+      },
+    keyRange: pgenMap[keyRangeGeneratorId]?.range ||
+      baseZone?.keyRange || {
+        lo: 0,
+        hi: 127,
+      },
+    adsr: adsrParams.map(
+      (param, idx) => pgenMap[param]?.amount || baseZone?.generators[param]?.amount || adsrDefaults[idx]
+    ),
+    parent: baseZone,
+    sample: shdr[pgenMap[sampleId_gen]?.amount] || null,
+    generators: pgenMap,
+    get attributes() {
+      return parseAttributes(pgenMap, baseZone?.attributes);
+    },
+  };
+}
+
+function parseAttributes(pgenMap: Generator[], baseValues): {} {
+  return pgenMap.reduce((gmap, g) => {
+    if (!g) return gmap;
+    switch (g.operator) {
+      case generators.initialFilterFc:
+      case generators.initialAttenuation:
+      case generators.initialFilterQ:
+        gmap[generatorNames[g.operator]] = g.signed;
+        break;
+      case generators.velRange:
+      case generators.keyRange:
+        gmap[generatorNames[g.operator]] = g.range;
+        break;
+      case generators.startAddrsOffset:
+      case generators.endAddrsOffset:
+      case generators.startAddrsOffset:
+      case generators.endloopAddrsOffset:
+      case generators.fineTune:
+        gmap[generatorNames[g.operator]] ||= 0;
+        gmap[generatorNames[g.operator]] += g.signed;
+        break;
+      case generators.startAddrsCoarseOffset:
+      case generators.endAddrsCoarseOffset:
+      case generators.coarseTune:
+        gmap[generatorNames[g.operator]] ||= 0;
+        gmap[generatorNames[g.operator]] += g.signed << 15;
+        break;
+      default:
+        gmap[generatorNames[g.operator]] = g.signed;
+        break;
+    }
+    return gmap;
+  }, baseValues || {});
+}
+
 function nextPhdr(r: Reader, pheaders: Phdr[]) {
   const phdrItem = {
     name: r.readNString(20),

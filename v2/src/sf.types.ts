@@ -1,9 +1,44 @@
+export type FindPresetProps = {
+  bankId: number;
+  presetId: number;
+  key: number;
+  vel: number;
+};
+
+export type Channel = {
+  smpl: Shdr;
+  length: number;
+  ratio: number;
+  iterator: number;
+};
+export type RIFFSFBK = {
+  pdta?: {
+    offset: number;
+    data: Preset[][];
+  };
+  sdta?: {
+    offset: number;
+    data: Buffer;
+    size: number;
+  };
+};
 export type Range = { lo: number; hi: number };
-export type Phdr = { name: string; presetId: number; bankId: number; pbagIndex: number };
-export type Generator = { operator: number; range: Range; amount: number };
+export type Phdr = {
+  name: string;
+  presetId: number;
+  bankId: number;
+  pbagIndex: number;
+};
+export type Generator = { operator: number; range: Range; amount: number; signed?: number };
 export type Pbag = { pgen_id: number; pmod_id: number };
 export type IBag = { igen_id: number; imod_id: number };
-export type Mod = { src: number; dest: number; amt: number; amtSrc: number; transpose: number };
+export type Mod = {
+  src: number;
+  dest: number;
+  amt: number;
+  amtSrc: number;
+  transpose: number;
+};
 export type InstrHeader = { name: string; iBagIndex: number };
 export type Shdr = {
   name: string;
@@ -22,6 +57,10 @@ export type Zone = {
   keyRange: Range;
   sample: Shdr;
   adsr: number[];
+  sampleOffsets?: number[];
+  generators?: Generator[];
+  attributes?: {};
+  parent?: Zone;
 };
 export type Preset = Phdr & {
   zones?: Zone[];
@@ -162,3 +201,27 @@ export const adsrParams: number[] = [
   generators.holdVolEnv,
   generators.releaseVolEnv,
 ];
+const {
+  startAddrsOffset,
+  endAddrsOffset,
+  startloopAddrsOffset,
+  endloopAddrsOffset,
+  startAddrsCoarseOffset,
+} = generators;
+
+export const attributeGenerators = {
+  sampleOffsets: [startAddrsOffset, endAddrsOffset, startloopAddrsOffset, endloopAddrsOffset, startAddrsCoarseOffset],
+};
+
+export enum generatorTypes {
+  _GEN_TYPE_MASK = 0x0f,
+  GEN_FLOAT = 0x01,
+  GEN_INT = 0x02,
+  GEN_UINT_ADD = 0x03,
+  GEN_UINT_ADD15 = 0x04,
+  GEN_KEYRANGE = 0x05,
+  GEN_VELRANGE = 0x06,
+  GEN_LOOPMODE = 0x07,
+  GEN_GROUP = 0x08,
+  GEN_KEYCENTER = 0x09,
+}

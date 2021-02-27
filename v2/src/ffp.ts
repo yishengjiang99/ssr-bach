@@ -12,6 +12,9 @@ export const ffp = (props?: FfpProps) => {
     "-ar",
     `${ar || "48k"} `,
   ]);
+  stdout.on("error", (e) => {
+    console.log(e);
+  });
   stderr.pipe(process.stderr);
   stdout.pipe(process.stderr);
   return stdin;
