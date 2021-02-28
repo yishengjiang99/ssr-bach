@@ -1,68 +1,36 @@
 import { SF2File } from "./sffile";
 import { loadMidi } from "./load-midi";
-import { Writable } from "stream";
-import { ffp } from "./ffp";
-import { execSync } from "child_process";
-import { createWriteStream } from "fs";
+import { PassThrough, Writable } from "stream";
+
 import { cspawn } from "./cspawn";
-export async function playMidi(output: Writable, midiFile: string, sf2file: string = "./file.sf2"): Promise<void> {
-  const sf = new SF2File(sf2file, 24000);
+import { ffp } from "./ffp";
+const ffpath = require("path").resolve(__dirname, "../ffplay");
 
-  const readDone = loadMidi(midiFile, async function (notes) {
-    for (const { note, track } of notes) {
-      const info = sf.keyOn(
-        {
-          bankId: track.instrument.percussion ? 128 : 0,
-          presetId: track.instrument.number,
-          key: note.midi,
-          vel: note.velocity * 0x7f,
-        },
-        note.duration,
-        track.channel
-      );
-      // const { sample, attributes, adsr } = info;
-    }
-    await new Promise((resolve) => {
-      setTimeout(resolve, 2.5);
-    });
-    return 0.0025;
-  });
+function go() {
+  const pt = new PassThrough();
+  loadMidi(process.argv[2] || "./song.mid", new SF2File(process.argv[3] || "file.sf2", 24000), pt, 24000).loop();
+  //process.nextTick(() => cspawn(`od -f`, [pt, process.stdout, process.stderr]));
 
-  const fps = 24000 / 128;
-  const timer = setInterval(() => {
-    const res = sf.render(128);
-    output.write(res);
-  }, 1000 / fps);
+  process.nextTick(() => cspawn(`${ffpath} -i pipe:0 -ac 1 -ar 24000 -f f32le`, [pt, process.stdout, process.stderr]));
+}
+function mike_check() {
+  const sf = new SF2File(process.argv[3] || "file.sf2", 24000);
 
-  readDone
-    .then(() => {
-      clearInterval(timer);
-      output.end();
-    })
-    .catch((e) => {
-      console.error(e);
-    });
+  const pt = new PassThrough();
+
+  (async () => {
+    Object.values(sf.sections.pdta.data).map((b) =>
+      Object.values(b).map((p) =>
+        p.zones.map((z) => {
+          pt.write(sf.sections.sdta.data.slice(z.sample.startLoop * 4, z.sample.endLoop * 4));
+        })
+      )
+    );
+  })();
+
+  //pt.on("data", (d) => console.log(d));
+  process.nextTick(() => cspawn(`${ffpath} -i pipe:0 -ac 1 -ar 24000 -f f32le`, [pt, process.stdout, process.stderr]));
 }
 
-// require("http")
-//   .createServer((req, res) => {
-//     let m = req.url.match(/\/(\d+).wav/);
-//     if (m && m[1]) {
-//       res.writeHead(200, { "content-type": "sound/wav" });
-//       cspawn(`nc localhost -p ${m[1]}`).stdout.pipe(res);
-//       return;
-//     }
-//     const session = "8442";
-
-//     res.writeHead(200, { "content-type": "text/html" });
-//     res.write(`<html><body><audio controls src='${session}.wav'>go</audio></body></html>`);
-
-//     const sp1 = cspawn(`ffmpeg -f f32le -ac 1 -ar 24k -i pipe:0 -f WAV tcp://localhost:85555`);
-//     // const sp2 = cspawn(`nc -l ${session}`);
-//     // sp1.stdout.pipe(sp2.stdin);
-//     playMidi(sp1.stdin, process.argv[2] || "song.mid");
-//     res.end();
-//   })
-//   .listen(3000);
-
-playMidi(cspawn(`ffplay -i pipe:0 -ac 1 -ar 24k -f f32le`).stdin, process.argv[2] || "song.mid");
+///mike_check();
+go(); //

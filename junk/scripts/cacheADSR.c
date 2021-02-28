@@ -1,43 +1,24 @@
 
 #define TSF_IMPLEMENTATION
+#define TSF_RENDER_EFFECTSAMPLEBLOCK 1
+
 #include "tsf.h"
 #include <stdlib.h>
 
 static tsf *g_TinySoundFont;
 int main(int argc, char **argv)
 {
+#define TSF_RENDER_EFFECTSAMPLEBLOCK 10000
 
 	// if (argc < 5)
 	// 	return 1;
 	struct tsf_envelope env;
 	struct tsf_region r;
-	g_TinySoundFont = tsf_load_filename("./FluidR3_GM.sf2");
-	FILE *adsr = fopen("./adsr.csv", "a");
-	tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, 48000, 0);
-	for (int i = 0; i < 127; i++)
-	{
-		for (int j = 0; j < g_TinySoundFont->presets[i].regionNum; j++)
-		{
-			r = g_TinySoundFont->presets[i].regions[j];
-			env = r.ampenv;
-
-			fprintf(adsr, "\n%d, [%d, %d], [%d,%d], [%f, %f, %f,%f, %f]", i, r.lokey, r.hikey, r.lovel, r.hivel, env.attack, env.hold, env.decay, env.sustain, env.release); //, keynumToHold, keynumToDecay)
-
-			//	printf("\n%d_5: [%f, %f, %f, %f]", i, env.attack, env.hold, env.decay, env.sustain, env.release); //, keynumToHold, keynumToDecay)
-		}
-	}
-
-	FILE *bitma = fopen("./bitmap.csv", "a");
-	for (int i = 0; i < 127; i++)
-	{
-		for (int j = 0; j < g_TinySoundFont->presets[i].regionNum; j++)
-		{
-			r = g_TinySoundFont->presets[i].regions[j];
-			env = r.ampenv;
-
-			fprintf(bitma, "\n%d, %d, %d, %d,%d, %d, %d, %d, %d", i, r.lokey, r.hikey, r.lovel, r.hivel, r.offset, r.end, r.loop_start, r.loop_end); //, keynumToHold, keynumToDecay)
-
-			//	printf("\n%d_5: [%f, %f, %f, %f]", i, env.attack, env.hold, env.decay, env.sustain, env.release); //, keynumToHold, keynumToDecay)
-		}
-	}
+	g_TinySoundFont = tsf_load_filename("./file.sf2");
+	tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, 49000, 0);
+	//struct tsf_region r = g_TinySoundFont->presets[0].regions[0];
+	tsf_note_on(g_TinySoundFont, 22, 44, .44);
+	float ob[49000];
+	tsf_render_float(g_TinySoundFont, ob, 49000 / 2, 0);
+	return 1;
 }

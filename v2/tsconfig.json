@@ -16,5 +16,5 @@
   "include": [
     "./src/**/*.tsx",
     "./src/**/*.ts"
-  ]
+, "src/cli.js"  ]
 }

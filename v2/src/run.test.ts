@@ -1,9 +1,12 @@
 import { initGo } from "./run";
-import { sffile } from "./sffile";
+import { SF2File } from "./sffile";
 import { Zone } from "./sf.types";
 
-const { sdta, findPreset } = sffile("./file.sf2");
-initGo(sdta.data, sdta.sectionSize / 2)
+const {
+  sections: { sdta },
+  findPreset,
+} = new SF2File("./file.sf2");
+initGo(sdta.data, sdta.size / 2)
   .then(({ noteOn, render }) => {
     const zone: Zone = findPreset({ bankId: 0, presetId: 33, key: 55, vel: 55 });
     const { start, end, startLoop, endLoop, originalPitch, sampleRate } = zone.sample;

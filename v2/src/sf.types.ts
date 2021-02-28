@@ -60,9 +60,9 @@ export type Zone = {
   velRange: Range;
   keyRange: Range;
   sample: Shdr;
-  adsr: number[];
+  adsr: [number, number, number, number];
   sampleOffsets?: number[];
-  generators?: Generator[];
+  generators: Generator[];
   attributes?: {};
   parent?: Zone;
   rootKey?: number;
@@ -70,7 +70,7 @@ export type Zone = {
     centerFreq: number;
     q: number;
   };
-  attentuation?: number;
+  attenuation?: number;
 };
 export type Preset = Phdr & {
   zones?: Zone[];

@@ -8,7 +8,7 @@
         "build": "node make"
     },
     "bin": {
-        "bach": "dist/index.js"
+        "bach-go": "bin/create"
     },
     "author": "Yisheng Jiang",
     "license": "ISC",
@@ -16,6 +16,8 @@
         "@ffmpeg-installer/ffmpeg": "^1.0.20",
         "@tonejs/midi": "^2.0.26",
         "ava": "^3.15.0",
+        "babar": "^0.2.0",
+        "esm": "^3.2.25",
         "ffmpeg-installer": "^1.0.2",
         "ssr-cxt": "^1.3.7"
     },
