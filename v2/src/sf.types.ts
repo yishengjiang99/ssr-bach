@@ -6,14 +6,23 @@ export type FindPresetProps = {
   key: number;
   vel: number;
 };
-
+export enum ch_state {
+  attack,
+  hold,
+  decay,
+  releasing,
+}
 export type Channel = {
   smpl: Shdr;
+  zone?: Zone;
   length: number;
   ratio: number;
   iterator: number;
   envelope: Envelope;
+  state: ch_state.attack;
   ztransform?: (input: number) => number;
+  gain?: number;
+  pan?: number;
 };
 export type RIFFSFBK = {
   pdta?: {
@@ -33,7 +42,12 @@ export type Phdr = {
   bankId: number;
   pbagIndex: number;
 };
-export type Generator = { operator: number; range: Range; amount: number; signed?: number };
+export type Generator = {
+  operator: number;
+  range: Range;
+  amount: number;
+  signed?: number;
+};
 export type Pbag = { pgen_id: number; pmod_id: number };
 export type IBag = { igen_id: number; imod_id: number };
 export type Mod = {
@@ -62,10 +76,11 @@ export type Zone = {
   sample: Shdr;
   adsr: [number, number, number, number];
   sampleOffsets?: number[];
-  generators: Generator[];
+  generators?: Generator[];
   attributes?: {};
   parent?: Zone;
   rootKey?: number;
+  pan?: number;
   lowPassFilter?: {
     centerFreq: number;
     q: number;
@@ -73,6 +88,7 @@ export type Zone = {
   attenuation?: number;
 };
 export type Preset = Phdr & {
+  defaultBag: Zone;
   zones?: Zone[];
 };
 export const generatorNames = `#define SFGEN_startAddrsOffset         0
@@ -221,7 +237,13 @@ const {
 } = generators;
 
 export const attributeGenerators = {
-  sampleOffsets: [startAddrsOffset, endAddrsOffset, startloopAddrsOffset, endloopAddrsOffset, startAddrsCoarseOffset],
+  sampleOffsets: [
+    startAddrsOffset,
+    endAddrsOffset,
+    startloopAddrsOffset,
+    endloopAddrsOffset,
+    startAddrsCoarseOffset,
+  ],
 };
 
 export enum generatorTypes {

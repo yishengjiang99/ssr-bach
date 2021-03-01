@@ -4,7 +4,12 @@ import { readFileSync } from "fs";
 import { Writable } from "stream";
 import { SF2File } from "./sffile";
 
-export function loadMidi(source: string, sff: SF2File, output: Writable, sampleRate: number) {
+export function loadMidi(
+  source: string,
+  sff: SF2File,
+  output: Writable,
+  sampleRate: number
+) {
   const { durationTicks: totalTicks, tracks, header } = new Midi(readFileSync(source));
   const tempos = header.tempos;
   let now = 0;
@@ -20,6 +25,7 @@ export function loadMidi(source: string, sff: SF2File, output: Writable, sampleR
       note.duration,
       t.channel
     );
+    console.log(t.instrument.name, note.midi);
   }
   const ticksPerQuarterNote = header.ppq; // this is equivalent to a 1/4 note.
   let activeTracks = tracks;
@@ -39,10 +45,13 @@ export function loadMidi(source: string, sff: SF2File, output: Writable, sampleR
         registerNote(t, note);
       }
       if (t.notes.length) {
-        nextCycleStart = !nextCycleStart ? t.notes[0].ticks : Math.min(nextCycleStart, t.notes[0].ticks);
+        nextCycleStart = !nextCycleStart
+          ? t.notes[0].ticks
+          : Math.min(nextCycleStart, t.notes[0].ticks);
       }
     }
-    const milisecondsToNextCycle = (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
+    const milisecondsToNextCycle =
+      (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
     let framesToREnder = (milisecondsToNextCycle * sampleRate) / 1000;
     while (framesToREnder > framesize) {
       output.write(sff.render(framesize));
@@ -56,7 +65,6 @@ export function loadMidi(source: string, sff: SF2File, output: Writable, sampleR
       framesize += 20;
       if (framesize > 1280) throw "find a new outlet";
     }
-    console.log(milisecondsToNextCycle, elapsedCycleTime * 1000, framesToREnder);
 
     now = nextCycleStart;
     setTimeout(loop, milisecondsToNextCycle - elapsedCycleTime * 1000);

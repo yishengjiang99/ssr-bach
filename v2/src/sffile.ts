@@ -48,7 +48,8 @@ export class SF2File {
         const nsamples = (sectionSize - 4) / 2;
         const floatBuffer = Buffer.allocUnsafe(nsamples * 4);
         const bit16s = r.readN(sectionSize - 4);
-        for (let i = 0; i < nsamples; i++) floatBuffer.writeFloatLE(bit16s.readInt16LE(i * 2) / 0x7fff, i * 4);
+        for (let i = 0; i < nsamples; i++)
+          floatBuffer.writeFloatLE(bit16s.readInt16LE(i * 2) / 0x7fff, i * 4);
         sections.sdta = {
           offset: r.getOffset(),
           data: floatBuffer,
@@ -76,7 +77,11 @@ export class SF2File {
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
       if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
 
-      const diff = vel - z.velRange.lo + (z.sample.originalPitch > key ? 30 : 0) + (z.sample.originalPitch - key) * 10;
+      const diff =
+        vel -
+        z.velRange.lo +
+        (z.sample.originalPitch > key ? 5 : 0) +
+        (z.sample.originalPitch - key) * 3;
       candidate = candidate || z;
       aggreDiff = aggreDiff || diff;
       if (diff < aggreDiff) {
@@ -86,21 +91,34 @@ export class SF2File {
     }
     return candidate;
   }
-  keyOn({ bankId, presetId, key, vel }: sfTypes.FindPresetProps, duration: number, channelId: number) {
+  keyOn(
+    { bankId, presetId, key, vel }: sfTypes.FindPresetProps,
+    duration: number,
+    channelId: number
+  ) {
     const preset = this.findPreset({ bankId, presetId, key, vel });
     //if (channelId != 2) return;
-    const length = ~~(duration * this.sampleRate);
+
     const [a, d, s, r] = preset.adsr;
     const envelope = new Envelope(this.sampleRate, [a + 0.000001, d + 0.00001, s, r]); //laplacian smoothing(sic)
+    const length = ~~((duration + r) * this.sampleRate);
 
     this.channels[channelId] = {
+      state: sfTypes.ch_state.attack,
+      zone: preset,
       smpl: preset.sample,
       length: length,
-      ratio: (Math.pow(2, (key - preset.sample.originalPitch) / 12) * preset.sample.sampleRate) / this.sampleRate,
+      ratio:
+        (Math.pow(2, (key - preset.sample.originalPitch) / 12) *
+          preset.sample.sampleRate) /
+        this.sampleRate,
       iterator: preset.sample.start,
       ztransform: (x) => x,
       envelope,
+      gain: -1 * preset.attenuation - 20 * Math.log(1.0 / vel),
+      pan: preset.attributes[sfTypes.generators.pan],
     };
+    console.log(-1 * preset.attenuation - 20 * Math.log(1.0 / vel));
     return this.channels[channelId];
   }
   key(key: number, duration = 0.25, presetId = null) {
@@ -108,12 +126,16 @@ export class SF2File {
     let channelId = 0;
     while (this.channels[channelId] && this.channels[channelId++].length > 10);
 
-    return this.keyOn({ key, bankId: 0, vel: 60, presetId: this._lastPresetId || 0 }, duration, channelId);
+    return this.keyOn(
+      { key, bankId: 0, vel: 60, presetId: this._lastPresetId || 0 },
+      duration,
+      channelId
+    );
   }
   _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength) {
     assert(blockLength * 4 == outputArr.byteLength);
     const input: Buffer = this.sections.sdta.data;
-
+    //POWF(10.0f, db * 0.05f) : 0); //(1.0f / vel);
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     const sample = channel.smpl;
     let shift = 0.0;
@@ -125,15 +147,17 @@ export class SF2File {
       let newVal;
       if (offset === 0 || shift < 0.05) {
         newVal = input.readFloatLE(iterator * 4);
-      } else if (shift > 0.95) {
+      } else if (shift > 0.98) {
         newVal = input.readFloatLE((iterator + 1) * 4);
       } else {
-        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) => input.readFloatLE((iterator + i) * 4));
+        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
+          input.readFloatLE((iterator + i) * 4)
+        );
         //spline lerp found on internet
         newVal = hermite4(shift, vm1, v0, v1, v2);
       }
-      let sum = currentVal + newVal * channel.envelope.shift();
-      if (sum > 0.5 || sum < -0.5) sum = compression(sum, 0.6, 3, 0.9);
+      let sum = currentVal + newVal * channel.envelope.shift() * channel.gain;
+      sum = compression(sum, 0.8, 3, 0.9);
       outputArr.writeFloatLE(clamp(sum, -1, 1), outputByteOffset);
 
       shift += channel.ratio;
@@ -144,15 +168,15 @@ export class SF2File {
       if (iterator >= sample.endLoop) {
         iterator -= looper;
       }
+      channel.length--;
     }
-    channel.length -= blockLength;
     channel.iterator = iterator;
   }
 
   render(blockSize) {
     const output = Buffer.alloc(blockSize * 4);
     this.channels = this.channels.filter((c) => c && c.length > 0);
-    this.channels.map((c) => {
+    this.channels.map((c, i) => {
       this._render(c, output, blockSize);
       c.length -= blockSize;
     });
