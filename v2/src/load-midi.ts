@@ -18,6 +18,8 @@ export function loadMidi(
   let now = 0;
   let bpm = tempos[0].bpm || 120;
   function registerNote(t: Track, note: Note) {
+    console.log(t.instrument.name, note.midi, note.duration, note.ticks);
+
     sff.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,
@@ -28,7 +30,6 @@ export function loadMidi(
       note.duration,
       t.channel
     );
-    console.log(t.instrument.name, note.midi);
   }
   const ticksPerQuarterNote = header.ppq; // this is equivalent to a 1/4 note.
   let activeTracks = tracks;
@@ -37,7 +38,7 @@ export function loadMidi(
   function loop() {
     const loopStart = process.uptime();
     if (now > totalTicks) return;
-    if (tempos.length > 1 && now > tempos[1].ticks) {
+    if (tempos.length > 1 && now >= tempos[1].ticks) {
       tempos.shift();
       bpm = tempos[0].bpm;
     }
@@ -45,6 +46,7 @@ export function loadMidi(
     for (const t of activeTracks) {
       if (
         t.controlChanges &&
+        t.controlChanges[7] &&
         t.controlChanges[7].length &&
         now >= t.controlChanges[7][0].ticks
       ) {
@@ -65,10 +67,10 @@ export function loadMidi(
     const milisecondsToNextCycle =
       (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
     let framesToREnder = (milisecondsToNextCycle * sampleRate) / 1000;
-    while (framesToREnder > framesize) {
-      output.write(sff.render(framesize));
-      framesToREnder -= framesize;
-    }
+    // while (framesToREnder > framesize) {
+    //   output.write(sff.render(framesToREnder));
+    //   framesToREnder -= framesize;
+    // }
     output.write(sff.render(~~framesToREnder));
 
     const elapsedCycleTime = process.uptime() - loopStart;
@@ -79,7 +81,7 @@ export function loadMidi(
     }
 
     now = nextCycleStart;
-    setTimeout(loop, milisecondsToNextCycle - elapsedCycleTime * 1000);
+    setTimeout(loop, milisecondsToNextCycle);
   }
 
   return { tracks, header, loop };

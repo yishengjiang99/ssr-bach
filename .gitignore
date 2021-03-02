@@ -1,6 +1,9 @@
 node_modules
 midisf/**/*pcm
 mp3
+junk
+*/dist
+*/node_modules
 
 dist/*js*
 dist/**/*
@@ -207,3 +210,4 @@ v2/gg
 v2/gg.sf2
 v2/go.js
 v2/go.wasm
+junk/scripts/cacheADSR.dSYM/Contents/Info.plist

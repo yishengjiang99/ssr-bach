@@ -1,133 +1,181 @@
+import { IncomingMessage, ServerResponse, createServer } from "http";
 import { PassThrough } from "stream";
-import { loadMidi } from "./load-midi";
 import { SF2File } from "./sffile";
-import { createServer } from "http";
-const wrtc = require("wrtc");
-//@ts-ignore
-const { RTCPeerConnection, RTCSessionDescription } = wrtc;
-const { RTCAudioSink, RTCAudioSource } = wrtc.nonstandard;
-// const iceServers = require("./lib/iceServers");
+import { loadMidi } from "./load-midi";
+import wrtc from "wrtc";
+import { IceServers } from "./ice-servers";
+const { RTCPeerConnection } = wrtc;
+const { RTCAudioSource } = wrtc.nonstandard;
 const connections = [];
-
-createServer(async (req, res) => {
-  if (req.method === "POST") return handlePOST(req, res);
-
-  try {
-    const pc = new RTCPeerConnection({
-      //@ts-ignore
+const sf = new SF2File("file.sf2");
+const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  if (req.method === "GET") {
+    const pc: RTCPeerConnection = new RTCPeerConnection({
       sdpSemantics: "unified-plan",
-      //   RTCIceServers: iceServers,
+      RTCIceServers: IceServers,
     });
-    connections.push(pc);
-    //@ts-ignore (pre-emptively)
-    pc.id = connections.length;
+    const id = connections.length; // + "";
 
-    const gatheredCans = [];
-    const iceCanGatherDone = new Promise((resolve) => {
-      pc.addEventListener("icecandidate", ({ candidate }) => {
-        //@ts-ignore
-        if (!candidate) resolve();
-        else gatheredCans.push(candidate);
-      });
-      pc.oniceconnectionstatechange = () => {
-        switch (pc.iceConnectionState) {
-          case "connected":
-          case "completed":
-            //@ts-ignore
-            resolve();
-            break;
-          case "disconnected":
-          case "failed":
-            res.writeHead(500, "ice connection failed or disconnected");
-            return;
-        }
-      };
-    });
-    const pt = new PassThrough();
-    const { tracks, header, loop } = loadMidi(
-      "./song.mid",
-      new SF2File("file.sf2"),
-      pt,
-      24000
-    );
+    connections[id] = pc;
+
+    const iceCanGatherDone: Promise<RTCIceCandidate[]> = gatherchans(pc, res);
     const source = new RTCAudioSource();
     const strack = source.createTrack();
     pc.addTrack(strack);
+    const pt = new PassThrough();
+    const { loop, tracks } = loadMidi("song.mid", sf, pt, 44100);
+
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
-        const framebuff = ctx();
-        pt.on("data", (d) => {
-          if (d.byteLength !== 1024) throw "unexpected frame count!";
-          framebuff.samples = new Float32Array(d);
-          source.onData(framebuff);
-        });
-        loop();
-      } else {
-        pt.end(); //this should trigg dealloc midi player
+        playmidi(loop, pt, source);
+        let start = 0,
+          end = 255 * 30 * 4;
+        print_notes(res, tracks, start, end);
       }
     };
-    const dataChannel = pc.createDataChannel("meta");
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    await iceCanGatherDone;
-    const html = /* html */ ` 
-      <html>
-        <body>
-          <video id="remote" controls></video>
-          <script async>
-(async function main(){
+    const gatheredCans = await iceCanGatherDone;
+    printHTML(res, id, pc, gatheredCans);
+  }
+  if (req.method === "POST") {
+    const json: any = await resolveJSON(req);
+    //@ts-ignore
+    const pc = connections[json.id];
+    await pc.setRemoteDescription(json.sdp);
+    return res.end(JSON.stringify(pc));
+  }
+});
+
+server.listen(3000);
+
+function print_notes(res: ServerResponse, tracks, start: number, end: number) {
+  res.write(
+    `<script type="JSON">${JSON.stringify(
+      tracks.map((t) => t.notes.filter((n) => n.ticks > start && n.ticks <= end))
+    )}</script>`
+  );
+}
+
+async function gatherchans(pc: RTCPeerConnection, res: ServerResponse) {
+  const gatheredCans: RTCIceCandidate[] = [];
+  return new Promise<RTCIceCandidate[]>((resolve) => {
+    pc.addEventListener("icecandidate", ({ candidate }) => {
+      if (!candidate) resolve(gatheredCans);
+      else gatheredCans.push(candidate);
+    });
+    pc.oniceconnectionstatechange = () => {
+      switch (pc.iceConnectionState) {
+        case "connected":
+        case "completed":
+          resolve(gatheredCans);
+          break;
+        case "disconnected":
+        case "failed":
+          res.writeHead(500, "ice connection failed or disconnected");
+          return;
+      }
+    };
+  });
+}
+
+async function handpost(req: IncomingMessage, res: ServerResponse) {
+  const json: any = await resolveJSON(req);
+  //@ts-ignore
+  const pc = connections[json.id];
+  await pc.setRemoteDescription(json.sdp);
+
+  res.end(JSON.stringify(pc));
+  return;
+}
+
+function printHTML(
+  res: ServerResponse,
+  id: number,
+  pc: RTCPeerConnection,
+  gatheredCans: RTCIceCandidate[]
+) {
+  res.write(/* html */ ` 
+  <html>
+    <body>
+      <video id="local" controls></video>
+      <video id="remote" controls></video>
+      <script>
+async function main(){
   const remotePeerConnection = ${JSON.stringify({
-    id: pc.id,
+    id: id,
     localDescription: pc.localDescription,
     candidates: gatheredCans,
   })};
   const config = ${JSON.stringify({
     sdpSemantics: "unified-plan",
+    RTCIceServers: IceServers,
   })};
+  const localVideo = document.querySelector("#local");
   const remoteVideo = document.querySelector("#remote");
   const bpc = new RTCPeerConnection(config);
   await bpc.setRemoteDescription(remotePeerConnection.localDescription);
-  const localStream = await window.navigator.mediaDevices.getUserMedia({
-    audio: true,
-  });
+
   remotePeerConnection.candidates.forEach((candidate) => {
     if (candidate !== null) bpc.addIceCandidate(candidate);
   });
+
+
   const remoteStream = new MediaStream(
     bpc.getReceivers().map((receiver) => receiver.track)
   );
   remoteVideo.srcObject = remoteStream;
+
   const originalAnswer = await bpc.createAnswer();
   await bpc.setLocalDescription(originalAnswer);
-  const { gatheredCandidates } = await fetch("http://localhost:3000/${pc.id}", {
+   const post  = JSON.stringify({sdp:bpc.localDescription, id:'${id}'});
+  fetch("http://localhost:3000/${id}", {
     method: "POST",
-    body: JSON.stringify({sdp:bpc.localDescription, id:${pc.id}}),
+    body: post,
     headers: {
       "Content-Type": "application/json",
+      "Content-Length": post.length
     },
-  }).then((res) => res.json());
-  gatheredCandidates.forEach((candidate) => {
-    if (candidate !== null) bpc.addIceCandidate(candidate);
-  }); 
-})()
-          </script>
-        </body>
-      </html>`;
-    res.end(html);
-  } catch (error) {
-    console.error(error);
-    res.writeHead(500);
-    res.end();
-  }
-}).listen(3000, () => console.log("listenigns"));
+  }).then((res) => res.json()).then(({candidates})=>{
+    debugger;
 
-function ctx() {
-  const sampleRate = 48000;
-  const numberOfFrames = 128;
+  });
+}
+main();
+    </script>
+  </body>
+</html>`);
+}
+
+function playmidi(loop: () => void, pt: PassThrough, source: any) {
+  const { numberOfFrames, channelCount, samples, data } = actx();
+  let sampleoffset = 0;
+  pt.on("data", (d: Buffer) => {
+    let readoffset = 0;
+    while (readoffset <= d.byteLength - 4) {
+      while (
+        sampleoffset < numberOfFrames * channelCount &&
+        readoffset <= d.byteLength - 4
+      ) {
+        samples[sampleoffset] = d.readFloatLE(readoffset) * 0xffff;
+        readoffset += 4;
+        sampleoffset++;
+      }
+      source.onData(data);
+      sampleoffset = 0;
+    }
+  });
+  loop();
+}
+
+function actx() {
+  const sampleRate = 44100;
+  const numberOfFrames = sampleRate / 100;
   const secondsPerSample = 1 / sampleRate;
   const channelCount = 2;
-  const samples = new Float32Array(channelCount * 128);
-  const bitsPerSample = 32;
+  const samples = new Int16Array(channelCount * numberOfFrames);
+  const bitsPerSample = 16;
   const data = {
     samples,
     sampleRate,
@@ -135,18 +183,15 @@ function ctx() {
     channelCount,
     numberOfFrames,
   };
-  return data;
+  return { bitsPerSample, numberOfFrames, secondsPerSample, channelCount, samples, data };
 }
 
-function handlePOST(req, res) {
-  console.log(req);
-
-  let d = [];
-  req.on("data", (c) => d.push(c));
-  req.on("end", async () => {
-    const json = JSON.parse(Buffer.concat(d).toString());
-    const pc = connections[connections.length - 1];
-    await pc.setRemoteDescription(json.sdp);
-    res.end(JSON.stringify(pc));
+async function resolveJSON(req: IncomingMessage) {
+  return new Promise((resolve) => {
+    let str = "";
+    req.on("data", (d) => (str += d.toString()));
+    req.on("end", () => {
+      resolve(JSON.parse(str));
+    });
   });
 }

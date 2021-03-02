@@ -103,10 +103,18 @@ export class SF2File {
   ) {
     const preset = this.findPreset({ bankId, presetId, key, vel });
     //if (channelId != 2) return;
-
+    if (this.channels[channelId] && this.channels[channelId].length) {
+      console.log(this.channels[channelId].length, "left--", channelId);
+      //   return false;
+    }
     const [a, d, s, r] = preset.adsr;
-    const envelope = new Envelope(this.sampleRate, [a + 0.000001, d + 0.00001, s, r]); //laplacian smoothing(sic)
-    const length = ~~((duration + r / 3) * this.sampleRate);
+    const envelope = new Envelope(this.sampleRate, [
+      a + 0.000000001,
+      d + 0.0000001,
+      s,
+      r,
+    ]); //laplacian smoothing(sic)
+    const length = ~~(duration * this.sampleRate);
     const gdb = -1;
     this.channels[channelId] = {
       state: sfTypes.ch_state.attack,
@@ -142,28 +150,27 @@ export class SF2File {
       channelId
     );
   }
-  _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength) {
+  _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength, n) {
+    const t0 = process.hrtime();
     const input: Buffer = this.sections.sdta.data;
     //POWF(10.0f, db * 0.05f) : 0); //(1.0f / vel);
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     const sample = channel.smpl;
     let shift = 0.0;
     let iterator = channel.iterator || channel.smpl.start;
-    for (let offset = 0; offset < blockLength; offset++) {
+    for (let offset = 0; offset < blockLength - 1; offset++) {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       const currentVal = outputArr.readFloatLE(outputByteOffset);
       let newVal;
-      if (offset === 0 || shift < 0.05) {
+      if (offset === 0 || shift < 0.005) {
         newVal = input.readFloatLE(iterator * 4);
-      } else if (shift > 0.98) {
-        newVal = input.readFloatLE((iterator + 1) * 4);
       } else {
-        // const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-        //   input.readFloatLE((iterator + i) * 4)
-        // );
+        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
+          input.readFloatLE((iterator + i) * 4)
+        );
         //spline lerp found on internet
-        newVal = input.readFloatLE(iterator * 4); //hermite4(shift, vm1, v0, v1, v2);
+        newVal = v0 + shift * (v1 - v0); // hermite4(shift, vm1, v0, v1, v2);
       }
       //if (_lpf) newVal = _lpf.filter(newVal);
       const amp = channel.gain * channel.envelope.shift();
@@ -190,7 +197,7 @@ export class SF2File {
     const output = Buffer.alloc(blockSize * 4 * 2);
     this.channels = this.channels.filter((c) => c && c.length > 0);
     this.channels.map((c, i) => {
-      this._render(c, output, blockSize);
+      this._render(c, output, blockSize, this.channels.length);
     });
     return output;
   }

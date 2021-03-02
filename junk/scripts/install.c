@@ -18,8 +18,8 @@ int main(int argc, char **argv)
 		printf("\tindex:preset");
 		for (int i = 0; i < tsf_get_presetcount(g_TinySoundFont); i++)
 		{
-			if (i % 3 == 0)
-				printf("\n");
+			, v if (i % 3 == 0)
+				  printf("\n");
 			printf("\t%d:%s", i, tsf_get_presetname(g_TinySoundFont, i));
 		}
 		perror("\nUsrage: ./install [preset index ]\n\n");
