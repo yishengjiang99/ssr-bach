@@ -3,7 +3,7 @@ import { Transform } from "stream";
 import { ffp } from "./ffp";
 const ab = new Uint8Array(readFileSync("./rjb.wasm"));
 
-async function lpf_transform(fc, q, sr) {
+export async function lpf_transform(fc, q, sr) {
   let output;
   return WebAssembly.instantiate(ab, {
     env: {
@@ -16,18 +16,9 @@ async function lpf_transform(fc, q, sr) {
     },
   }).then(({ instance: { exports } }) => {
     //@ts-ignore
-    exports.calc_filter_coeffs(fc, sr, q);
+    //  exports.calc_filter_coeffs(fc, sr, q);
 
-    return new Transform({
-      transform: (chunk: Buffer, enc, cb) => {
-        for (let offset = 0; offset <= chunk.byteLength - 4; offset += 4) {
-          //@ts-ignore
-          chunk.writeFloatLE(exports.filter(chunk.readFloatLE(offset)), offset);
-        }
-        cb(null, chunk);
-      },
-      flush: (cb) => cb(null),
-    });
+    return exports;
   });
 }
 

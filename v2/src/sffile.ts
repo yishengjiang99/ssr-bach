@@ -4,11 +4,15 @@ import * as sfTypes from "./sf.types";
 import assert from "assert";
 import { compression, Envelope } from "ssr-cxt";
 import { clamp } from "./utils";
-
+import { Note } from "@tonejs/midi/dist/Note";
 const defaultBlockLength = 128;
 
 export class SF2File {
   sections: sfTypes.RIFFSFBK;
+  chanVols: number[] = new Array(16).fill(1);
+  ccVol(c, v): void {
+    this.chanVols[c] = v;
+  }
   private _channels: sfTypes.Channel[] = new Array(16);
   private _lastPresetId: any;
   public get channels(): sfTypes.Channel[] {
@@ -91,6 +95,7 @@ export class SF2File {
     }
     return candidate;
   }
+
   keyOn(
     { bankId, presetId, key, vel }: sfTypes.FindPresetProps,
     duration: number,
@@ -101,8 +106,8 @@ export class SF2File {
 
     const [a, d, s, r] = preset.adsr;
     const envelope = new Envelope(this.sampleRate, [a + 0.000001, d + 0.00001, s, r]); //laplacian smoothing(sic)
-    const length = ~~((duration + r) * this.sampleRate);
-
+    const length = ~~((duration + r / 3) * this.sampleRate);
+    const gdb = -1;
     this.channels[channelId] = {
       state: sfTypes.ch_state.attack,
       zone: preset,
@@ -115,10 +120,15 @@ export class SF2File {
       iterator: preset.sample.start,
       ztransform: (x) => x,
       envelope,
-      gain: -1 * preset.attenuation - 20 * Math.log(1.0 / vel),
+      gain: (this.chanVols[channelId] * ((preset.attenuation / 100) * 127)) / vel, // (Math.pow(10, -0.05 * preset.attenuation) / 127) * vel,
       pan: preset.attributes[sfTypes.generators.pan],
-    };
-    console.log(-1 * preset.attenuation - 20 * Math.log(1.0 / vel));
+    }; //(float)(20.0 * TSF_LOG10(gain))
+    // console.log(
+    //   "\n",
+    //   preset.attenuation,
+    //   "\n",
+    //   preset.attenuation - 20 * Math.log10(127 / vel)
+    // );
     return this.channels[channelId];
   }
   key(key: number, duration = 0.25, presetId = null) {
@@ -133,7 +143,6 @@ export class SF2File {
     );
   }
   _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength) {
-    assert(blockLength * 4 == outputArr.byteLength);
     const input: Buffer = this.sections.sdta.data;
     //POWF(10.0f, db * 0.05f) : 0); //(1.0f / vel);
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
@@ -142,7 +151,7 @@ export class SF2File {
     let iterator = channel.iterator || channel.smpl.start;
     for (let offset = 0; offset < blockLength; offset++) {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
-      const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT;
+      const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       const currentVal = outputArr.readFloatLE(outputByteOffset);
       let newVal;
       if (offset === 0 || shift < 0.05) {
@@ -150,15 +159,19 @@ export class SF2File {
       } else if (shift > 0.98) {
         newVal = input.readFloatLE((iterator + 1) * 4);
       } else {
-        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-          input.readFloatLE((iterator + i) * 4)
-        );
+        // const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
+        //   input.readFloatLE((iterator + i) * 4)
+        // );
         //spline lerp found on internet
-        newVal = hermite4(shift, vm1, v0, v1, v2);
+        newVal = input.readFloatLE(iterator * 4); //hermite4(shift, vm1, v0, v1, v2);
       }
-      let sum = currentVal + newVal * channel.envelope.shift() * channel.gain;
-      sum = compression(sum, 0.8, 3, 0.9);
-      outputArr.writeFloatLE(clamp(sum, -1, 1), outputByteOffset);
+      //if (_lpf) newVal = _lpf.filter(newVal);
+      const amp = channel.gain * channel.envelope.shift();
+      //  console.log("amp", amp, channel.envelope.shift());
+      let sum = currentVal + newVal * amp;
+      // sum = compression(sum, 0.5, 3, 0.9);
+      outputArr.writeFloatLE(clamp(sum, -1, 1) * 0.97, outputByteOffset);
+      outputArr.writeFloatLE(clamp(sum, -1, 1) * 1.03, outputByteOffset + 4);
 
       shift += channel.ratio;
       while (shift >= 1) {
@@ -174,11 +187,10 @@ export class SF2File {
   }
 
   render(blockSize) {
-    const output = Buffer.alloc(blockSize * 4);
+    const output = Buffer.alloc(blockSize * 4 * 2);
     this.channels = this.channels.filter((c) => c && c.length > 0);
     this.channels.map((c, i) => {
       this._render(c, output, blockSize);
-      c.length -= blockSize;
     });
     return output;
   }

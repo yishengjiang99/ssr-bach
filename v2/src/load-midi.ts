@@ -11,6 +11,9 @@ export function loadMidi(
   sampleRate: number
 ) {
   const { durationTicks: totalTicks, tracks, header } = new Midi(readFileSync(source));
+  const gainchs = tracks.map((t) => {
+    t.controlChanges[7];
+  });
   const tempos = header.tempos;
   let now = 0;
   let bpm = tempos[0].bpm || 120;
@@ -40,6 +43,15 @@ export function loadMidi(
     }
     let nextCycleStart = null;
     for (const t of activeTracks) {
+      if (
+        t.controlChanges &&
+        t.controlChanges[7].length &&
+        now >= t.controlChanges[7][0].ticks
+      ) {
+        sff.ccVol(t.channel, t.controlChanges[7][0].value);
+        t.controlChanges[7].shift();
+      }
+
       while (t.notes.length && t.notes[0].ticks <= now) {
         const note = t.notes.shift();
         registerNote(t, note);
