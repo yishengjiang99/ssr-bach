@@ -3,7 +3,8 @@ import { PassThrough } from "stream";
 import { SF2File } from "./sffile";
 import { loadMidi } from "./load-midi";
 import wrtc from "wrtc";
-import { IceServers } from "./ice-servers";
+
+const IceServers = [];
 const { RTCPeerConnection } = wrtc;
 const { RTCAudioSource } = wrtc.nonstandard;
 const connections = [];
