@@ -103,8 +103,7 @@ export class SF2File {
   ) {
     const preset = this.findPreset({ bankId, presetId, key, vel });
     //if (channelId != 2) return;
-    if (this.channels[channelId] && this.channels[channelId].length) {
-      console.log(this.channels[channelId].length, "left--", channelId);
+    if (this.channels[channelId] && this.channels[channelId].length > 0) {
       //   return false;
     }
     const [a, d, s, r] = preset.adsr;
@@ -130,13 +129,7 @@ export class SF2File {
       envelope,
       gain: (this.chanVols[channelId] * ((preset.attenuation / 100) * 127)) / vel, // (Math.pow(10, -0.05 * preset.attenuation) / 127) * vel,
       pan: preset.attributes[sfTypes.generators.pan],
-    }; //(float)(20.0 * TSF_LOG10(gain))
-    // console.log(
-    //   "\n",
-    //   preset.attenuation,
-    //   "\n",
-    //   preset.attenuation - 20 * Math.log10(127 / vel)
-    // );
+    };
     return this.channels[channelId];
   }
   key(key: number, duration = 0.25, presetId = null) {
@@ -162,22 +155,19 @@ export class SF2File {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       const currentVal = outputArr.readFloatLE(outputByteOffset);
+
       let newVal;
-      if (offset === 0 || shift < 0.005) {
-        newVal = input.readFloatLE(iterator * 4);
-      } else {
-        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-          input.readFloatLE((iterator + i) * 4)
-        );
-        //spline lerp found on internet
-        newVal = v0 + shift * (v1 - v0); // hermite4(shift, vm1, v0, v1, v2);
-      }
+      const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
+        input.readFloatLE((iterator + i) * 4)
+      );
+      //spline lerp found on internet
+      newVal = hermite4(shift, vm1, v0, v1, v2);
       //if (_lpf) newVal = _lpf.filter(newVal);
       const amp = channel.gain * channel.envelope.shift();
-      //  console.log("amp", amp, channel.envelope.shift());
-      let sum = currentVal + newVal * amp;
+      //
+      let sum = currentVal + (newVal * amp) / n;
       // sum = compression(sum, 0.5, 3, 0.9);
-      outputArr.writeFloatLE(clamp(sum, -1, 1) * 0.97, outputByteOffset);
+      outputArr.writeFloatLE(clamp(sum, -1, 1) * 0.98, outputByteOffset);
       outputArr.writeFloatLE(clamp(sum, -1, 1) * 1.03, outputByteOffset + 4);
 
       shift += channel.ratio;
@@ -185,9 +175,10 @@ export class SF2File {
         iterator++;
         shift--;
       }
-      if (iterator >= sample.endLoop) {
+      if (channel.length > 0 && iterator >= sample.endLoop) {
         iterator -= looper;
       }
+      if (iterator >= sample.end) return 0;
       channel.length--;
     }
     channel.iterator = iterator;

@@ -16,10 +16,8 @@ export function loadMidi(
   });
   const tempos = header.tempos;
   let now = 0;
-  let bpm = tempos[0].bpm || 120;
+  let bpm = (tempos[0] && tempos[0].bpm) || 120;
   function registerNote(t: Track, note: Note) {
-    console.log(t.instrument.name, note.midi, note.duration, note.ticks);
-
     sff.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,

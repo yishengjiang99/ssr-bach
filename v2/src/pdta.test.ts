@@ -17,7 +17,7 @@ test("pdta parse", (t) => {
   //   t.is(r.read32String(), "pdta");
 
   const pdta = parsePDTA(r);
-  // console.log(pdta);
+  //
   t.truthy(pdta);
 
   Object.values(pdta[0]).map(function (p: sfTypes.Preset) {

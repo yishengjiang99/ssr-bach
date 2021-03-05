@@ -17,7 +17,12 @@ test("envelopes are no weird", (t) => {
       while (steps--) {
         if (env.shift() > 1.07) {
           t.fail(
-            "env should not over 1.0---- " + env.adsr.join(",") + " next " + env.shift() + " " + env.deltas.join("--")
+            "env should not over 1.0---- " +
+              env.adsr.join(",") +
+              " next " +
+              env.shift() +
+              " " +
+              env.deltas.join("--")
           );
           break;
         }
@@ -49,7 +54,6 @@ test("three nodes at time", (t) => {
   const ff = new DataView(ob.buffer); //slice(0, 10);
   const fff = new Float32Array(ff.buffer);
   t.is(fff.length, 21000 / 4);
-  console.log(fff.filter((f) => f > 1.0));
 
   t.true(fff.every((f) => f <= 1.0));
 });

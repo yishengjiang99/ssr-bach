@@ -16,7 +16,7 @@ test("parse sf2 file", (t) => {
 test("envelop", (t) => {
   const fff = new SF2File("./file.sf2");
   const zone = fff.findPreset({ bankId: 0, presetId: 0, vel: 50, key: 41 });
-  console.log(zone.adsr);
+
   t.truthy(zone.adsr);
   //new Envelope()
 });

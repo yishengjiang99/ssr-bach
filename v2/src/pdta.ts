@@ -34,7 +34,14 @@ export function parsePDTA(r: Reader): sfTypes.Preset[][] {
     switch (sectionName) {
       case "phdr":
         for (let i = 0; i < sectionSize; i += phdrLength) {
-          nextPhdr(r, pheaders);
+          const phdrItem = {
+            name: r.readNString(20),
+            presetId: r.get16(),
+            bankId: r.get16(),
+            pbagIndex: r.get16(),
+            misc: [r.get32(), r.get32(), r.get32()],
+          };
+          pheaders.push(phdrItem);
         }
         break;
       case "pbag":
@@ -340,35 +347,3 @@ function nextShdr(r: Reader, shdr: sfTypes.Shdr[]) {
     sampleType,
   });
 }
-/*
-  generators.delayVolEnv,
-  generators.attackVolEnv,
-  generators.holdVolEnv,
-  generators.decayVolEnv,
-  generators.releaseVolEnv,
-  */
-
-// import { execSync } from "child_process";
-
-// const pdtaoffset = execSync("strings -o file.sf2|grep pdta")
-//   .toString()
-//   .trim()
-//   .split(/S+/)[0];
-// const nitoff = parseInt(pdtaoffset);
-// const r = reader("file.sf2");
-// r.setOffset(nitoff);
-// let size = r.get32();
-
-// //   t.is(r.read32String(), "pdta");
-
-// const pdta = parsePDTA(r);
-
-// Object.values(pdta[0]).map(function (p: sfTypes.Preset) {
-//   // t.truthy(p.defaultBag);
-
-//   p.zones.map((z) => {
-//     if (p.defaultBag.lowPassFilter.q) {
-//       console.log(z.attenuation, z.lowPassFilter);
-//     }
-//   });
-// }); //.defaultBag
