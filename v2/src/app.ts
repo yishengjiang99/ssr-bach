@@ -24,14 +24,17 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const strack = source.createTrack();
     pc.addTrack(strack);
     const pt = new PassThrough();
-    const { loop, tracks } = loadMidi("song.mid", sf, pt, 44100);
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
+        const { loop, tracks } = loadMidi("song.mid", sf, pt, 44100);
+
         playmidi(loop, pt, source);
         let start = 0,
           end = 255 * 30 * 4;
         print_notes(res, tracks, start, end);
+      } else {
+        console.log(pc.connectionState);
       }
     };
 
@@ -81,23 +84,13 @@ async function gatherchans(pc: RTCPeerConnection, res: ServerResponse) {
   });
 }
 
-async function handpost(req: IncomingMessage, res: ServerResponse) {
-  const json: any = await resolveJSON(req);
-  //@ts-ignore
-  const pc = connections[json.id];
-  await pc.setRemoteDescription(json.sdp);
-
-  res.end(JSON.stringify(pc));
-  return;
-}
-
 function printHTML(
   res: ServerResponse,
   id: number,
   pc: RTCPeerConnection,
   gatheredCans: RTCIceCandidate[]
 ) {
-  res.write(/* html */ ` 
+  res.write(/* html */ `
   <html>
     <body>
       <video id="local" controls></video>
@@ -122,11 +115,12 @@ async function main(){
     if (candidate !== null) bpc.addIceCandidate(candidate);
   });
 
-
   const remoteStream = new MediaStream(
     bpc.getReceivers().map((receiver) => receiver.track)
   );
-  remoteVideo.srcObject = remoteStream;
+  debugger;
+
+  //remoteVideo.srcObject = remoteStream;
 
   const originalAnswer = await bpc.createAnswer();
   await bpc.setLocalDescription(originalAnswer);
@@ -149,25 +143,28 @@ main();
 </html>`);
 }
 
-function playmidi(loop: () => void, pt: PassThrough, source: any) {
+function playmidi(loop: (bitdepth: number) => void, pt: PassThrough, source: any) {
   const { numberOfFrames, channelCount, samples, data } = actx();
   let sampleoffset = 0;
   pt.on("data", (d: Buffer) => {
     let readoffset = 0;
-    while (readoffset <= d.byteLength - 4) {
+    while (readoffset <= d.byteLength - 2) {
+      //this shananigan looking code is for printing out pcm at different cycles than backend rendering of it
+      // im not proud of it either.
       while (
         sampleoffset < numberOfFrames * channelCount &&
-        readoffset <= d.byteLength - 4
+        readoffset <= d.byteLength - 2
       ) {
-        samples[sampleoffset] = d.readFloatLE(readoffset) * 0xffff;
-        readoffset += 4;
+        samples[sampleoffset] = d.readInt16LE(readoffset);
+        readoffset == 42 && console.log(samples[sampleoffset]);
+        readoffset += 2;
         sampleoffset++;
       }
       source.onData(data);
       sampleoffset = 0;
     }
   });
-  loop();
+  loop(16);
 }
 
 function actx() {

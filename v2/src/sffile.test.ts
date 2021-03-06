@@ -1,7 +1,7 @@
 import test from "ava";
 import { assert } from "console";
 import { createWriteStream } from "fs";
-import { Envelope } from "ssr-cxt";
+import { Envelope } from "./envelope";
 import { ffp } from "./ffp";
 import { SF2File } from "./sffile";
 

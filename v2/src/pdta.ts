@@ -1,11 +1,11 @@
 import * as sfTypes from "./sf.types";
 import { reader, Reader } from "./reader";
-import { Envelope } from "ssr-cxt";
-import { clamp } from "./utils";
-const sampleId_gen = 53;
+import { Envelope } from "./envelope";
+import { makeZone } from "./generators";
+export const sampleId_gen = 53;
 
-const velRangeGeneratorId = 44;
-const keyRangeGeneratorId = 43;
+export const velRangeGeneratorId = 44;
+export const keyRangeGeneratorId = 43;
 const instrumentGenerator = 41;
 const ShdrLength = 46;
 const ibagLength = 4;
@@ -15,18 +15,29 @@ const pbagLength = 4;
 const pgenLength = 4;
 const pmodLength = 10;
 const instLength = 22;
-export function parsePDTA(r: Reader): sfTypes.Preset[][] {
+let n = 0;
+const pheaders: sfTypes.Phdr[] = [],
+  pbag: sfTypes.Pbag[] = [],
+  pgen: sfTypes.Generator[] = [],
+  pmod: sfTypes.Mod[] = [],
+  inst: sfTypes.InstrHeader[] = [],
+  igen: sfTypes.Generator[] = [],
+  imod: sfTypes.Mod[] = [],
+  ibag: sfTypes.IBag[] = [],
+  shdr: sfTypes.Shdr[] = [];
+export const hydra = {
+  pheaders,
+  pbag,
+  pgen,
+  pmod,
+  inst,
+  igen,
+  imod,
+  ibag,
+  shdr,
+};
+export function readPDTA(r: Reader) {
   //const sections: Map<string, any> = new Map<string, any>();
-  let n = 0;
-  const pheaders: sfTypes.Phdr[] = [],
-    pbag: sfTypes.Pbag[] = [],
-    pgen: sfTypes.Generator[] = [],
-    pmod: sfTypes.Mod[] = [],
-    inst: sfTypes.InstrHeader[] = [],
-    igen: sfTypes.Generator[] = [],
-    imod: sfTypes.Mod[] = [],
-    ibag: sfTypes.IBag[] = [],
-    shdr: sfTypes.Shdr[] = [];
 
   do {
     const sectionName = r.read32String();
@@ -127,7 +138,9 @@ export function parsePDTA(r: Reader): sfTypes.Preset[][] {
         break; // `seciont name [${sectionName}]`;
     }
   } while (n++ < 8);
-
+}
+export function parsePDTA(r: Reader): sfTypes.Preset[][] {
+  readPDTA(r);
   const presets: any = {};
   for (let i = 0; i < pheaders.length; i++) {
     const header = pheaders[i];
@@ -190,7 +203,7 @@ export function parsePDTA(r: Reader): sfTypes.Preset[][] {
   }
   return presets;
 }
-const defaultZone: sfTypes.Zone = {
+export const defaultZone: sfTypes.Zone = {
   velRange: {
     lo: 0,
     hi: 127,
@@ -206,66 +219,11 @@ const defaultZone: sfTypes.Zone = {
     centerFreq: 0.5,
     q: 0,
   },
-  rootKey: 69, //we get to pick random integers ehre
   attenuation: 0,
   pan: -5,
   generators: [],
 };
-function makeZone(
-  pgenMap: sfTypes.Generator[],
-  shdr: sfTypes.Shdr[],
-  baseZone?: sfTypes.Zone
-): sfTypes.Zone {
-  function getPgenVal(genId, type = "signed") {
-    let v =
-      (pgenMap[genId] && pgenMap[genId][type]) ||
-      (baseZone && baseZone.generators[genId] && baseZone.generators[genId][type]);
-
-    if (type == "signed") {
-      if (v < -12000) v = -12000;
-      if (v > 8000) v = 8000;
-      return v;
-    }
-  }
-  baseZone = baseZone || defaultZone;
-
-  return {
-    velRange: pgenMap[velRangeGeneratorId]?.range || baseZone?.velRange,
-    keyRange: pgenMap[keyRangeGeneratorId]?.range || baseZone?.keyRange,
-    adsr: [
-      Math.pow(
-        2,
-        clamp(getPgenVal(sfTypes.generators.attackVolEnv), -12000, 8000) / 1200
-      ),
-      Math.pow(2, clamp(getPgenVal(sfTypes.generators.decayVolEnv), -12000, 8000) / 1200),
-      1 - clamp(getPgenVal(sfTypes.generators.sustainVolEnv), 1, 999) / 1000,
-      Math.pow(
-        2,
-        clamp(getPgenVal(sfTypes.generators.releaseVolEnv), -12000, 8000) / 1200
-      ),
-    ],
-    parent: baseZone,
-    sample: shdr[pgenMap[sampleId_gen]?.amount] || null,
-    get generators() {
-      return pgenMap;
-    },
-
-    lowPassFilter: {
-      centerFreq:
-        Math.pow(2, getPgenVal(sfTypes.generators.initialFilterFc) / 1200) ||
-        baseZone.lowPassFilter.centerFreq,
-      q: getPgenVal(sfTypes.generators.initialFilterQ) / 10 || baseZone.lowPassFilter.q,
-    },
-    rootKey: pgenMap[sfTypes.generators.overridingRootKey]?.amount || baseZone.rootKey,
-    attenuation:
-      getPgenVal(sfTypes.generators.initialAttenuation, "signed") || baseZone.attenuation,
-    pan: getPgenVal(sfTypes.generators.pan) || baseZone.pan,
-    get attributes() {
-      return parseAttributes(pgenMap, baseZone?.attributes);
-    },
-  };
-}
-function parseAttributes(pgenMap: sfTypes.Generator[], baseValues): {} {
+export function parseAttributes(pgenMap: sfTypes.Generator[], baseValues): {} {
   return pgenMap.reduce((gmap, g) => {
     if (!g) return gmap;
     switch (g.operator) {
