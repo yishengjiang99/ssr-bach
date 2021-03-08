@@ -2,11 +2,12 @@ import { parsePDTA } from "./pdta";
 import { reader } from "./reader";
 import * as sfTypes from "./sf.types";
 import assert from "assert";
+import { LUT } from "./LUT";
 const defaultBlockLength = 128;
 
 export class SF2File {
   sections: sfTypes.RIFFSFBK;
-  chanVols: number[] = new Array(16).fill(1);
+  chanVols: number[] = new Array(16).fill(0);
   ccVol(c, v): void {
     this.chanVols[c] = v;
   }
@@ -72,8 +73,6 @@ export class SF2File {
       return null;
     }
     const presetZones = sections.pdta.presets[bankId][presetId].zones;
-    let candidate: sfTypes.Zone | null = null;
-    let aggreDiff: number = 128 + 128;
     for (const z of presetZones) {
       if (!z.sample) continue;
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
@@ -98,14 +97,18 @@ export class SF2File {
     }
     const length = ~~(duration * this.sampleRate);
     const gdb = -1;
+    const centiDB =
+      preset.attenuation + LUT.velCB[this.chanVols[channelId]] + LUT.velCB[vel];
+
     this.channels[channelId] = {
+      id: channelId,
       zone: preset,
       smpl: preset.sample,
       length: length,
       ratio: preset.pitchAjust(key, this.sampleRate),
       iterator: preset.sample.start,
       ztransform: (x) => x,
-      gain: preset.gain(vel, this.chanVols[channelId], 0), // (Math.pow(10, -0.05 * preset.attenuation) / 127) * vel,
+      gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
     };
     return this.channels[channelId];
@@ -128,7 +131,6 @@ export class SF2File {
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     const sample = channel.smpl;
     let shift = 0.0;
-    console.log(channel.gain);
     let iterator = channel.iterator || channel.smpl.start;
     const envIterator = channel.zone.envAmplitue(this.sampleRate);
     for (let offset = 0; offset < blockLength - 1; offset++) {
@@ -142,8 +144,8 @@ export class SF2File {
       );
       //spline lerp found on internet
       newVal = hermite4(shift, vm1, v0, v1, v2);
-
-      let sum = currentVal + newVal;
+      const envval = envIterator.next();
+      let sum = currentVal + newVal * envval.value * channel.gain;
       outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
       outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
 

@@ -13,6 +13,7 @@ export enum ch_state {
   releasing,
 }
 export type Channel = {
+  id: number;
   smpl: Shdr;
   zone?: Zone;
   length: number;

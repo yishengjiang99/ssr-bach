@@ -186,7 +186,7 @@ export function parsePDTA(
             igenMap[sfTypes.generators.sampleID] &&
             shdr[igenMap[sfTypes.generators.sampleID].amount]
           ) {
-            const izone = makeZone(igenMap, shdr, pbagZone);
+            const izone = makeZone(igenMap, shdr, preset.defaultBag);
             if (izone.sample) preset.zones.push(izone);
           }
         }
@@ -256,7 +256,10 @@ function makeZone(
     getPgenVal(sfTypes.generators.decayVolEnv, "signed", -12000),
     getPgenVal(sfTypes.generators.releaseVolEnv, "signed", -12000),
   ];
-  const sustain = getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000);
+  const sustain = Math.pow(
+    10,
+    (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
+  );
 
   return {
     velRange: pgenMap[velRangeGeneratorId]?.range ||
@@ -264,9 +267,15 @@ function makeZone(
     keyRange: pgenMap[keyRangeGeneratorId]?.range ||
       baseZone?.keyRange || { lo: 0, hi: 127 },
     envAmplitue: function* (sr: number) {
-      const [a, d, s, r] = envelopPhases.map((n) => Math.pow(2, n / 12000));
-      const env = new Envelope(sr, [a, d, s, r]);
-      env.shift();
+      const [_d, a, _h, d, r] = envelopPhases.map((n) =>
+        n < -12000 ? 0 : Math.pow(2, n / 12000)
+      );
+      const env = new Envelope(sr, [a, d, sustain, r]);
+      while (true) {
+        const next = env.shift();
+        if (next < -0.1) return 0;
+        else yield next;
+      }
     },
     sample: samples,
     get generators() {
@@ -290,7 +299,13 @@ function makeZone(
         sfTypes.generators.initialAttenuation,
         "signed"
       );
-      return Math.pow(10, initialAttentuation / -200);
+      return Math.pow(
+        10,
+        (initialAttentuation +
+          LUT.midiCB[(noteVelocity * noteVelocity) / 128 / 128] +
+          LUT.midiCB[midi_chan_vol]) /
+          -200
+      );
     },
     pan: getPgenVal(sfTypes.generators.pan),
     misc: {
