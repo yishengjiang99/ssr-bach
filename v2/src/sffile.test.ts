@@ -12,6 +12,6 @@ test("sffile is read", (t) => {
   t.truthy(pp2);
   for (let key = 21; key < 99; key++) {
     const z = sf.findPreset({ bankId: 0, presetId: 0, key: 55, vel: 55 });
-    t.truthy(z.gain(55, 0, 0));
+    t.truthy(z.sample);
   }
 });

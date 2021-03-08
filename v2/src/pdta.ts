@@ -29,10 +29,10 @@ export function parsePDTA(
   let n = 0;
   const pheaders: sfTypes.Phdr[] = [],
     pbag: sfTypes.Pbag[] = [],
-    pgen: sfTypes.Generator[] = [],
+    pgen: sfTypes.SFGen[] = [],
     pmod: sfTypes.Mod[] = [],
     inst: sfTypes.InstrHeader[] = [],
-    igen: sfTypes.Generator[] = [],
+    igen: sfTypes.SFGen[] = [],
     imod: sfTypes.Mod[] = [],
     ibag: sfTypes.IBag[] = [],
     shdr: sfTypes.Shdr[] = [];
@@ -152,7 +152,7 @@ export function parsePDTA(
       pbagIndex++
     ) {
       const _pbag = pbag[pbagIndex];
-      let pgenMap: sfTypes.Generator[] = [];
+      let pgenMap: sfTypes.SFGen[] = [];
       const pgenEnd =
         pbagIndex < pbag.length - 1 ? pbag[pbagIndex + 1].pgen_id : pgen[pgen.length - 1];
       for (let pgenIndex = _pbag.pgen_id; pgenIndex < pgenEnd; pgenIndex++) {
@@ -176,7 +176,7 @@ export function parsePDTA(
           const _ibag = ibag[_ibagIndex];
           const lastIgenIndex =
             _ibagIndex < ibag.length - 1 ? ibag[_ibagIndex + 1].igen_id : igen.length - 1;
-          const igenMap: sfTypes.Generator[] = [];
+          const igenMap: sfTypes.SFGen[] = [];
 
           for (let igenIndex = _ibag.igen_id; igenIndex < lastIgenIndex; igenIndex++) {
             const _igen = igen[igenIndex];
@@ -236,7 +236,7 @@ function nextShdr(r: Reader, shdr: sfTypes.Shdr[]) {
 }
 
 function makeZone(
-  pgenMap: sfTypes.Generator[],
+  pgenMap: sfTypes.SFGen[],
   shdr: sfTypes.Shdr[],
   baseZone?: sfTypes.Zone
 ): sfTypes.Zone {
@@ -266,7 +266,7 @@ function makeZone(
       baseZone?.velRange || { lo: 0, hi: 127 },
     keyRange: pgenMap[keyRangeGeneratorId]?.range ||
       baseZone?.keyRange || { lo: 0, hi: 127 },
-    envAmplitue: function* (sr: number) {
+    envAmplitue: function* (sr: number): Generator<number, number, Error> {
       const [_d, a, _h, d, r] = envelopPhases.map((n) =>
         n < -12000 ? 0 : Math.pow(2, n / 12000)
       );
@@ -299,13 +299,13 @@ function makeZone(
         sfTypes.generators.initialAttenuation,
         "signed"
       );
-      return Math.pow(
-        10,
-        (initialAttentuation +
-          LUT.midiCB[(noteVelocity * noteVelocity) / 128 / 128] +
-          LUT.midiCB[midi_chan_vol]) /
-          -200
-      );
+      const centiDB =
+        initialAttentuation +
+        LUT.velCB[master_cc_vol] +
+        LUT.velCB[midi_chan_vol] +
+        LUT.velCB[noteVelocity];
+
+      return LUT.cent2amp[centiDB];
     },
     pan: getPgenVal(sfTypes.generators.pan),
     misc: {

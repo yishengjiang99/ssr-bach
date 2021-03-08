@@ -110,6 +110,7 @@ export class SF2File {
       ztransform: (x) => x,
       gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
+      envelopeIterator: preset.envAmplitue(this.sampleRate),
     };
     return this.channels[channelId];
   }
@@ -125,14 +126,11 @@ export class SF2File {
     );
   }
   _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength, n) {
-    const t0 = process.hrtime();
     const input: Buffer = this.sections.sdta.data;
-    //POWF(10.0f, db * 0.05f) : 0); //(1.0f / vel);
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     const sample = channel.smpl;
     let shift = 0.0;
     let iterator = channel.iterator || channel.smpl.start;
-    const envIterator = channel.zone.envAmplitue(this.sampleRate);
     for (let offset = 0; offset < blockLength - 1; offset++) {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
@@ -144,7 +142,7 @@ export class SF2File {
       );
       //spline lerp found on internet
       newVal = hermite4(shift, vm1, v0, v1, v2);
-      const envval = envIterator.next();
+      const envval = channel.envelopeIterator.next();
       let sum = currentVal + newVal * envval.value * channel.gain;
       outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
       outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);

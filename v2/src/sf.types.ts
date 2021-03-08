@@ -22,6 +22,7 @@ export type Channel = {
   ztransform?: (input: number) => number;
   gain?: number;
   pan?: number;
+  envelopeIterator?: IterableIterator<number>;
 };
 export type RIFFSFBK = {
   pdta?: {
@@ -44,7 +45,7 @@ export type Phdr = {
   bankId: number;
   pbagIndex: number;
 };
-export type Generator = {
+export type SFGen = {
   operator: number;
   range: Range;
   amount: number;
@@ -76,10 +77,10 @@ export type Zone = {
   velRange: Range;
   keyRange: Range;
   pitchAjust: (key: number, sr: number) => number;
-  envAmplitue: (sr: number) => any;
+  envAmplitue: (sr: number) => Generator<number, number, Error>;
   misc?: any;
   sample: Shdr;
-  generators?: Generator[];
+  generators?: SFGen[];
   pan?: number;
   attenuation?: number;
   gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;

@@ -4,7 +4,10 @@ import { generatorNames, generators } from "./sf.types";
 import { envAmplitue } from "./envAmplitue";
 import { loadMidi } from "./load-midi";
 import { ffp } from "../../junk/src/sinks";
+
 const sf = new SF2File(process.argv[3] || "file.sf2", 48000);
+
+process.exit;
 const { presets, shdr, inst } = sf.sections.pdta;
 const samples = sf.sections.pdta.shdr;
 const tones = Object.values(presets[0]);
@@ -13,7 +16,9 @@ createServer((req, res) => {
     "Content-Type": "text/html",
   });
   let m;
-
+  if ((m = req.url.match(/midi\/(.*?)/))) {
+    loadMidi("midi/" + m[1], sf, res, 48000).loop();
+  }
   if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)/))) {
     const [_, presetId, key, vel] = m;
 
@@ -81,7 +86,7 @@ createServer((req, res) => {
           `<td><a class='smpl' href='#' onclick='${playFn}'>play ${z.keyRange.lo}</a></td>`
         }<td>    ${
           z.sample &&
-          `<td><button type='button' class='btn btn-small' data-bs-toggle="popover" data-bs-content="s" data-href='${envUrl}'>envlope</a></td>`
+          `<td><button type='button' class='btn btn-small' data-bs-toggle="popover" data-bs-content="sc" data-href='${envUrl}'>envlope</a></td>`
         }
         </tr>`);
       });
@@ -91,21 +96,19 @@ createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/html" });
 
   res.end(
-    `<!doctype html5><html>
+    /* html */ `<!doctype html5><html>
     <head><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-    </head><body class='container row'><aside class='col-md-3'><ul><li>${Object.values(
-      tones
-    )
-      .map((p) =>
-        [
-          p.name,
-          p.presetId,
-          p.zones.length,
-          `<a class='nav' href="/preset/${p.presetId}">go</a>`,
-        ].join(" ")
-      )
-      .join("</li><li>")} 
-        </li></ul></aside><main class='col-md-3'></main><script>` +
+    </head><body class='container row'>
+    <aside class='col-md-3'>
+    <ul class="list-group" style='max-height:30vh;overflow-y:scroll'>
+    ${Object.values(tones).map(
+      (p) => `<li class='list-group-item'>
+      <div>${p.name} (${p.zones.length}) <a class='nav' href="/preset/${p.presetId}">go</a>
+     </div> </li>`
+    )}
+        </ul>
+        </aside>
+        <main class='col-md-3'></main><script>` +
       /* javascript */ `
       const main =document.querySelector("main");
       for(const a of document.querySelectorAll("a.nav")){
@@ -138,4 +141,3 @@ createServer((req, res) => {
     </script>  `
   );
 }).listen(3000);
-//
