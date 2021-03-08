@@ -187,6 +187,7 @@ export function parsePDTA(
             shdr[igenMap[sfTypes.generators.sampleID].amount]
           ) {
             const izone = makeZone(igenMap, shdr, preset.defaultBag);
+            izone.misc.instrument = instHeader.name;
             if (izone.sample) preset.zones.push(izone);
           }
         }
@@ -260,17 +261,17 @@ function makeZone(
     10,
     (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
   );
-
+  const [_d, a, _h, d, r] = envelopPhases.map((n) =>
+    n < -12000 ? 0 : Math.pow(2, n / 12000)
+  );
   return {
     velRange: pgenMap[velRangeGeneratorId]?.range ||
       baseZone?.velRange || { lo: 0, hi: 127 },
     keyRange: pgenMap[keyRangeGeneratorId]?.range ||
       baseZone?.keyRange || { lo: 0, hi: 127 },
     envAmplitue: function* (sr: number): Generator<number, number, Error> {
-      const [_d, a, _h, d, r] = envelopPhases.map((n) =>
-        n < -12000 ? 0 : Math.pow(2, n / 12000)
-      );
       const env = new Envelope(sr, [a, d, sustain, r]);
+
       while (true) {
         const next = env.shift();
         if (next < -0.1) return 0;
@@ -309,8 +310,12 @@ function makeZone(
     },
     pan: getPgenVal(sfTypes.generators.pan),
     misc: {
-      envelopPhases,
-      sustain,
+      envelopPhases: [
+        a,
+        d,
+        getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000),
+        r,
+      ],
     },
   };
 }

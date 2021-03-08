@@ -32,7 +32,7 @@ export function loadMidi(
   let activeTracks = tracks;
   let framesize = 128; //for 350fps
 
-  function loop(bitdepth = 32) {
+  function loop(output: Writable = null) {
     const loopStart = process.uptime();
     if (now > totalTicks) return;
     if (tempos.length > 1 && now >= tempos[1].ticks) {
@@ -79,8 +79,7 @@ export function loadMidi(
 
     now = nextCycleStart;
     setTimeout(() => {
-      loop(bitdepth);
-      console.error(elapsedCycleTime);
+      loop();
     }, milisecondsToNextCycle - elapsedCycleTime);
   }
 

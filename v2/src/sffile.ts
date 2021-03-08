@@ -66,13 +66,21 @@ export class SF2File {
   findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
     const sections = this.sections;
     const noteHave =
-      !sections.pdta.presets[bankId] ||
+      !sections.pdta.presets[bankId + ""] ||
       !sections.pdta.presets[bankId][presetId] ||
       !sections.pdta.presets[bankId][presetId].zones;
     if (noteHave) {
+      console.log("no", bankId, presetId, key, vel);
       return null;
     }
     const presetZones = sections.pdta.presets[bankId][presetId].zones;
+    for (const z of presetZones) {
+      if (!z.sample) continue;
+      if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
+      if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
+      if (z.velRange.hi - z.velRange.lo > 77) continue;
+      return z;
+    }
     for (const z of presetZones) {
       if (!z.sample) continue;
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
