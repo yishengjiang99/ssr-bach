@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import { parsePDTA } from "./pdta";
 import { reader } from "./reader";
 import * as sfTypes from "./sf.types";
+import { SF2File } from "./sffile";
 const pdtaoffset = execSync("strings -o file.sf2|grep pdta")
   .toString()
   .trim()
@@ -11,20 +12,14 @@ const nitoff = parseInt(pdtaoffset);
 
 test("pdta parse", (t) => {
   const r = reader("file.sf2");
-  r.setOffset(nitoff);
-  let size = r.get32();
-
-  //   t.is(r.read32String(), "pdta");
-
-  const pdta = parsePDTA(r);
-  //
+  const sff = new SF2File("file.sf2");
+  const pdta = sff.sections.pdta;
   t.truthy(pdta);
 
-  Object.values(pdta[0]).map(function (p: sfTypes.Preset) {
-    t.truthy(p.defaultBag);
-
+  Object.values(pdta.presets[0]).map(function (p: sfTypes.Preset) {
     p.zones.map((z) => {
-      p.defaultBag.lowPassFilter.q !== null && t.truthy(z.lowPassFilter.q);
+      t.truthy(z.sample);
     });
+    // t.truthy(p.defaultBag);
   }); //.defaultBag
 });

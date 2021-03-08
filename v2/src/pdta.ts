@@ -1,11 +1,13 @@
 import * as sfTypes from "./sf.types";
 import { reader, Reader } from "./reader";
-import { Envelope } from "./envelope";
-import { makeZone } from "./generators";
-export const sampleId_gen = 53;
+import { LUT } from "./LUT";
+import { envAmplitue } from "./envAmplitue";
+import { Envelope } from "ssr-cxt";
 
-export const velRangeGeneratorId = 44;
-export const keyRangeGeneratorId = 43;
+const sampleId_gen = 53;
+
+const velRangeGeneratorId = 44;
+const keyRangeGeneratorId = 43;
 const instrumentGenerator = 41;
 const ShdrLength = 46;
 const ibagLength = 4;
@@ -15,29 +17,25 @@ const pbagLength = 4;
 const pgenLength = 4;
 const pmodLength = 10;
 const instLength = 22;
-let n = 0;
-const pheaders: sfTypes.Phdr[] = [],
-  pbag: sfTypes.Pbag[] = [],
-  pgen: sfTypes.Generator[] = [],
-  pmod: sfTypes.Mod[] = [],
-  inst: sfTypes.InstrHeader[] = [],
-  igen: sfTypes.Generator[] = [],
-  imod: sfTypes.Mod[] = [],
-  ibag: sfTypes.IBag[] = [],
-  shdr: sfTypes.Shdr[] = [];
-export const hydra = {
-  pheaders,
-  pbag,
-  pgen,
-  pmod,
-  inst,
-  igen,
-  imod,
-  ibag,
-  shdr,
-};
-export function readPDTA(r: Reader) {
+export function parsePDTA(
+  r: Reader
+): {
+  presets: sfTypes.Preset[][];
+  shdr: sfTypes.Shdr[];
+  pheaders: sfTypes.Phdr[];
+  inst: sfTypes.InstrHeader[];
+} {
   //const sections: Map<string, any> = new Map<string, any>();
+  let n = 0;
+  const pheaders: sfTypes.Phdr[] = [],
+    pbag: sfTypes.Pbag[] = [],
+    pgen: sfTypes.SFGen[] = [],
+    pmod: sfTypes.Mod[] = [],
+    inst: sfTypes.InstrHeader[] = [],
+    igen: sfTypes.SFGen[] = [],
+    imod: sfTypes.Mod[] = [],
+    ibag: sfTypes.IBag[] = [],
+    shdr: sfTypes.Shdr[] = [];
 
   do {
     const sectionName = r.read32String();
@@ -138,43 +136,38 @@ export function readPDTA(r: Reader) {
         break; // `seciont name [${sectionName}]`;
     }
   } while (n++ < 8);
-}
-export function parsePDTA(r: Reader): sfTypes.Preset[][] {
-  readPDTA(r);
+
   const presets: any = {};
-  for (let i = 0; i < pheaders.length; i++) {
+  for (let i = 0; i < pheaders.length - 1; i++) {
     const header = pheaders[i];
     presets[header.bankId] = presets[header.bankId] || {};
-    const nextPresetBagIndex =
-      i < pheaders.length - 1 ? pheaders[i + 1].pbagIndex : pbag.length - 1;
     let preset: sfTypes.Preset = {
       ...header,
       defaultBag: null,
       zones: [],
     };
-    for (let pbagIndex = header.pbagIndex; pbagIndex < nextPresetBagIndex; pbagIndex++) {
+    for (
+      let pbagIndex = header.pbagIndex;
+      pbagIndex < pheaders[i + 1].pbagIndex;
+      pbagIndex++
+    ) {
       const _pbag = pbag[pbagIndex];
-      let pgenMap: sfTypes.Generator[] = [];
+      let pgenMap: sfTypes.SFGen[] = [];
       const pgenEnd =
         pbagIndex < pbag.length - 1 ? pbag[pbagIndex + 1].pgen_id : pgen[pgen.length - 1];
       for (let pgenIndex = _pbag.pgen_id; pgenIndex < pgenEnd; pgenIndex++) {
         const _pgen = pgen[pgenIndex];
         pgenMap[_pgen.operator] = _pgen;
       }
-      const pbagZone = makeZone(pgenMap, shdr, preset.defaultBag);
-      if (pgenMap[sfTypes.generators.sampleID] !== null) {
-        if (pbagZone.sample) {
-          preset.zones.push(pbagZone);
-        } else {
-          preset.defaultBag = pbagZone;
-        }
-      }
-      if (pgenMap[instrumentGenerator]) {
+      if (pgenMap[sfTypes.generators.instrument] == null) {
+        if (preset.defaultBag == null) preset.defaultBag = makeZone(pgenMap, shdr, null);
+      } else {
+        const pbagZone = makeZone(pgenMap, shdr, preset.defaultBag);
+        if (pbagZone.sample) preset.zones.push(pbagZone);
         const instId = pgenMap[instrumentGenerator]!.amount;
         const instHeader = inst[instId];
         const nextIbagIndex =
           inst.length - 1 ? inst[instId + 1].iBagIndex : ibag.length - 1;
-
         for (
           let _ibagIndex = instHeader.iBagIndex;
           _ibagIndex < nextIbagIndex;
@@ -183,7 +176,7 @@ export function parsePDTA(r: Reader): sfTypes.Preset[][] {
           const _ibag = ibag[_ibagIndex];
           const lastIgenIndex =
             _ibagIndex < ibag.length - 1 ? ibag[_ibagIndex + 1].igen_id : igen.length - 1;
-          const igenMap: sfTypes.Generator[] = [];
+          const igenMap: sfTypes.SFGen[] = [];
 
           for (let igenIndex = _ibag.igen_id; igenIndex < lastIgenIndex; igenIndex++) {
             const _igen = igen[igenIndex];
@@ -193,81 +186,17 @@ export function parsePDTA(r: Reader): sfTypes.Preset[][] {
             igenMap[sfTypes.generators.sampleID] &&
             shdr[igenMap[sfTypes.generators.sampleID].amount]
           ) {
-            const izone = makeZone(igenMap, shdr, pbagZone);
-            preset.zones.push(izone);
+            const izone = makeZone(igenMap, shdr, preset.defaultBag);
+            if (izone.sample) preset.zones.push(izone);
           }
         }
       }
     }
     presets[header.bankId][header.presetId] = preset;
   }
-  return presets;
-}
-export const defaultZone: sfTypes.Zone = {
-  velRange: {
-    lo: 0,
-    hi: 127,
-  },
-  keyRange: {
-    lo: 0,
-    hi: 127,
-  },
-  adsr: [0, 0, 0.69, 0],
-  parent: null,
-  sample: null,
-  lowPassFilter: {
-    centerFreq: 0.5,
-    q: 0,
-  },
-  attenuation: 0,
-  pan: -5,
-  generators: [],
-};
-export function parseAttributes(pgenMap: sfTypes.Generator[], baseValues): {} {
-  return pgenMap.reduce((gmap, g) => {
-    if (!g) return gmap;
-    switch (g.operator) {
-      case sfTypes.generators.initialFilterFc:
-      case sfTypes.generators.initialAttenuation:
-      case sfTypes.generators.initialFilterQ:
-        gmap[sfTypes.generatorNames[g.operator]] = g.signed;
-        break;
-      case sfTypes.generators.velRange:
-      case sfTypes.generators.keyRange:
-        gmap[sfTypes.generatorNames[g.operator]] = g.range;
-        break;
-      case sfTypes.generators.startAddrsOffset:
-      case sfTypes.generators.endAddrsOffset:
-      case sfTypes.generators.startAddrsOffset:
-      case sfTypes.generators.endloopAddrsOffset:
-      case sfTypes.generators.fineTune:
-        gmap[sfTypes.generatorNames[g.operator]] ||= 0;
-        gmap[sfTypes.generatorNames[g.operator]] += g.signed;
-        break;
-      case sfTypes.generators.startAddrsCoarseOffset:
-      case sfTypes.generators.endAddrsCoarseOffset:
-      case sfTypes.generators.coarseTune:
-        gmap[sfTypes.generatorNames[g.operator]] ||= 0;
-        gmap[sfTypes.generatorNames[g.operator]] += g.signed << 15;
-        break;
-      default:
-        gmap[sfTypes.generatorNames[g.operator]] = g.signed;
-        break;
-    }
-    return gmap;
-  }, baseValues || {});
+  return { presets, shdr, pheaders, inst };
 }
 
-function nextPhdr(r: Reader, pheaders: sfTypes.Phdr[]) {
-  const phdrItem = {
-    name: r.readNString(20),
-    presetId: r.get16(),
-    bankId: r.get16(),
-    pbagIndex: r.get16(),
-    misc: [r.get32(), r.get32(), r.get32()],
-  };
-  pheaders.push(phdrItem);
-}
 function nextShdr(r: Reader, shdr: sfTypes.Shdr[]) {
   const name = r.readNString(20);
   const [
@@ -304,4 +233,98 @@ function nextShdr(r: Reader, shdr: sfTypes.Shdr[]) {
     sampleLink,
     sampleType,
   });
+}
+
+function makeZone(
+  pgenMap: sfTypes.SFGen[],
+  shdr: sfTypes.Shdr[],
+  baseZone?: sfTypes.Zone
+): sfTypes.Zone {
+  function getPgenVal(genId, type = "signed", defaultValue = 0) {
+    return (
+      (pgenMap[genId] && pgenMap[genId][type]) ||
+      (baseZone && baseZone.generators[genId] && baseZone.generators[genId][type]) ||
+      defaultValue
+    );
+  }
+  const samples = shdr[pgenMap[sampleId_gen]?.amount] || null;
+  adjustSmpls(samples, getPgenVal);
+  const envelopPhases = [
+    getPgenVal(sfTypes.generators.delayVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.attackVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.holdVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.decayVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.releaseVolEnv, "signed", -12000),
+  ];
+  const sustain = Math.pow(
+    10,
+    (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
+  );
+
+  return {
+    velRange: pgenMap[velRangeGeneratorId]?.range ||
+      baseZone?.velRange || { lo: 0, hi: 127 },
+    keyRange: pgenMap[keyRangeGeneratorId]?.range ||
+      baseZone?.keyRange || { lo: 0, hi: 127 },
+    envAmplitue: function* (sr: number): Generator<number, number, Error> {
+      const [_d, a, _h, d, r] = envelopPhases.map((n) =>
+        n < -12000 ? 0 : Math.pow(2, n / 12000)
+      );
+      const env = new Envelope(sr, [a, d, sustain, r]);
+      while (true) {
+        const next = env.shift();
+        if (next < -0.1) return 0;
+        else yield next;
+      }
+    },
+    sample: samples,
+    get generators() {
+      return pgenMap;
+    },
+    pitchAjust: (outputKey: number, sampleRate: number) => {
+      let root = getPgenVal(sfTypes.generators.overridingRootKey, "signed");
+      if (!root || root == -1) root = samples.originalPitch;
+      const coarseTune = getPgenVal(sfTypes.generators.coarseTune, "amount", 0);
+      const fineTune = getPgenVal(sfTypes.generators.fineTune, "amount", 0);
+
+      return (
+        (Math.pow(2, (outputKey + coarseTune - fineTune * 100) / 1200) *
+          samples.sampleRate) /
+        sampleRate
+      );
+    },
+    attenuation: getPgenVal(sfTypes.generators.initialAttenuation),
+    gain: (noteVelocity: number, midi_chan_vol: number, master_cc_vol: number) => {
+      const initialAttentuation = getPgenVal(
+        sfTypes.generators.initialAttenuation,
+        "signed"
+      );
+      const centiDB =
+        initialAttentuation +
+        LUT.velCB[master_cc_vol] +
+        LUT.velCB[midi_chan_vol] +
+        LUT.velCB[noteVelocity];
+
+      return LUT.cent2amp[centiDB];
+    },
+    pan: getPgenVal(sfTypes.generators.pan),
+    misc: {
+      envelopPhases,
+      sustain,
+    },
+  };
+}
+function adjustSmpls(
+  samples: sfTypes.Shdr,
+  getPgenVal: (genId: any, type?: string, defaultValue?: number) => any
+) {
+  if (samples != null) {
+    const shoff = sfTypes.attributeGenerators.sampleOffsets.map((oper) =>
+      getPgenVal(oper, "amount", 0)
+    );
+    samples.start += shoff[0];
+    samples.end += shoff[1];
+    samples.startLoop += shoff[2];
+    samples.endLoop += shoff[3];
+  }
 }
