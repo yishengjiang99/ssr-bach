@@ -2,9 +2,6 @@ import { parsePDTA } from "./pdta";
 import { reader } from "./reader";
 import * as sfTypes from "./sf.types";
 import assert from "assert";
-import { compression, Envelope } from "ssr-cxt";
-import { clamp } from "./utils";
-import { Note } from "@tonejs/midi/dist/Note";
 const defaultBlockLength = 128;
 
 export class SF2File {
@@ -45,7 +42,7 @@ export class SF2File {
       if (section === "pdta") {
         sections.pdta = {
           offset: r.getOffset(),
-          data: parsePDTA(r),
+          ...parsePDTA(r),
         };
       } else if (section === "sdta") {
         assert(r.read32String(), "smpl");
@@ -68,32 +65,22 @@ export class SF2File {
   findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
     const sections = this.sections;
     const noteHave =
-      !sections.pdta.data[bankId] ||
-      !sections.pdta.data[bankId][presetId] ||
-      !sections.pdta.data[bankId][presetId].zones;
+      !sections.pdta.presets[bankId] ||
+      !sections.pdta.presets[bankId][presetId] ||
+      !sections.pdta.presets[bankId][presetId].zones;
     if (noteHave) {
       return null;
     }
-    const presetZones = sections.pdta.data[bankId][presetId].zones;
+    const presetZones = sections.pdta.presets[bankId][presetId].zones;
     let candidate: sfTypes.Zone | null = null;
     let aggreDiff: number = 128 + 128;
     for (const z of presetZones) {
+      if (!z.sample) continue;
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
       if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
-
-      const diff =
-        vel -
-        z.velRange.lo +
-        (z.sample.originalPitch > key ? 5 : 0) +
-        (z.sample.originalPitch - key) * 3;
-      candidate = candidate || z;
-      aggreDiff = aggreDiff || diff;
-      if (diff < aggreDiff) {
-        candidate = z;
-        aggreDiff = diff;
-      }
+      return z;
     }
-    return candidate;
+    return null;
   }
 
   keyOn(
@@ -102,33 +89,24 @@ export class SF2File {
     channelId: number
   ) {
     const preset = this.findPreset({ bankId, presetId, key, vel });
+    process.stdout.write(JSON.stringify(preset));
+    console.log(preset);
+
     //if (channelId != 2) return;
     if (this.channels[channelId] && this.channels[channelId].length > 0) {
       //   return false;
     }
-    const [a, d, s, r] = preset.adsr;
-    const envelope = new Envelope(this.sampleRate, [
-      a + 0.000000001,
-      d + 0.0000001,
-      s,
-      r,
-    ]); //laplacian smoothing(sic)
     const length = ~~(duration * this.sampleRate);
     const gdb = -1;
     this.channels[channelId] = {
-      state: sfTypes.ch_state.attack,
       zone: preset,
       smpl: preset.sample,
       length: length,
-      ratio:
-        (Math.pow(2, (key - preset.sample.originalPitch) / 12) *
-          preset.sample.sampleRate) /
-        this.sampleRate,
+      ratio: preset.pitchAjust(key, this.sampleRate),
       iterator: preset.sample.start,
       ztransform: (x) => x,
-      envelope,
-      gain: (this.chanVols[channelId] * ((preset.attenuation / 100) * 127)) / vel, // (Math.pow(10, -0.05 * preset.attenuation) / 127) * vel,
-      pan: preset.attributes[sfTypes.generators.pan],
+      gain: preset.gain(vel, this.chanVols[channelId], 0), // (Math.pow(10, -0.05 * preset.attenuation) / 127) * vel,
+      pan: preset.pan,
     };
     return this.channels[channelId];
   }
@@ -150,7 +128,9 @@ export class SF2File {
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     const sample = channel.smpl;
     let shift = 0.0;
+    console.log(channel.gain);
     let iterator = channel.iterator || channel.smpl.start;
+    const envIterator = channel.zone.envAmplitue(this.sampleRate);
     for (let offset = 0; offset < blockLength - 1; offset++) {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
@@ -162,13 +142,10 @@ export class SF2File {
       );
       //spline lerp found on internet
       newVal = hermite4(shift, vm1, v0, v1, v2);
-      //if (_lpf) newVal = _lpf.filter(newVal);
-      const amp = channel.gain * channel.envelope.shift();
-      //
-      let sum = currentVal + (newVal * amp) / n;
-      // sum = compression(sum, 0.5, 3, 0.9);
-      outputArr.writeFloatLE(clamp(sum, -1, 1) * 0.98, outputByteOffset);
-      outputArr.writeFloatLE(clamp(sum, -1, 1) * 1.03, outputByteOffset + 4);
+
+      let sum = currentVal + newVal;
+      outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
+      outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
 
       shift += channel.ratio;
       while (shift >= 1) {

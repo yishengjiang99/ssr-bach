@@ -18,8 +18,6 @@ export type Channel = {
   length: number;
   ratio: number;
   iterator: number;
-  envelope: Envelope;
-  state: ch_state.attack;
   ztransform?: (input: number) => number;
   gain?: number;
   pan?: number;
@@ -27,7 +25,10 @@ export type Channel = {
 export type RIFFSFBK = {
   pdta?: {
     offset: number;
-    data: Preset[][];
+    presets: Preset[][];
+    pheaders: Phdr[];
+    inst: InstrHeader[];
+    shdr: Shdr[];
   };
   sdta?: {
     offset: number;
@@ -73,19 +74,14 @@ export type Shdr = {
 export type Zone = {
   velRange: Range;
   keyRange: Range;
+  pitchAjust: (key: number, sr: number) => number;
+  envAmplitue: (sr: number) => any;
+  misc?: any;
   sample: Shdr;
-  adsr: [number, number, number, number];
-  sampleOffsets?: number[];
   generators?: Generator[];
-  attributes?: {};
-  parent?: Zone;
-  rootKey?: number;
   pan?: number;
-  lowPassFilter?: {
-    centerFreq: number;
-    q: number;
-  };
   attenuation?: number;
+  gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;
 };
 export type Preset = Phdr & {
   defaultBag: Zone;
