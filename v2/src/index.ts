@@ -1,82 +1,29 @@
 import { SF2File } from "./sffile";
-import { createServer } from "http";
-import { generatorNames, generators } from "./sf.types";
+import { generators, Preset } from "./sf.types";
 import { envAmplitue } from "./envAmplitue";
 import { loadMidi } from "./load-midi";
-import { ffp } from "../../junk/src/sinks";
-import { createReadStream, existsSync, readdir, readdirSync } from "fs";
-import { resolve } from "path";
+import * as fs from "fs";
+import { basename, resolve } from "path";
 import { LUT } from "./LUT";
+import { createSecureServer } from "http2";
+import { createServer } from "http";
 const sf = new SF2File(process.argv[3] || "file.sf2", 48000);
-const { presets, shdr, inst } = sf.sections.pdta;
+const { presets } = sf.sections.pdta;
 const tones = Object.values(presets[0]);
 const drums = Object.values(presets[128]);
 
-const loops = [];
 createServer((req, res) => {
   let m;
-  const ticksperpage = 30 * 4 * 255;
   if ((m = req.url.match(/midi\/(.*)/))) {
-    const { tracks, header, loop } = loadMidi(
-      resolve("midi", decodeURIComponent(m[1])),
-      sf,
-      res,
-      48000
+    if (!fs.existsSync(resolve("midi", decodeURIComponent(m[1]))))
+      return res.end("HTTP/1.1 404");
+    res.write(
+      "HTTP/1.1 200\r\nContent-Type:audio/raw \r\nContent-Disposition: inline \r\n\r\n"
     );
-    // .loop();
-    loops.push({ tracks, loop, header });
-    const loopId = loops.length - 1;
-    res.writeHead(206, { contentType: "application/json" });
-    return res.end(
-      JSON.stringify({
-        notes: tracks
-          .filter((t) => t.notes.length)
-          .map((t) => [t.instrument.name, ...t.notes]),
-        tracks: tracks
-          .filter((t) => t.notes.length)
-          .map((t) =>
-            t.notes
-              .filter((n) => n.ticks <= ticksperpage)
-              .map((n) =>
-                sf.findPreset({
-                  bankId: t.channel == 9 ? 128 : 0,
-                  presetId: t.instrument.number,
-                  key: n.midi,
-                  vel: n.velocity * 0x7f,
-                })
-              )
-          ),
-        next: `/tracks/${loopId}/page/2`,
-        play: `/tracks/${loopId}/play`,
-        loopId,
-        header,
-      })
-    );
-  } else if ((m = req.url.match(/tracks\/(\d+)\/page\/(\d+)/))) {
-    const { tracks, header, loopId } = loops[m[1]];
-    const page = m[2];
-
-    if (loops[m[1]]) return res.end("HTTP/1.1 404 Not founD");
-    if (header.durationTicks > (page + 1) * ticksperpage)
-      res.writeHead(200, { contentType: "application/json" });
-    else {
-      res.writeHead(206, { contentType: "application/json" });
-    }
-    const paginate = (n) =>
-      n.ticks > ticksperpage * page && n.ticks < ticksperpage * (page + 1);
-    return res.end(
-      JSON.stringify({
-        page: tracks.map((t) => t.notes.filter((n) => paginate(n))),
-        next: `/tracks/${loopId}/page/${page + 1}`,
-        loopId,
-      })
-    );
-  } else if ((m = req.url.match(/tracks\/(\d+)\/play/))) {
-    const { loop } = loops[m[1]];
-    res.writeHead(200, { contentType: "audio/raw" });
-    loop();
+    loadMidi(resolve("midi", decodeURIComponent(m[1])), sf, res, 48000).loop();
+    return;
   } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)\/(\d+)/))) {
-    const [_, bankId, presetId, key, vel] = m;
+    const [, bankId, presetId, key, vel] = m;
 
     sf.keyOn({ bankId: bankId, presetId, key, vel }, 0.5, 0);
 
@@ -92,10 +39,11 @@ createServer((req, res) => {
     const [delay, a, hol, decay, release] = m;
     const g = envAmplitue([delay, a, hol, decay, release], 1000, 48000);
     let c = 0;
-    while (c++ < 100) {
-      let n = g.next();
-      if (n.done) break;
-      res.write(n.value);
+    const respbuf = Buffer.alloc(4000);
+    let offset = 0;
+    for (const amp of g) {
+      respbuf.writeUInt16BE(amp, offset);
+      offset += 2;
     }
     res.end();
     return;
@@ -146,94 +94,59 @@ createServer((req, res) => {
       });
     res.end("</table>");
     return;
-  } else if (req.url.match("/js/(.*?)")) {
-    if (!existsSync(resolve("rc", req.url.split("/")[2]))) res.writeHead(404);
-    createReadStream(resolve("rc", req.url.split("/")[2])).pipe(res);
+  } else if ((m = req.url.match(/js\/(.*)/))) {
+    res.writeHead(200, { "Content-Type": "application/javascript" });
+    fs.createReadStream(resolve("js", m[1])).pipe(res);
   } else if (req.url.match("/bootstrap.min.css")) {
-    createReadStream("./bootstrap.min.css").pipe(res);
+    res.writeHead(200, { "Content-Type": "text/css" });
+
+    fs.createReadStream("./bootstrap.min.css").pipe(res);
+    return;
   } else {
     res.writeHead(200, { "Content-Type": "text/html" });
 
-    res.end(/* html */ `<!doctype html5><html>
+    res.write(/* html */ `
+<!doctype html5>
+    <html>
     <head>
     <link href="bootstrap.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/react@17/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js" crossorigin></script>  
     </head>
     <body class='container row'>
       <aside class='col-md-3'>
-      <ul class="list-group" style='max-height:30vh;overflow-y:scroll'>
-        ${readdirSync("midi/").map(
-          (file) =>
-            `<li class='list-group-item'><a class='midi' href='/midi/${encodeURIComponent(
-              file
-            )}'>${file}</li>`
-        )}
-      </ul>
-    <ul class="list-group" style='max-height:30vh;overflow-y:scroll'>
-    ${Object.values(tones)
-      .map(
-        (p) => `<li class='list-group-item'>
-      <div>${p.name} (${p.zones.length}) <a class='nav' href="/preset/${p.presetId}/${p.bankId}">go</a></div> </li>`
-      )
-      .join("")}</ul>    
-      <ul class="list-group" style='max-height:30vh;overflow-y:scroll'>
-      ${Object.values(drums)
-        .map(
-          (p) => `<li class='list-group-item'>
-        <div>${p.name} (${p.zones.length}) <a class='nav' href="/preset/${p.presetId}/${p.bankId}">go</a></div> </li>`
-        )
-        .join("")}</ul>
-    </aside>
-    <main id='root' class='col-md-3'></main><span id='like_button_container'></span>
-    
-    <script src='js/component.js'></script>
-    <script src='js/player.js'></script>
+      <ul class="list-group" style='max-height:15;overflow-y:scroll'>
+         ${fs.readdirSync("midi/").map((file) => midilink(file))}
 
-    <script>
-     ${javascript}
-    </script>`);
+
+      </ul>    
+      <ul class="list-group" style='max-height:15vh;overflow-y:scroll'>
+
+      ${tones.map((p) => presetlink(p))}
+          ${drums.map((p) => presetlink(p))}
+      </ul>
+    </aside>
+    <main id='root' class='col-md-9'>
+    <ul class="list-group" style='max-height:69vh;overflow-y:scroll'>
+        ${fs.readdirSync("midi/").map((file) => midilink(file))}
+      </ul>
+      </main>
+    <script src='js/playPCM.js'></script>
+    <script src='js/main.js'></script>
+    </body></html>`);
   }
 }).listen(3000);
 
-const javascript = /* javascript */ `
-const main =document.querySelector("main");
-for(const a of document.querySelectorAll("a.nav")){
-  a.addEventListener("click", function(e){
-    e.preventDefault();
-    fetch(e.target.href).then(res=>{
-      res.text().then(html=>{
-        main.innerHTML=html;
-      })
-    }).catch(e=>alert(e.message));
-})
-}
-for(const a of document.querySelectorAll("a.midi")){
-  a.addEventListener("click", function(e){
-    e.preventDefault();
-    fetch(e.target.href).then(res=>{
-      res.json().then(({tracks,header,page})=>{
-       rendertracks({tracks,header,page})
-      })
-    });
-})
-}
-let ctx;
-async function playSample(uri,e ){
-if(!ctx) ctx= new AudioContext();
-const resp = await fetch(uri);
-const ab = await resp.arrayBuffer();
-const dv = new DataView (ab);
-const audb= ctx.createBuffer(2, ab.byteLength / 8, 48000);
-const buffer = [audb.getChannelData(0), audb.getChannelData(1)];
-for (let i = 0; i < audb.length; i++) {
-    buffer[0][i] = dv.getFloat32(i*2 * 4+4, true);
-    buffer[1][i] = dv.getFloat32(i *2* 4, true);
-}
-const abs = new AudioBufferSourceNode(ctx, { buffer: audb });
-abs.connect(ctx.destination);
-abs.start();
-}`;
 process.on("uncaughtException", (e) => {
   console.error("NOTICE:", e);
 });
+function midilink(file: string): string {
+  return `<li class='list-group-item'>
+  <a class='midi' href='/midi/${encodeURIComponent(file)}'>${file}</a>
+  </li>`;
+}
+
+function presetlink(p: Preset): string {
+  return `<li class='list-group-item'><div>${p.name} (${p.zones.length}) 
+        <a class='nav' href="/preset/${p.presetId}/${p.bankId}">go</a>
+        </div>
+        </li>`;
+}

@@ -1,1 +1,12 @@
-export const s16tof32 = (i16: number) => (i16 > 0 ? i16 / 0x7fff : -1 - i16 / 0x8000);
+import { ffp } from "./sinks";
+import { loadMidi2 } from "./load-midi";
+import { SF2File } from "./sffile";
+
+const { tracks, loop } = loadMidi2({
+  source: "./song.mid",
+  sff: new SF2File("file.sf2"),
+  output: ffp({ arg2: "-nodisp -loglevel panic" }),
+  sampleRate: 48000,
+  debug: false,
+});
+loop();

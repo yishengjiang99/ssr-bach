@@ -8,12 +8,11 @@ const IceServers = [];
 const { RTCPeerConnection } = wrtc;
 const { RTCAudioSource } = wrtc.nonstandard;
 const connections = [];
-const sf = new SF2File("file.sf2");
+const sf = new SF2File("file.sf2", 44100);
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (req.method === "GET") {
     const pc: RTCPeerConnection = new RTCPeerConnection({
       sdpSemantics: "unified-plan",
-      RTCIceServers: IceServers,
     });
     const id = connections.length; // + "";
 
@@ -27,7 +26,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
-        const { loop, tracks } = loadMidi("song.mid", sf, pt, 44100);
+        const { loop, tracks } = loadMidi("midi/song.mid", sf, pt, 44100);
 
         playmidi(loop, pt, source);
         let start = 0,
@@ -118,9 +117,8 @@ async function main(){
   const remoteStream = new MediaStream(
     bpc.getReceivers().map((receiver) => receiver.track)
   );
-  debugger;
 
-  //remoteVideo.srcObject = remoteStream;
+  remoteVideo.srcObject = remoteStream;
 
   const originalAnswer = await bpc.createAnswer();
   await bpc.setLocalDescription(originalAnswer);
@@ -132,9 +130,6 @@ async function main(){
       "Content-Type": "application/json",
       "Content-Length": post.length
     },
-  }).then((res) => res.json()).then(({candidates})=>{
-    debugger;
-
   });
 }
 main();
@@ -148,16 +143,13 @@ function playmidi(loop: (bitdepth: number) => void, pt: PassThrough, source: any
   let sampleoffset = 0;
   pt.on("data", (d: Buffer) => {
     let readoffset = 0;
-    while (readoffset <= d.byteLength - 2) {
-      //this shananigan looking code is for printing out pcm at different cycles than backend rendering of it
-      // im not proud of it either.
+    while (readoffset <= d.byteLength - 4) {
       while (
         sampleoffset < numberOfFrames * channelCount &&
-        readoffset <= d.byteLength - 2
+        readoffset <= d.byteLength - 4
       ) {
-        samples[sampleoffset] = d.readInt16LE(readoffset);
-        readoffset == 42 && console.log(samples[sampleoffset]);
-        readoffset += 2;
+        samples[sampleoffset] = d.readFloatLE(readoffset) * 0x7fff;
+        readoffset += 4;
         sampleoffset++;
       }
       source.onData(data);
@@ -166,7 +158,6 @@ function playmidi(loop: (bitdepth: number) => void, pt: PassThrough, source: any
   });
   loop(16);
 }
-
 function actx() {
   const sampleRate = 44100;
   const numberOfFrames = sampleRate / 100;

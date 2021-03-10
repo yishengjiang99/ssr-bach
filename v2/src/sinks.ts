@@ -7,9 +7,9 @@ export const lowpassFilter = (cutoff) => {
   const { stdin, stdout } = cspawn(`ffmpeg -i pipe:0 -filter:a lowpass=f=${cutoff} -`);
   return { stdin, stdout };
 };
-export type FfpProps = { ar?: number; ac?: number; format?: string };
+export type FfpProps = { ar?: number; ac?: number; format?: string; arg2?: string };
 export const ffp = (props?: FfpProps) => {
-  const { ar, ac, format } = props || {};
+  const { ar, ac, format, arg2 } = props || {};
   const { stdin, stderr, stdout } = spawn("ffplay", [
     "-i",
     "pipe:0",
@@ -18,7 +18,8 @@ export const ffp = (props?: FfpProps) => {
     "-f",
     `${format || "f32le"}`,
     "-ar",
-    `${ar || "48k"} `,
+    `${ar || "48k"}`,
+    ...arg2.split(" "),
   ]);
   stderr.pipe(process.stderr);
   stdout.pipe(process.stderr);

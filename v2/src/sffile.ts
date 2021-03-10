@@ -26,6 +26,7 @@ export class SF2File {
   public set sampleRate(value: number) {
     this._sampleRate = value;
   }
+  static fromBuffer(buffer: Buffer) {}
   constructor(path: string, sampleRate: number = 48000) {
     const r = reader(path);
     let i = 0;
@@ -96,15 +97,8 @@ export class SF2File {
     channelId: number
   ) {
     const preset = this.findPreset({ bankId, presetId, key, vel });
-    process.stdout.write(JSON.stringify(preset));
-    console.log(preset);
-
-    //if (channelId != 2) return;
-    if (this.channels[channelId] && this.channels[channelId].length > 0) {
-      //   return false;
-    }
     const length = ~~(duration * this.sampleRate);
-    const gdb = -1;
+
     const centiDB =
       preset.attenuation + LUT.velCB[this.chanVols[channelId]] + LUT.velCB[vel];
 
@@ -116,7 +110,7 @@ export class SF2File {
       ratio: preset.pitchAjust(key, this.sampleRate),
       iterator: preset.sample.start,
       ztransform: (x) => x,
-      gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
+      gain: preset.gain(vel, this.chanVols[channelId], 0), //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
       envelopeIterator: preset.envAmplitue(this.sampleRate),
     };
@@ -149,9 +143,9 @@ export class SF2File {
         input.readFloatLE((iterator + i) * 4)
       );
       //spline lerp found on internet
-      newVal = hermite4(shift, vm1, v0, v1, v2);
+      newVal = vm1; //hermite4(shift, vm1, v0, v1, v2);
       const envval = channel.envelopeIterator.next();
-      let sum = currentVal + newVal * envval.value * channel.gain;
+      let sum = currentVal + (newVal * envval.value * channel.gain) / n;
       outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
       outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
 

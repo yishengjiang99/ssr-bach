@@ -187,7 +187,6 @@ export function parsePDTA(
             shdr[igenMap[sfTypes.generators.sampleID].amount]
           ) {
             const izone = makeZone(igenMap, shdr, preset.defaultBag);
-            izone.misc.instrument = instHeader.name;
             if (izone.sample) preset.zones.push(izone);
           }
         }
@@ -252,26 +251,38 @@ function makeZone(
   adjustSmpls(samples, getPgenVal);
   const envelopPhases = [
     getPgenVal(sfTypes.generators.delayVolEnv, "signed", -12000),
-    getPgenVal(sfTypes.generators.attackVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.attackVolEnv, "signed", -11000),
     getPgenVal(sfTypes.generators.holdVolEnv, "signed", -12000),
-    getPgenVal(sfTypes.generators.decayVolEnv, "signed", -12000),
-    getPgenVal(sfTypes.generators.releaseVolEnv, "signed", -12000),
+    getPgenVal(sfTypes.generators.decayVolEnv, "signed", -11000),
+    getPgenVal(sfTypes.generators.releaseVolEnv, "signed", 4000),
   ];
-  const sustain = Math.pow(
-    10,
-    (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
-  );
-  const [_d, a, _h, d, r] = envelopPhases.map((n) =>
-    n < -12000 ? 0 : Math.pow(2, n / 12000)
-  );
+  const sustain = getPgenVal(sfTypes.generators.sustainVolEnv, "amounts", 1000);
+  const tuning =
+    (samples && {
+      root: getPgenVal(sfTypes.generators.overridingRootKey, "signed"),
+      originalPitch: samples.originalPitch,
+      coarseTune: getPgenVal(sfTypes.generators.coarseTune, "amount", 0),
+      fineTune: getPgenVal(sfTypes.generators.fineTune, "amount", 0),
+    }) ||
+    null;
   return {
     velRange: pgenMap[velRangeGeneratorId]?.range ||
       baseZone?.velRange || { lo: 0, hi: 127 },
     keyRange: pgenMap[keyRangeGeneratorId]?.range ||
       baseZone?.keyRange || { lo: 0, hi: 127 },
     envAmplitue: function* (sr: number): Generator<number, number, Error> {
-      const env = new Envelope(sr, [a, d, sustain, r]);
-
+      const [_d, a, _h, d, r] = envelopPhases.map((n) =>
+        n < -12000 ? 0 : Math.pow(2, n / 12000)
+      );
+      const env = new Envelope(sr, [
+        a,
+        d + a,
+        Math.pow(
+          10,
+          (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
+        ),
+        r + d + a,
+      ]);
       while (true) {
         const next = env.shift();
         if (next < -0.1) return 0;
@@ -283,13 +294,10 @@ function makeZone(
       return pgenMap;
     },
     pitchAjust: (outputKey: number, sampleRate: number) => {
-      let root = getPgenVal(sfTypes.generators.overridingRootKey, "signed");
-      if (!root || root == -1) root = samples.originalPitch;
-      const coarseTune = getPgenVal(sfTypes.generators.coarseTune, "amount", 0);
-      const fineTune = getPgenVal(sfTypes.generators.fineTune, "amount", 0);
-
+      const { root, originalPitch, fineTune, coarseTune } = tuning;
+      const inputKey = root > 0 ? root : originalPitch;
       return (
-        (Math.pow(2, (outputKey + coarseTune - fineTune * 100) / 1200) *
+        (Math.pow(2, ((outputKey - inputKey + coarseTune) * 100 - fineTune) / 1200) *
           samples.sampleRate) /
         sampleRate
       );
@@ -310,12 +318,9 @@ function makeZone(
     },
     pan: getPgenVal(sfTypes.generators.pan),
     misc: {
-      envelopPhases: [
-        a,
-        d,
-        getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000),
-        r,
-      ],
+      envelopPhases,
+      sustain,
+      tuning,
     },
   };
 }

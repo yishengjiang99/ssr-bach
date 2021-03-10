@@ -12,7 +12,6 @@ export function* envAmplitue(envelopPhases, sustain, sr: number) {
     -sustainGain / 2 / steps[4],
     -sustainGain / 9 / sr,
   ];
-  console.log(deltas, steps);
   let amount = 0;
   while (steps.length) {
     while (steps[0] > 1) {
