@@ -1,6 +1,7 @@
-class PlaybackProcessor
-// @ts-ignore
-/* @ts-ignore */  extends AudioWorkletProcessor {
+//@ts-ignore
+class PlaybackProcessor //@ts-ignore
+//@ts-ignore
+ extends AudioWorkletProcessor {
     constructor() {
         super();
         this.buffers = [];
@@ -8,9 +9,7 @@ class PlaybackProcessor
         this.port.onmessage = async ({ data: { readable } }) => {
             let that = this;
             const reader = await readable.getReader();
-            reader
-                .read()
-                .then(function process(result) {
+            reader.read().then(function process(result) {
                 if (result.done)
                     return;
                 let value = result.value;

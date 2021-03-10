@@ -10,7 +10,7 @@
     "preserveConstEnums": true,
     "sourceMap": false,
     "declaration": true,
-    "types": ["node", "jest"],
+    "types": ["node"],
 
     "lib": [
       "DOM",

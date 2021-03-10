@@ -19,7 +19,9 @@ export const ffp = (props?: FfpProps) => {
     `${format || "f32le"}`,
     "-ar",
     `${ar || "48k"}`,
-    ...arg2.split(" "),
+    `-nodisp`,
+    `-loglevel`,
+    "panic",
   ]);
   stderr.pipe(process.stderr);
   stdout.pipe(process.stderr);

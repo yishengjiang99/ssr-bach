@@ -2,7 +2,6 @@ import * as sfTypes from "./sf.types";
 import { reader, Reader } from "./reader";
 import { LUT } from "./LUT";
 import { envAmplitue } from "./envAmplitue";
-import { Envelope } from "ssr-cxt";
 
 const sampleId_gen = 53;
 
@@ -270,25 +269,7 @@ function makeZone(
       baseZone?.velRange || { lo: 0, hi: 127 },
     keyRange: pgenMap[keyRangeGeneratorId]?.range ||
       baseZone?.keyRange || { lo: 0, hi: 127 },
-    envAmplitue: function* (sr: number): Generator<number, number, Error> {
-      const [_d, a, _h, d, r] = envelopPhases.map((n) =>
-        n < -12000 ? 0 : Math.pow(2, n / 12000)
-      );
-      const env = new Envelope(sr, [
-        a,
-        d + a,
-        Math.pow(
-          10,
-          (-0.05 / 10) * getPgenVal(sfTypes.generators.sustainVolEnv, "signed", 1000)
-        ),
-        r + d + a,
-      ]);
-      while (true) {
-        const next = env.shift();
-        if (next < -0.1) return 0;
-        else yield next;
-      }
-    },
+    envAmplitue: (sr) => envAmplitue(envelopPhases, sustain, sr),
     sample: samples,
     get generators() {
       return pgenMap;

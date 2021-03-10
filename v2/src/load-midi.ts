@@ -12,7 +12,14 @@ interface loadMidiProps {
   sampleRate?: number;
   debug?: boolean;
 }
-
+export function loadMidiaa(
+  source: string,
+  sff: SF2File,
+  output: Writable,
+  sampleRate: number
+) {
+  return loadMidi({ source, sff, output, sampleRate });
+}
 export function loadMidi({
   source,
   sff,
@@ -76,18 +83,19 @@ export function loadMidi({
           : Math.min(nextCycleStart, t.notes[0].ticks);
       }
     }
-    const milisecondsToNextCycle = Math.min(
-      2024,
-      (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote)
-    );
-
+    if (notesPlayed.length) {
+    }
+    const milisecondsToNextCycle =
+      (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
     let framesToREnder = (milisecondsToNextCycle * sampleRate) / 1000;
     let b = framesToREnder;
     while (framesToREnder >= 2 * framesize) {
-      output.write(sff.render(2 * framesize));
+      if (!output.destroyed) output.write(sff.render(2 * framesize));
       framesToREnder -= 2 * framesize;
     }
-    output.write(sff.render(framesize));
+
+    if (!output.destroyed) output.write(sff.render(framesize));
+
     const elapsedCycleTime = process.uptime() - loopStart;
     if (elapsedCycleTime * 1000 > milisecondsToNextCycle) {
       console.error("LAG!!");
@@ -102,7 +110,10 @@ export function loadMidi({
       setTimeout(resolve, milisecondsToNextCycle - elapsedCycleTime * 1000)
     );
     now = nextCycleStart;
-
+    if (nextCycleStart == null) {
+      output.end();
+      return;
+    }
     loop();
   }
 

@@ -1,7 +1,7 @@
 import { SF2File } from "./sffile";
 import { generators, Preset } from "./sf.types";
 import { envAmplitue } from "./envAmplitue";
-import { loadMidi } from "./load-midi";
+import { loadMidi, loadMidiaa } from "./load-midi";
 import * as fs from "fs";
 import { basename, resolve } from "path";
 import { LUT } from "./LUT";
@@ -11,16 +11,16 @@ const sf = new SF2File(process.argv[3] || "file.sf2", 48000);
 const { presets } = sf.sections.pdta;
 const tones = Object.values(presets[0]);
 const drums = Object.values(presets[128]);
-
+const mainJS = fs.readFileSync("./main.js").toString();
 createServer((req, res) => {
   let m;
-  if ((m = req.url.match(/midi\/(.*)/))) {
+  if ((m = req.url.match(/pcm\/(.*)/))) {
     if (!fs.existsSync(resolve("midi", decodeURIComponent(m[1]))))
       return res.end("HTTP/1.1 404");
     res.write(
       "HTTP/1.1 200\r\nContent-Type:audio/raw \r\nContent-Disposition: inline \r\n\r\n"
     );
-    loadMidi(resolve("midi", decodeURIComponent(m[1])), sf, res, 48000).loop();
+    loadMidiaa(resolve("midi", decodeURIComponent(m[1])), sf, res, 48000).loop();
     return;
   } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)\/(\d+)/))) {
     const [, bankId, presetId, key, vel] = m;
@@ -85,7 +85,8 @@ createServer((req, res) => {
       ].join("</td><td>")}</td>
         ${
           z.sample &&
-          `<td><a class='smpl' href='#' onclick='${playFn}'>play ${z.keyRange.lo}</a></td>`
+          `<td>       
+          </td>`
         }<td>    ${
           z.sample &&
           `<td><button type='button' class='btn btn-small' data-bs-toggle="popover" data-bs-content="sc" data-href='${envUrl}'>envlope</a></td>`
@@ -94,9 +95,12 @@ createServer((req, res) => {
       });
     res.end("</table>");
     return;
-  } else if ((m = req.url.match(/js\/(.*)/))) {
+  } else if (req.url == "/main.js") {
     res.writeHead(200, { "Content-Type": "application/javascript" });
-    fs.createReadStream(resolve("js", m[1])).pipe(res);
+    res.end(mainJS);
+  } else if (req.url == "/proc5.js") {
+    res.writeHead(200, { "Content-Type": "application/javascript" });
+    fs.createReadStream("proc5.js").pipe(res);
   } else if (req.url.match("/bootstrap.min.css")) {
     res.writeHead(200, { "Content-Type": "text/css" });
 
@@ -105,7 +109,7 @@ createServer((req, res) => {
   } else {
     res.writeHead(200, { "Content-Type": "text/html" });
 
-    res.write(/* html */ `
+    res.end(/* html */ `
 <!doctype html5>
     <html>
     <head>
@@ -115,7 +119,6 @@ createServer((req, res) => {
       <aside class='col-md-3'>
       <ul class="list-group" style='max-height:15;overflow-y:scroll'>
          ${fs.readdirSync("midi/").map((file) => midilink(file))}
-
 
       </ul>    
       <ul class="list-group" style='max-height:15vh;overflow-y:scroll'>
@@ -129,8 +132,7 @@ createServer((req, res) => {
         ${fs.readdirSync("midi/").map((file) => midilink(file))}
       </ul>
       </main>
-    <script src='js/playPCM.js'></script>
-    <script src='js/main.js'></script>
+    <script src='main.js'></script>
     </body></html>`);
   }
 }).listen(3000);
@@ -140,13 +142,14 @@ process.on("uncaughtException", (e) => {
 });
 function midilink(file: string): string {
   return `<li class='list-group-item'>
-  <a class='midi' href='/midi/${encodeURIComponent(file)}'>${file}</a>
+  <a class='pointer' onclick='playPCM("/pcm/${encodeURIComponent(file)}")'>${file}</a>
   </li>`;
 }
 
 function presetlink(p: Preset): string {
   return `<li class='list-group-item'><div>${p.name} (${p.zones.length}) 
-        <a class='nav' href="/preset/${p.presetId}/${p.bankId}">go</a>
+        <a class='nav' target='_main' href="/preset/${p.presetId}/${p.bankId}">go</a>
+
         </div>
         </li>`;
 }

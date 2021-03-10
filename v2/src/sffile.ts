@@ -3,6 +3,7 @@ import { reader } from "./reader";
 import * as sfTypes from "./sf.types";
 import assert from "assert";
 import { LUT } from "./LUT";
+import { envAmplitue } from "./envAmplitue";
 const defaultBlockLength = 128;
 
 export class SF2File {
@@ -110,9 +111,9 @@ export class SF2File {
       ratio: preset.pitchAjust(key, this.sampleRate),
       iterator: preset.sample.start,
       ztransform: (x) => x,
-      gain: preset.gain(vel, this.chanVols[channelId], 0), //static portion of gain.. this x envelope=ocverall gain
+      gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
-      envelopeIterator: preset.envAmplitue(this.sampleRate),
+      envelopeIterator: null, //, sustain, sr) preset.envAmplitue(this.sampleRate),
     };
     return this.channels[channelId];
   }
@@ -143,9 +144,9 @@ export class SF2File {
         input.readFloatLE((iterator + i) * 4)
       );
       //spline lerp found on internet
-      newVal = vm1; //hermite4(shift, vm1, v0, v1, v2);
-      const envval = channel.envelopeIterator.next();
-      let sum = currentVal + (newVal * envval.value * channel.gain) / n;
+      newVal = hermite4(shift, vm1, v0, v1, v2);
+      //   const envval = channel.envelopeIterator.next();
+      let sum = currentVal + (newVal * channel.gain) / n;
       outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
       outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
 
