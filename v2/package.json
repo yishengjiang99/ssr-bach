@@ -17,10 +17,7 @@
         "@tonejs/midi": "^2.0.26",
         "ava": "^3.15.0",
         "babar": "^0.2.0",
-        "esm": "^3.2.25",
-        "ffmpeg-installer": "^1.0.2",
-        "node-pre-gyp": "^0.17.0",
-        "ssr-cxt": "^1.3.7",
+        "esm": "^3.2.25",    "ssr-cxt": "^1.3.7",
         "wrtc": "^0.4.7"
     },
     "ava": {
