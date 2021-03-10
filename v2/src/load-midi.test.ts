@@ -2,10 +2,9 @@ import { Midi } from "@tonejs/midi";
 import { Instrument } from "@tonejs/midi/dist/Instrument";
 import { writeFileSync } from "fs";
 import { devnull, ffp } from "./sinks";
-import { loadMidi, loadMidi2 } from "./load-midi";
+import { loadMidi, loadMidiaa as loadMidi2 } from "./load-midi";
 import { SF2File } from "./sffile";
 import test from "ava";
-import { Channel, Zone } from "./sf.types";
 
 test("loading notes", (t) => {
   const sffile = new SF2File("./file.sf2"); //.ts");
@@ -18,7 +17,7 @@ test("loading notes", (t) => {
   });
   writeFileSync("1.mid", Buffer.from(midi.toArray()));
 
-  const { tracks, loop } = loadMidi2({
+  const { tracks, loop } = loadMidi({
     source: "./1.mid",
     sff: sffile,
     output: devnull(),
@@ -47,7 +46,7 @@ test("fast vs slow", (t) => {
   });
   writeFileSync("fvs.mid", Buffer.from(midi.toArray()));
 
-  const { tracks, loop } = loadMidi2({
+  const { tracks, loop } = loadMidi({
     source: "./fvs.mid",
     sff: sffile,
     output: ffp(),

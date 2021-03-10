@@ -1,5 +1,3 @@
-import { Envelope } from "ssr-cxt";
-
 export type FindPresetProps = {
   bankId: number;
   presetId: number;

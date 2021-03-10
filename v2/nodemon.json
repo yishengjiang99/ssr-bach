@@ -1,5 +1,0 @@
-{
-	"watch": ["src"],
-	"include":["*ts"],
-	"exec": "ts-node src/index.ts"
-}
