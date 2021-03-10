@@ -3,11 +3,9 @@
  // @ts-ignore*/
   class PlaybackProcessor /* @ts-ignore */ // @ts-ignore
     /* @ts-ignore */ extends AudioWorkletProcessor {
-    port: any;
-    buffers: any[];
-
     constructor() {
       super();
+
       this.buffers = [];
       const chunk = 128 * 4 * 2;
 

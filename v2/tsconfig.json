@@ -5,7 +5,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "esModuleInterop":true,
-    "target": "ESNext",
+    "target": "es2018",
     "module": "CommonJS",
     "types":["node"]
   },

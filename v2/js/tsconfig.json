@@ -6,7 +6,7 @@
     "module": "esnext",
     "esModuleInterop": false,
 
-    "target": "esnext",
+    "target": "es2018",
     "preserveConstEnums": true,
     "sourceMap": false,
     "declaration": true,

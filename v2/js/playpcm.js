@@ -1,17 +1,16 @@
-const worker = new Worker("./js/build/fetchworker.js");
+const worker = new Worker("js/fetchworker.js");
 let proc, ctx;
-try {
-  ctx = new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
-} catch (e) {}
+
 async function start(midifile) {
   try {
-    ctx = ctx || new AudioContext();
+    ctx = ctx || new AudioContext({ sampleRate: 48000, latencyHint: "playback" });
+
     if (ctx.state != "running") await ctx.resume();
-    await ctx.audioWorklet.addModule("./js/build/proc2.js");
+    await ctx.audioWorklet.addModule("js/proc2.js");
     proc = new AudioWorkletNode(ctx, "playback-processor", {
       outputChannelCount: [2],
     });
-    const analyzer = new AnalyzerNode(ctx);
+    const analyzer = new AnalyserNode(ctx);
     proc.connect(analyzer).connect(ctx.destination);
     worker.postMessage({ port: proc.port, url: midifile }, [proc.port]);
     setTimeout(() => {
@@ -21,26 +20,11 @@ async function start(midifile) {
     console.log("<font color='red'>" + e.message + "</font>");
   }
 }
-const btns = document.querySelectorAll("a.pcm");
-btns.forEach((a) => {
-  a.addEventListener("click", (e) => {
-    e.preventDefault();
-    start(a.href);
-  });
-});
+
 document.body.innerHTML +=
   "<canvas style='width:100vw;height:vh;background-color:black;z-index:10'></canvas>";
 const tag = document.querySelector("audio");
-const btns2 = document.querySelectorAll("a.mp3");
-btns2.forEach((a) => {
-  a.addEventListener("click", (e) => {
-    e.preventDefault();
-    debugger;
 
-    tag.src = a.href; //(a.href);
-    tag.oncanplay = () => tag.play();
-  });
-});
 var g_av_timers = [];
 const AnalyzerView = function (analyser, params = {}) {
   const av = analyser;
