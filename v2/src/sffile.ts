@@ -1,9 +1,9 @@
-import { parsePDTA } from "./pdta";
-import { reader } from "./reader";
-import * as sfTypes from "./sf.types";
-import assert from "assert";
-import { LUT } from "./LUT";
-import { envAmplitue } from "./envAmplitue";
+import { parsePDTA } from './pdta';
+import { reader } from './reader';
+import * as sfTypes from './sf.types';
+import assert from 'assert';
+import { LUT } from './LUT';
+import { envAmplitue } from './envAmplitue';
 const defaultBlockLength = 128;
 
 export class SF2File {
@@ -32,23 +32,23 @@ export class SF2File {
     const r = reader(path);
     let i = 0;
     this.sampleRate = sampleRate;
-    assert(r.read32String(), "RIFF");
+    assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
-    assert(r.read32String(), "sfbk");
-    assert(r.read32String(), "LIST");
+    assert(r.read32String(), 'sfbk');
+    assert(r.read32String(), 'LIST');
     size -= 64;
     const sections: any = {};
     do {
       const sectionSize = r.get32();
       const section = r.read32String();
       size = size - sectionSize;
-      if (section === "pdta") {
+      if (section === 'pdta') {
         sections.pdta = {
           offset: r.getOffset(),
           ...parsePDTA(r),
         };
-      } else if (section === "sdta") {
-        assert(r.read32String(), "smpl");
+      } else if (section === 'sdta') {
+        assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
         const floatBuffer = Buffer.allocUnsafe(nsamples * 4);
         const bit16s = r.readN(sectionSize - 4);
@@ -68,11 +68,11 @@ export class SF2File {
   findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
     const sections = this.sections;
     const noteHave =
-      !sections.pdta.presets[bankId + ""] ||
+      !sections.pdta.presets[bankId + ''] ||
       !sections.pdta.presets[bankId][presetId] ||
       !sections.pdta.presets[bankId][presetId].zones;
     if (noteHave) {
-      console.log("no", bankId, presetId, key, vel);
+      console.log('no', bankId, presetId, key, vel);
       return null;
     }
     const presetZones = sections.pdta.presets[bankId][presetId].zones;
@@ -113,6 +113,7 @@ export class SF2File {
       ztransform: (x) => x,
       gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
+      key: key,
       envelopeIterator: null, //, sustain, sr) preset.envAmplitue(this.sampleRate),
     };
     return this.channels[channelId];

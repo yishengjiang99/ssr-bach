@@ -1,8 +1,8 @@
-import test from "ava";
-import { SF2File } from "./sffile";
+import test from 'ava';
+import { SF2File } from './sffile';
 
-test("sffile is read", (t) => {
-  const sf = new SF2File("./fixtures/Chaos.sf2");
+test('sffile is read', (t) => {
+  const sf = new SF2File('./file.sf2');
   t.truthy(sf.sections.pdta.presets);
   t.truthy(sf.sections.pdta.shdr);
   t.truthy(sf.sections.pdta.inst);

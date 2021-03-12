@@ -20,6 +20,7 @@ export type Channel = {
   ztransform?: (input: number) => number;
   gain?: number;
   pan?: number;
+  key?: number;
   envelopeIterator?: IterableIterator<number>;
 };
 export type RIFFSFBK = {
@@ -149,9 +150,9 @@ export const generatorNames = `#define SFGEN_startAddrsOffset         0
 #define SFGEN_unused5                  59
 #define SFGEN_endOper                  60`
   .trim()
-  .split("\n")
+  .split('\n')
   .map((line) => line.split(/\s+/)[1])
-  .map((token) => token.replace("SFGEN_", ""));
+  .map((token) => token.replace('SFGEN_', ''));
 
 export enum generators {
   startAddrsOffset,

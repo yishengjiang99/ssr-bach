@@ -1,8 +1,8 @@
-import { Header, Midi, Track } from "@tonejs/midi";
-import { Note } from "@tonejs/midi/src/Note";
-import { readFileSync } from "fs";
-import { Writable } from "stream";
-import { SF2File } from "./sffile";
+import { Header, Midi, Track } from '@tonejs/midi';
+import { Note } from '@tonejs/midi/src/Note';
+import { readFileSync } from 'fs';
+import { Writable } from 'stream';
+import { SF2File } from './sffile';
 const midi_chan_vol_cc = 11;
 const midi_mast_vol_cc = 7;
 interface loadMidiProps {
@@ -31,7 +31,9 @@ export function loadMidi({
   tracks: Track[];
   header: Header;
 } {
-  const { durationTicks: totalTicks, tracks, header } = new Midi(readFileSync(source));
+  const { durationTicks: totalTicks, tracks, header } = new Midi(
+    readFileSync(source)
+  );
 
   const tempos = header.tempos;
   let now = 0;
@@ -40,7 +42,7 @@ export function loadMidi({
     return sff.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,
-        presetId: 0,
+        presetId: t.instrument.number,
         key: note.midi,
         vel: note.velocity * 0x7f,
       },
@@ -89,6 +91,10 @@ export function loadMidi({
       (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
     let framesToREnder = (milisecondsToNextCycle * sampleRate) / 1000;
     let b = framesToREnder;
+    const keys = sff.channels
+      .filter((c) => c.length > 12)
+      .map((c) => c.key)
+      .sort();
     while (framesToREnder >= 2 * framesize) {
       if (!output.destroyed) output.write(sff.render(2 * framesize));
       framesToREnder -= 2 * framesize;
@@ -96,15 +102,17 @@ export function loadMidi({
 
     if (!output.destroyed) output.write(sff.render(framesize));
 
-    const elapsedCycleTime = process.uptime() - loopStart;
-    if (elapsedCycleTime * 1000 > milisecondsToNextCycle) {
-      console.error("LAG!!");
-      // framesize += 20;
-      // if (framesize > 1280) throw "find a new outlet";
+    process.stdout.write('\n');
+    for (let i = 11; i < 98; i++) {
+      if (i < keys[0] || !keys.length)
+        process.stdout.write(String.fromCharCode(0x20));
+      else {
+        keys.shift();
+        process.stdout.write('#');
+      }
     }
-    console.log("frames:", b);
-    console.log("took (ms)", elapsedCycleTime * 1000);
-    console.log("sleep", milisecondsToNextCycle);
+
+    const elapsedCycleTime = process.uptime() - loopStart;
 
     await new Promise((resolve) =>
       setTimeout(resolve, milisecondsToNextCycle - elapsedCycleTime * 1000)

@@ -1,9 +1,16 @@
-import { LUT } from "./LUT";
+import { LUT } from './LUT';
 
 export function* envAmplitue(envelopPhases, sustain, sr: number) {
   const [delay, attack, hold, decay, release] = envelopPhases;
   const sustainGain = 8.176 * Math.pow(10, (-1 * sustain * 0.05) / 10);
-  const steps = [delay, attack, hold, decay, release, 3 * release].map((centisec) =>
+  const steps = [
+    delay,
+    attack,
+    hold,
+    decay,
+    release,
+    3 * release,
+  ].map((centisec) =>
     centisec < -11000 ? 1 : Math.pow(2, centisec / 1200) / (1 / sr)
   );
   let deltas = [
