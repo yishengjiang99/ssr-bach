@@ -6,17 +6,44 @@
   "bin": {
     "bachd": "bashd.js"
   },
-  "dependencies": {
-    "@tonejs/midi": "^2.0.27",
-    "chalk": "^4.1.0"
+  "scripts": {
+    "build": "run-s build:clean build:code",
+    "build:clean": "rimraf dist",
+    "build:code": "tsc",
+    "dev": "nodemon src/entry.ts",
+    "dev:debug": "nodemon --inspect src/entry.ts",
+    "fmt": "prettier --write '**/*.{js,ts}'",
+    "fmt:p": "prettier-package-json --write",
+    "prod": "run-s build && node dist/entry.js",
+    "test": "ava --no-cache"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "testRegex": "\\.test\\.ts",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "arrowParens": "always"
   },
   "devDependencies": {
     "ava": "^3.15.0",
+    "ts-node": "^9.1.1",
     "typescript": "^4.2.3"
   },
-  "scripts": {
-    "test": "ava"
-  },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@tonejs/midi": "^2.0.27"
+  }
 }
