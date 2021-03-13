@@ -59,9 +59,10 @@ export function httpd(port: number) {
     } else if ((m = req.url.match(/preset\/(\d+)\/(\d+)/))) {
       const presetHeaders = sf.sections.pdta.presets[m[2]][m[1]];
       const colums = [
+        'delay',
         'attack',
+        'hold',
         'decay',
-        'sustain',
         'release',
         'krange',
         'vrange',
@@ -73,29 +74,41 @@ export function httpd(port: number) {
       ];
       const { bankId, zones, presetId, name } = presetHeaders;
       res.writeHead(200, { 'content-type': 'text/html' });
-      const zoneRows = zones
-        .filter((z) => z.sample != null)
-        .map((z) => [
-          ...z.misc.envelopPhases,
-          z.keyRange.lo + '-' + z.keyRange.hi,
-          z.velRange.lo + '-' + z.velRange.hi,
-          z.attenuation,
-          z.pitchAjust(z.velRange.lo, 48000),
-          z.pan,
-          z.sample?.originalPitch,
-          z.sample?.sampleRate,
-          z.sample?.name,
-        ]);
-      console.log(colums);
-      main = `<table>
+      function range(a, b) {
+        const arr = [];
+        for (let i = a; i < b; i++) {
+          arr.push(a);
+        }
+        return arr;
+      }
+      const zoneRows = [...zones].map((z) => [
+        range(z.keyRange.lo, z.keyRange.hi)
+          .map((k) => sampleLink(bankId, presetId, z.velRange.hi, k))
+          .join(' '),
+        ...z.misc.envelopPhases,
+        z.keyRange.lo + '-' + z.keyRange.hi,
+        z.velRange.lo + '-' + z.velRange.hi,
+        z.attenuation,
+        z.pitchAjust(z.velRange.lo, 48000),
+        z.pan,
+        z.sample?.originalPitch,
+        z.sample?.sampleRate,
+        z.sample?.name,
+      ]);
+
+      main = `${[bankId, presetId, name].join('|')}
+      <table>
         <thead><tr>${colums
           .map((col) => `<td>${col}</td>`)
           .join('')}</tr></thead>
-      <tr>${[bankId, zones, presetId, name].map((c) => `<td>${c}</td>`)}<tr>
+      <tr></tr>
       ${zoneRows
-        .map((row) => `<tr>${row.map((c) => `<td></td>`).join('')}</tr>`)
+        .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join('')}</tr>`)
         .join('')}
       </table>`;
+
+      renderHtml(res, 'index', { main, left, footer });
+      res.end();
     } else {
       main =
         fs
@@ -105,6 +118,7 @@ export function httpd(port: number) {
 
       res.writeHead(200, { 'Content-Type': 'text/html' });
       renderHtml(res, 'index', { main, left, footer });
+      res.end();
     }
   });
   server.listen(port);
@@ -144,46 +158,32 @@ function renderHtml(res: Writable, page, { main, left, footer }) {
         <canvas style='opacity:0;position:absolute;width:100vw;height:100vh;background-color:black;z-index:-1'></canvas>
         <script src="/js/build/playpcm.js">
         </script>
-        <script>document.onload=function(){
-          document.querySelectorAll("a.pcm").forEach(a=>{
-            a.onclick=(e)=>{
-              e.preventDefault();
-              start(e.target.href)
-            }
-          })
-        }</script>
+        <script>
+
+        </script>
       </body>
     </html>`);
 }
 
 function midilink(file: string): string {
   return `<li class='list-group-item'>
-  <a class='pcm' onclick='start("/pcm/${encodeURIComponent(
+  <a class='pcm' href='#/pcm/${encodeURIComponent(
     file
   )}")'  href='#'>${file}</a>
   </li>`;
 }
-
+function sampleLink(presetId, bankId, vel, key): string {
+  return `
+  <a class='pcm' href="#${['sample', bankId, presetId, key, vel].join(
+    '/'
+  )}">${key}</a>
+    `;
+}
 function presetlink(p: Preset): string {
   return `<li class='list-group-item'><div>${p.name} (${p.zones.length})
-        <a href="/preset/${p.presetId}/${p.bankId}">go</a>
+        <a href="/preset/${p.presetId}/${p.bankId}"'>go</a>
         </div>
         </li>`;
 }
-function renderPage(ctx: {
-  res: Writable;
-  layout?: String;
-  delimiter?: string;
-}) {
-  const { layout, res, delimiter } = Object.assign(ctx, {
-    layout: 'js/index.html',
-    delimiter: '<main>',
-  });
-  const layoutStr = fs.readFileSync(layout).toString().split(delimiter);
-  res.write(layout[0]);
-  return function page(html: TemplateStringsArray, args: { shift: string }) {
-    html.forEach((p) => res.write(p + args.shift));
-    res.write(layout[1]);
-  };
-}
+
 // /*

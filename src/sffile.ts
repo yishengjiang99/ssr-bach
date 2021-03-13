@@ -89,6 +89,7 @@ export class SF2File {
       if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
       return z;
     }
+    console.log(presetId, bankId, 'not found');
     return null;
   }
 
@@ -111,7 +112,7 @@ export class SF2File {
       ratio: preset.pitchAjust(key, this.sampleRate),
       iterator: preset.sample.start,
       ztransform: (x) => x,
-      gain: LUT.cent2amp[~~centiDB], //static portion of gain.. this x envelope=ocverall gain
+      gain: 1, //static portion of gain.. this x envelope=ocverall gain
       pan: preset.pan,
       key: key,
       envelopeIterator: null, //, sustain, sr) preset.envAmplitue(this.sampleRate),
@@ -147,7 +148,7 @@ export class SF2File {
       //spline lerp found on internet
       newVal = hermite4(shift, vm1, v0, v1, v2);
       //   const envval = channel.envelopeIterator.next();
-      let sum = currentVal + (newVal * channel.gain) / n;
+      let sum = currentVal + newVal; //(newVal * channel.gain) / n;
       outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
       outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
 

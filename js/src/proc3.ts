@@ -1,33 +1,53 @@
 {
   // @ts-ignore
   class PlaybackProcessor extends AudioWorkletProcessor {
+    [x: string]: any;
     port: any;
-    buffers: any[];
+    buffers: Uint8Array[];
 
     constructor() {
       super();
+      this.ended = false;
+      this.started = false;
       this.buffers = [];
       const chunk = 128 * 4 * 2;
-
-      this.port.onmessage = async ({ data: { readable } }) => {
-        let that = this;
-
+      this.port.onmessage = async ({
+        data: { readable },
+      }: {
+        data: { readable: ReadableStream<Uint8Array> };
+      }) => {
+        var that = this;
         const reader = await readable.getReader();
+        let leftover: Uint8Array;
         reader.read().then(function process(result) {
           if (result.done) return;
-          let value = result.value;
-
-          while (value.length >= chunk) {
-            const b = value.slice(0, chunk);
-            that.buffers.push(b);
-            value = value.slice(chunk);
+          let value: Uint8Array = result.value;
+          that.port.postMessage({ bufferLength: that.buffers.length });
+          if (leftover) {
+            let arr = new Uint8Array(chunk);
+            arr.set(leftover, 0);
+            arr.set(
+              value.slice(0, chunk - leftover.byteLength),
+              leftover.byteLength
+            );
+            that.buffers.push(arr);
           }
+          while (value.byteLength >= chunk) {
+            that.buffers.push(value.slice(0, chunk));
+            value = value.slice(chunk);
+            if (!that.started && that.buffers.length > 12) {
+              that.started = true;
+              that.port.postMessage({ ready: 1 });
+            }
+          }
+
           reader.read().then(process);
         });
       };
     }
     process(inputs, outputs, parameters) {
-      if (this.buffers.length < 1) return true;
+      if (this.started == false || this.buffers.length < 1) return true;
+      if (this.ended) return false;
       const ob = this.buffers.shift();
       const dv = new DataView(ob.buffer);
       for (let i = 0; i < 128; i++) {

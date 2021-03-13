@@ -24,8 +24,6 @@ export function loadMidi({
   source,
   sff,
   output,
-  sampleRate,
-  debug,
 }: loadMidiProps): {
   loop: (bitdepth?: number) => any;
   tracks: Track[];
@@ -42,7 +40,7 @@ export function loadMidi({
     return sff.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,
-        presetId: t.instrument.number % 2 ? 0 : t.instrument.number,
+        presetId: t.instrument.number,
         key: note.midi,
         vel: note.velocity * 0x7f,
       },
@@ -63,7 +61,9 @@ export function loadMidi({
     }
     let nextCycleStart = null;
     let notesPlayed = [];
-
+    setInterval(() => {
+      sff.render(3.5 * 48);
+    }, 3.5);
     for (const t of activeTracks) {
       if (
         t.controlChanges &&
@@ -74,40 +74,12 @@ export function loadMidi({
         sff.ccVol(t.channel, t.controlChanges[midi_chan_vol_cc][0].value);
         t.controlChanges[midi_chan_vol_cc].shift();
       }
-      while (t.notes.length && t.notes[0].ticks <= now) {
+      while (t.notes.length && t.notes[0].time <= now + 0.1) {
         const note = t.notes.shift();
-        notesPlayed.push(registerNote(t, note));
-        // if (!nextCycleStart) nextCycleStart = t.notes[0].duration;
-      }
-      if (t.notes.length) {
-        nextCycleStart = !nextCycleStart
-          ? t.notes[0].ticks
-          : Math.min(nextCycleStart, t.notes[0].ticks);
+        registerNote(t, note);
       }
     }
-    if (notesPlayed.length) {
-    }
-    const milisecondsToNextCycle =
-      (nextCycleStart - now) * (60000 / bpm / ticksPerQuarterNote);
-    let framesToREnder = (milisecondsToNextCycle * sampleRate) / 1000;
-    let b = framesToREnder;
-    const keys = sff.channels
-      .filter((c) => c.length > 12)
-      .map((c) => c.key)
-      .sort();
-    while (framesToREnder >= 2 * framesize) {
-      if (!output.destroyed) output.write(sff.render(2 * framesize));
-      framesToREnder -= 2 * framesize;
-    }
-
-    if (!output.destroyed) output.write(sff.render(framesize));
-
-    const elapsedCycleTime = process.uptime() - loopStart;
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, milisecondsToNextCycle - elapsedCycleTime * 1000)
-    );
-    now = nextCycleStart;
+    await new Promise((resolve) => setTimeout(resolve, 1));
     if (nextCycleStart == null) {
       output.end();
       return;

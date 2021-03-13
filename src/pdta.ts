@@ -1,7 +1,7 @@
-import * as sfTypes from "./sf.types";
-import { reader, Reader } from "./reader";
-import { LUT } from "./LUT";
-import { envAmplitue } from "./envAmplitue";
+import * as sfTypes from './sf.types';
+import { reader, Reader } from './reader';
+import { LUT } from './LUT';
+import { envAmplitue } from './envAmplitue';
 
 const sampleId_gen = 53;
 
@@ -40,7 +40,7 @@ export function parsePDTA(
     const sectionName = r.read32String();
     const sectionSize = r.get32();
     switch (sectionName) {
-      case "phdr":
+      case 'phdr':
         for (let i = 0; i < sectionSize; i += phdrLength) {
           const phdrItem = {
             name: r.readNString(20),
@@ -52,7 +52,7 @@ export function parsePDTA(
           pheaders.push(phdrItem);
         }
         break;
-      case "pbag":
+      case 'pbag':
         for (let i = 0; i < sectionSize; i += pbagLength) {
           const bag = {
             pgen_id: r.get16(),
@@ -61,7 +61,7 @@ export function parsePDTA(
           pbag.push(bag);
         }
         break;
-      case "pgen":
+      case 'pgen':
         for (let i = 0; i < sectionSize; i += pgenLength) {
           const [operator, lo, hi] = [r.get16(), r.get8(), r.get8()];
           pgen.push({
@@ -72,7 +72,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "pmod":
+      case 'pmod':
         for (let i = 0; i < sectionSize; i += pmodLength) {
           pmod.push({
             src: r.get16(),
@@ -83,7 +83,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "inst":
+      case 'inst':
         for (let i = 0; i < sectionSize; i += instLength) {
           inst.push({
             name: r.readNString(20),
@@ -91,7 +91,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "igen":
+      case 'igen':
         for (let i = 0; i < sectionSize; i += 4) {
           const [operator, lo, hi] = [r.get16(), r.get8(), r.get8()];
 
@@ -103,7 +103,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "imod":
+      case 'imod':
         for (let i = 0; i < sectionSize; i += imodLength) {
           imod.push({
             src: r.get16(),
@@ -114,7 +114,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "ibag":
+      case 'ibag':
         for (let i = 0; i < sectionSize; i += ibagLength) {
           ibag.push({
             igen_id: r.get16(),
@@ -122,7 +122,7 @@ export function parsePDTA(
           });
         }
         break;
-      case "shdr":
+      case 'shdr':
         for (
           let i = 0;
           i < sectionSize;
@@ -153,13 +153,16 @@ export function parsePDTA(
       const _pbag = pbag[pbagIndex];
       let pgenMap: sfTypes.SFGen[] = [];
       const pgenEnd =
-        pbagIndex < pbag.length - 1 ? pbag[pbagIndex + 1].pgen_id : pgen[pgen.length - 1];
+        pbagIndex < pbag.length - 1
+          ? pbag[pbagIndex + 1].pgen_id
+          : pgen[pgen.length - 1];
       for (let pgenIndex = _pbag.pgen_id; pgenIndex < pgenEnd; pgenIndex++) {
         const _pgen = pgen[pgenIndex];
         pgenMap[_pgen.operator] = _pgen;
       }
       if (pgenMap[sfTypes.generators.instrument] == null) {
-        if (preset.defaultBag == null) preset.defaultBag = makeZone(pgenMap, shdr, null);
+        if (preset.defaultBag == null)
+          preset.defaultBag = makeZone(pgenMap, shdr, null);
       } else {
         const pbagZone = makeZone(pgenMap, shdr, preset.defaultBag);
         if (pbagZone.sample) preset.zones.push(pbagZone);
@@ -174,10 +177,16 @@ export function parsePDTA(
         ) {
           const _ibag = ibag[_ibagIndex];
           const lastIgenIndex =
-            _ibagIndex < ibag.length - 1 ? ibag[_ibagIndex + 1].igen_id : igen.length - 1;
+            _ibagIndex < ibag.length - 1
+              ? ibag[_ibagIndex + 1].igen_id
+              : igen.length - 1;
           const igenMap: sfTypes.SFGen[] = [];
 
-          for (let igenIndex = _ibag.igen_id; igenIndex < lastIgenIndex; igenIndex++) {
+          for (
+            let igenIndex = _ibag.igen_id;
+            igenIndex < lastIgenIndex;
+            igenIndex++
+          ) {
             const _igen = igen[igenIndex];
             igenMap[_igen.operator] = _igen;
           }
@@ -239,29 +248,31 @@ function makeZone(
   shdr: sfTypes.Shdr[],
   baseZone?: sfTypes.Zone
 ): sfTypes.Zone {
-  function getPgenVal(genId, type = "signed", defaultValue = 0) {
+  function getPgenVal(genId, type = 'signed', defaultValue = 0) {
     return (
       (pgenMap[genId] && pgenMap[genId][type]) ||
-      (baseZone && baseZone.generators[genId] && baseZone.generators[genId][type]) ||
+      (baseZone &&
+        baseZone.generators[genId] &&
+        baseZone.generators[genId][type]) ||
       defaultValue
     );
   }
   const samples = shdr[pgenMap[sampleId_gen]?.amount] || null;
   adjustSmpls(samples, getPgenVal);
   const envelopPhases = [
-    getPgenVal(sfTypes.generators.delayVolEnv, "signed", -12000),
-    getPgenVal(sfTypes.generators.attackVolEnv, "signed", -11000),
-    getPgenVal(sfTypes.generators.holdVolEnv, "signed", -12000),
-    getPgenVal(sfTypes.generators.decayVolEnv, "signed", -11000),
-    getPgenVal(sfTypes.generators.releaseVolEnv, "signed", 4000),
+    getPgenVal(sfTypes.generators.delayVolEnv, 'signed', -12000),
+    getPgenVal(sfTypes.generators.attackVolEnv, 'signed', -11000),
+    getPgenVal(sfTypes.generators.holdVolEnv, 'signed', -12000),
+    getPgenVal(sfTypes.generators.decayVolEnv, 'signed', -11000),
+    getPgenVal(sfTypes.generators.releaseVolEnv, 'signed', 4000),
   ];
-  const sustain = getPgenVal(sfTypes.generators.sustainVolEnv, "amounts", 1000);
+  const sustain = getPgenVal(sfTypes.generators.sustainVolEnv, 'amounts', 1000);
   const tuning =
     (samples && {
-      root: getPgenVal(sfTypes.generators.overridingRootKey, "signed"),
+      root: getPgenVal(sfTypes.generators.overridingRootKey, 'signed'),
       originalPitch: samples.originalPitch,
-      coarseTune: getPgenVal(sfTypes.generators.coarseTune, "amount", 0),
-      fineTune: getPgenVal(sfTypes.generators.fineTune, "amount", 0),
+      coarseTune: getPgenVal(sfTypes.generators.coarseTune, 'amount', 0),
+      fineTune: getPgenVal(sfTypes.generators.fineTune, 'amount', 0),
     }) ||
     null;
   return {
@@ -278,16 +289,23 @@ function makeZone(
       const { root, originalPitch, fineTune, coarseTune } = tuning;
       const inputKey = root > 0 ? root : originalPitch;
       return (
-        (Math.pow(2, ((outputKey - inputKey + coarseTune) * 100 - fineTune) / 1200) *
+        (Math.pow(
+          2,
+          ((outputKey - inputKey + coarseTune) * 100 - fineTune) / 1200
+        ) *
           samples.sampleRate) /
         sampleRate
       );
     },
     attenuation: getPgenVal(sfTypes.generators.initialAttenuation),
-    gain: (noteVelocity: number, midi_chan_vol: number, master_cc_vol: number) => {
+    gain: (
+      noteVelocity: number,
+      midi_chan_vol: number,
+      master_cc_vol: number
+    ) => {
       const initialAttentuation = getPgenVal(
         sfTypes.generators.initialAttenuation,
-        "signed"
+        'signed'
       );
       const centiDB =
         initialAttentuation +
@@ -311,7 +329,7 @@ function adjustSmpls(
 ) {
   if (samples != null) {
     const shoff = sfTypes.attributeGenerators.sampleOffsets.map((oper) =>
-      getPgenVal(oper, "amount", 0)
+      getPgenVal(oper, 'amount', 0)
     );
     samples.start += shoff[0];
     samples.end += shoff[1];

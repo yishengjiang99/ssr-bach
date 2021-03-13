@@ -1,33 +1,38 @@
-const worker = new Worker('js/fetchworker.js');
+const worker = new Worker('/js/fetchworker.js');
 let proc, ctx, analyzer;
 async function initCtx() {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
+  await ctx.audioWorklet.addModule('/js/build/proc3.js');
 }
-async function initProc(ctx) {
-  await ctx.audioWorklet.addModule('js/build/proc3.js');
+async function initProc(ctx, url) {
   proc = new AudioWorkletNode(ctx, 'playback-processor', {
     outputChannelCount: [2],
   });
-  analyzer = analyzer || new AnalyserNode(ctx);
-
+  worker.postMessage({ url, port: proc.port }, [proc.port]);
+  await new Promise<void>((resolve) => {
+    worker.onmessage = ({ data: { ready } }) => {
+      if (ready == 1) resolve();
+    };
+  });
+  worker.onmessage = ({ data }) => console.log(data);
   proc.connect(analyzer).connect(ctx.destination);
 }
-async function start(midifile) {
+async function startPCM(url: string) {
   try {
+    console.log(url);
     if (!ctx) await initCtx();
-    if (proc) proc = null;
 
     if (ctx.state != 'running') await ctx.resume();
-    if (!proc) {
-      await initProc(ctx);
+    if (!analyzer) {
+      initAnalyser();
     }
-    worker.postMessage({ url: midifile, port: proc.port }, [proc.port]);
+    await initProc(ctx, url);
     setTimeout(() => {
       const { start } = AnalyzerView(analyzer);
       start();
     }, 500);
   } catch (e) {
-    console.log("<font color='red'>" + e.message + '</font>');
+    console.log(e.message);
     throw e;
   }
 }
@@ -87,43 +92,26 @@ const AnalyzerView = function (analyser, params = {}) {
     start: () => requestAnimationFrame(draw),
   };
 };
-document.body.onload = () => {
-  document.querySelectorAll('a.pcm').forEach(function (a) {
-    a.addEventListener('click', () => {});
-    a.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      let t0 = performance.now();
-      const onclick: EventListenerOrEventListenerObject = (e) => {
-        const vel = performance.now()[0] - t0[0];
-        const rvel = vel < 0 ? 1 - vel : vel;
-        start(e.target.href);
-      };
-      a.addEventListener('mouseup', onclick, { once: true });
-      return false;
-    });
-  });
-};
-document
-  .querySelectorAll('a.nav')
-  .forEach((a) => a.addEventListener('click', onNavClick));
 
-function onNavClick(e) {
-  e.preventDefault();
-  fetch(e.target.href)
-    .then((res) => res.text())
-    .then((html) => {
-      document.querySelector('main').innerHTML = html;
-    })
-    .catch((e) => console.error);
+window.onmousedown = (e) => {
+  if (e.target.classList.contains('pcm')) {
+    e.preventDefault();
+    e.stopPropagation();
+    startPCM(e.target.href);
+    return false;
+
+    // e.preventDefault();
+    // let t0 = performance.now();
+    // const onclick: EventListenerOrEventListenerObject = (e) => {
+    //   const vel = performance.now()[0] - t0[0];
+    //   const rvel = vel < 0 ? 1 - vel : vel;
+    //   start(e.target.href);
+    // };
+  }
+};
+function initAnalyser() {
+  if (!analyzer) {
+    analyzer = new AnalyserNode(ctx);
+    analyzer.connect(ctx.destination);
+  }
 }
-
-window.onload = (e) => {
-  document.querySelectorAll('a.pcm').forEach((a) => {
-    // a.removeEventListener('click');
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      start(e.target.href);
-      return true;
-    });
-  });
-};
