@@ -28,8 +28,6 @@ js/build
 **/*opus
 SFPiano
 junk
-v2/js
 v2/dist
-v2/midi
 v2/fixtures
 html5-boilerplate/
