@@ -1,12 +1,14 @@
 import { SFGenerator } from './generator';
-import { RangeUnionAmount } from './range';
-
+import { Zone } from './PresetZone';
 export type FindPresetProps = {
   bankId: number;
   presetId: number;
   key: number;
   vel: number;
 };
+export type DecibelCent = number;
+export type TimeCent = number;
+
 export enum ch_state {
   attack,
   hold,
@@ -14,7 +16,7 @@ export enum ch_state {
   releasing,
 }
 export type Channel = {
-  id: number;
+  channel: number;
   smpl: Shdr;
   zone?: Zone;
   length: number;
@@ -71,20 +73,9 @@ export type Shdr = {
   sampleLink: number;
   sampleType: number;
 };
-export type Zone = {
-  velRange: Range;
-  keyRange: Range;
-  pitchAjust: (key: number, sr: number) => number;
-  envAmplitue: (sr: number) => Generator<number, number, Error>;
-  misc?: any;
-  sample: Shdr;
-  generators?: SFGen[];
-  pan?: number;
-  attenuation?: number;
-  gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;
-};
+
 export type Preset = Phdr & {
-  defaultBag?: Zone;
+  defaultBag?: SFGenerator[];
   zones?: Zone[];
 };
 export const generatorNames = `#define SFGEN_startAddrsOffset         0
@@ -153,7 +144,7 @@ export const generatorNames = `#define SFGEN_startAddrsOffset         0
   .map((line) => line.split(/\s+/)[1])
   .map((token) => token.replace('SFGEN_', ''));
 
-export enum generators {
+export enum sf_gen_id {
   startAddrsOffset,
   endAddrsOffset,
   startloopAddrsOffset,
@@ -218,18 +209,18 @@ export enum generators {
 }
 
 export const adsrParams: number[] = [
-  generators.delayVolEnv,
-  generators.attackVolEnv,
-  generators.holdVolEnv,
-  generators.decayVolEnv,
-  generators.releaseVolEnv,
+  sf_gen_id.delayVolEnv,
+  sf_gen_id.attackVolEnv,
+  sf_gen_id.holdVolEnv,
+  sf_gen_id.decayVolEnv,
+  sf_gen_id.releaseVolEnv,
 ];
 export const adsrModParams: number[] = [
-  generators.delayModEnv,
-  generators.attackModEnv,
-  generators.holdModEnv,
-  generators.decayModEnv,
-  generators.releaseModEnv,
+  sf_gen_id.delayModEnv,
+  sf_gen_id.attackModEnv,
+  sf_gen_id.holdModEnv,
+  sf_gen_id.decayModEnv,
+  sf_gen_id.releaseModEnv,
 ];
 const {
   startAddrsOffset,
@@ -237,7 +228,7 @@ const {
   startloopAddrsOffset,
   endloopAddrsOffset,
   startAddrsCoarseOffset,
-} = generators;
+} = sf_gen_id;
 
 export const attributeGenerators = {
   sampleOffsets: [

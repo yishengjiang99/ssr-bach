@@ -1,15 +1,13 @@
 import { SF2File } from './sffile';
-import { generators, Preset, Zone } from './sf.types';
-import { envAmplitue } from './envAmplitue';
+import { Preset } from './sf.types';
 import { loadMidiaa } from './load-midi';
 import * as fs from 'fs';
-import { LUT } from './LUT';
 import { createServer } from 'http';
 import { basename, resolve } from 'path';
 import { Writable } from 'stream';
 
 export function httpd(port: number) {
-  const sf = new SF2File(process.argv[3] || 'file.sf2', 48000);
+  const sf = new SF2File(process.argv[3] || 'file.sf2');
   const { presets } = sf.sections.pdta;
   const tones = Object.values(presets[0]);
   const drums = Object.values(presets[128]);
@@ -38,12 +36,12 @@ export function httpd(port: number) {
         48000
       ).loop();
     } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)\/(\d+)/))) {
-      const [a, bankId, presetId, key, vel] = m;
+      const [, bankId, presetId, key, vel] = m;
 
-      sf.keyOn({ bankId: bankId, presetId, key, vel }, 0.5, 0);
+      sf.renderCtx.keyOn({ bankId: bankId, presetId, key, vel }, 0.5, 0);
 
       res.writeHead(200, { 'Content-Type': 'audio/raw' });
-      res.end(sf.render(48000));
+      res.end(sf.renderCtx.render(48000));
       return;
       //res.end();
     } else if (req.url.startsWith('/js')) {
@@ -81,15 +79,13 @@ export function httpd(port: number) {
         }
         return arr;
       }
-      const zoneRows = [...zones].map((z) => [
+      const zoneRows = zones.map((z) => [
         range(z.keyRange.lo, z.keyRange.hi)
           .map((k) => sampleLink(bankId, presetId, z.velRange.hi, k))
           .join(' '),
-        ...z.misc.envelopPhases,
         z.keyRange.lo + '-' + z.keyRange.hi,
         z.velRange.lo + '-' + z.velRange.hi,
-        z.attenuation,
-        z.pitchAjust(z.velRange.lo, 48000),
+        z.pitchAdjust(z.velRange.lo),
         z.pan,
         z.sample?.originalPitch,
         z.sample?.sampleRate,
@@ -107,7 +103,7 @@ export function httpd(port: number) {
         .join('')}
       </table>`;
 
-      renderHtml(res, 'index', { main, left, footer });
+      renderHtml(res, { main, left, footer });
       res.end();
     } else {
       main =
@@ -117,7 +113,7 @@ export function httpd(port: number) {
           .join('') + fs.readFileSync('./pcmblobs.xml').toString();
 
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      renderHtml(res, 'index', { main, left, footer });
+      renderHtml(res, { main, left, footer });
       res.end();
     }
   });
@@ -132,7 +128,7 @@ export function httpd(port: number) {
 
 httpd(3000).on('listening', (e: any) => console.log(e));
 
-function renderHtml(res: Writable, page, { main, left, footer }) {
+function renderHtml(res: Writable, { main, left, footer }) {
   return res.write(/* html */ `
       
 <!DOCTYPE html5>

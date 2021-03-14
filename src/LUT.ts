@@ -1,20 +1,27 @@
+import { DecibelCent } from './sf.types';
+
 export class LUT {
   static relPC: number[] = [];
   static frqST: number[] = [];
   static midiCB: number[] = [];
   static velCB: number[] = [];
   static cent2amp: number[] = [];
+  static absTC: number[] = [];
 
   static init() {
+    for (let n = 0; n < 20000; n += 1)
+      LUT.absTC[n] = Math.pow(2.0, (n - 12000.0) / 1200.0);
+
     LUT.cent2amp = [];
-    for (let i = 0; i < 1441; i++) {
+    for (let i = 0; i < 996; i++) {
       LUT.cent2amp[i] = Math.pow(10, i / -200.0);
     }
     LUT.velCB = new Array(128);
     LUT.velCB[0] = 0.0;
     LUT.velCB[127] = 1.0;
     for (let i = 1; i < 127; i++) {
-      LUT.velCB[i] = ((-200.0 / 960) * Math.log((i * i) / (127 * 127))) / Math.log(10);
+      LUT.velCB[i] =
+        ((-200.0 / 960) * Math.log((i * i) / (127 * 127))) / Math.log(10);
     }
     for (let n = 0; n < 2400; n++) {
       LUT.relPC[n] = Math.pow(2.0, (n - 1200.0) / 1200.0);
@@ -27,7 +34,6 @@ export class LUT {
     }
   }
 }
-LUT.init();
 // console.log(LUT.velCB);
 // console.log(LUT.cent2amp);
 

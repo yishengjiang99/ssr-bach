@@ -2,36 +2,14 @@ import { parsePDTA } from './pdta';
 import { reader } from './reader';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
-import { LUT } from './LUT';
-import { envAmplitue } from './envAmplitue';
-const defaultBlockLength = 128;
+import { RenderCtx } from './render-ctx';
+import { Zone } from './PresetZone';
 
 export class SF2File {
   sections: sfTypes.RIFFSFBK;
-  chanVols: number[] = new Array(16).fill(0);
-  ccVol(c, v): void {
-    this.chanVols[c] = v;
-  }
-  private _channels: sfTypes.Channel[] = new Array(16);
-  private _lastPresetId: any;
-  public get channels(): sfTypes.Channel[] {
-    return this._channels;
-  }
-  public set channels(value: sfTypes.Channel[]) {
-    this._channels = value;
-  }
-  private _sampleRate: number;
-  public get sampleRate(): number {
-    return this._sampleRate;
-  }
-  public set sampleRate(value: number) {
-    this._sampleRate = value;
-  }
-  static fromBuffer(buffer: Buffer) {}
-  constructor(path: string, sampleRate: number = 48000) {
+  renderCtx: RenderCtx;
+  constructor(path: string) {
     const r = reader(path);
-    let i = 0;
-    this.sampleRate = sampleRate;
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
     assert(r.read32String(), 'sfbk');
@@ -64,123 +42,23 @@ export class SF2File {
       }
     } while (size > 0);
     this.sections = sections;
+    this.renderCtx = new RenderCtx(this);
   }
-  findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
-    const sections = this.sections;
-    const noteHave =
-      !sections.pdta.presets[bankId + ''] ||
-      !sections.pdta.presets[bankId][presetId] ||
-      !sections.pdta.presets[bankId][presetId].zones;
-    if (noteHave) {
-      console.log('no', bankId, presetId, key, vel);
-      return null;
-    }
-    const presetZones = sections.pdta.presets[bankId][presetId].zones;
-    for (const z of presetZones) {
-      if (!z.sample) continue;
-      if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
-      if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
-      if (z.velRange.hi - z.velRange.lo > 77) continue;
-      return z;
-    }
+  get tones() {
+    return this.sections.pdta.presets[0];
+  }
+  get drums() {
+    return this.sections.pdta.presets[128];
+  }
+  findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps): Zone {
+    const bank = bankId > 0 ? this.tones : this.drums;
+    const presetZones = bank[presetId].zones;
     for (const z of presetZones) {
       if (!z.sample) continue;
       if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
       if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
       return z;
     }
-    console.log(presetId, bankId, 'not found');
     return null;
   }
-
-  keyOn(
-    { bankId, presetId, key, vel }: sfTypes.FindPresetProps,
-    duration: number,
-    channelId: number
-  ) {
-    const preset = this.findPreset({ bankId, presetId, key, vel });
-    const length = ~~(duration * this.sampleRate);
-
-    const centiDB =
-      preset.attenuation + LUT.velCB[this.chanVols[channelId]] + LUT.velCB[vel];
-
-    this.channels[channelId] = {
-      id: channelId,
-      zone: preset,
-      smpl: preset.sample,
-      length: length,
-      ratio: preset.pitchAjust(key, this.sampleRate),
-      iterator: preset.sample.start,
-      ztransform: (x) => x,
-      gain: 1, //static portion of gain.. this x envelope=ocverall gain
-      pan: preset.pan,
-      key: key,
-      envelopeIterator: null, //, sustain, sr) preset.envAmplitue(this.sampleRate),
-    };
-    return this.channels[channelId];
-  }
-  key(key: number, duration = 0.25, presetId = null) {
-    if (presetId) this._lastPresetId = presetId;
-    let channelId = 0;
-    while (this.channels[channelId] && this.channels[channelId++].length > 10);
-
-    return this.keyOn(
-      { key, bankId: 0, vel: 60, presetId: this._lastPresetId || 0 },
-      duration,
-      channelId
-    );
-  }
-  _render(channel: sfTypes.Channel, outputArr: Buffer, blockLength, n) {
-    const input: Buffer = this.sections.sdta.data;
-    const looper = channel.smpl.endLoop - channel.smpl.startLoop;
-    const sample = channel.smpl;
-    let shift = 0.0;
-    let iterator = channel.iterator || channel.smpl.start;
-    for (let offset = 0; offset < blockLength - 1; offset++) {
-      assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
-      const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
-      const currentVal = outputArr.readFloatLE(outputByteOffset);
-
-      let newVal;
-      const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-        input.readFloatLE((iterator + i) * 4)
-      );
-      //spline lerp found on internet
-      newVal = hermite4(shift, vm1, v0, v1, v2);
-      //   const envval = channel.envelopeIterator.next();
-      let sum = currentVal + newVal; //(newVal * channel.gain) / n;
-      outputArr.writeFloatLE(sum * 0.98, outputByteOffset);
-      outputArr.writeFloatLE(sum * 1.03, outputByteOffset + 4);
-
-      while (shift >= 1) {
-        iterator++;
-        shift--;
-      }
-      if (channel.length > 0 && iterator >= sample.endLoop) {
-        iterator -= looper;
-      }
-      if (iterator >= sample.end) return 0;
-      channel.length--;
-    }
-    channel.iterator = iterator;
-  }
-
-  render(blockSize) {
-    const output = Buffer.alloc(blockSize * 4 * 2);
-    this.channels = this.channels.filter((c) => c && c.length > 0);
-    this.channels.map((c, i) => {
-      this._render(c, output, blockSize, this.channels.length);
-    });
-    for (let i = 0; i < 1000; i++) console.log(output.readFloatLE(100) + '\n');
-    return output;
-  }
-}
-function hermite4(frac_pos, xm1, x0, x1, x2) {
-  const c = (x1 - xm1) * 0.5;
-  const v = x0 - x1;
-  const w = c + v;
-  const a = w + v + (x2 - x0) * 0.5;
-  const b_neg = w + a;
-
-  return ((a * frac_pos - b_neg) * frac_pos + c) * frac_pos + x0;
 }
