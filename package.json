@@ -1,0 +1,31 @@
+{
+  "name": "bachd",
+  "version": "1.0.1",
+  "description": "",
+  "main": "dist/app.js",
+  "bin": {
+    "bachd": "bin/bashd.js"
+  },
+  "repository": {
+    "url": "https://github.com/yishengjiang99/ssr-bach"
+  },
+  "scripts": {
+    "postInstall": "chmod +x ffplay",
+    "dev": "nodemon dist/index.js",
+    "build": "node make",
+    "test": "ava npm config get file"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "arrowParens": "always"
+  },
+  "devDependencies": {
+    "ava": "^3.15.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tonejs/midi": "^2.0.27"
+  }
+}

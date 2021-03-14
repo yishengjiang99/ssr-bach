@@ -1,3 +1,6 @@
+import { SFGenerator } from './generator';
+import { RangeUnionAmount } from './range';
+
 export type FindPresetProps = {
   bankId: number;
   presetId: number;
@@ -43,15 +46,11 @@ export type Phdr = {
   presetId: number;
   bankId: number;
   pbagIndex: number;
+  pbags?: Pbag[];
 };
-export type SFGen = {
-  operator: number;
-  range: Range;
-  amount: number;
-  signed?: number;
-};
-export type Pbag = { pgen_id: number; pmod_id: number };
-export type IBag = { igen_id: number; imod_id: number };
+export type SFGen = SFGenerator;
+export type Pbag = { pgen_id: number; pmod_id: number; pgens: SFGenerator[] };
+export type IBag = { igen_id: number; imod_id: number; igens: SFGenerator[] };
 export type Mod = {
   src: number;
   dest: number;
@@ -59,7 +58,7 @@ export type Mod = {
   amtSrc: number;
   transpose: number;
 };
-export type InstrHeader = { name: string; iBagIndex: number };
+export type InstrHeader = { name: string; iBagIndex: number; ibags?: IBag[] };
 export type Shdr = {
   name: string;
   start: number;
@@ -85,7 +84,7 @@ export type Zone = {
   gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;
 };
 export type Preset = Phdr & {
-  defaultBag: Zone;
+  defaultBag?: Zone;
   zones?: Zone[];
 };
 export const generatorNames = `#define SFGEN_startAddrsOffset         0
@@ -224,6 +223,13 @@ export const adsrParams: number[] = [
   generators.holdVolEnv,
   generators.decayVolEnv,
   generators.releaseVolEnv,
+];
+export const adsrModParams: number[] = [
+  generators.delayModEnv,
+  generators.attackModEnv,
+  generators.holdModEnv,
+  generators.decayModEnv,
+  generators.releaseModEnv,
 ];
 const {
   startAddrsOffset,

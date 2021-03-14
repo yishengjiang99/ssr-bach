@@ -10,6 +10,6 @@ test('amps', (t) => {
   while (c++ < 10110) {
     let n = g.next();
     if (n.done) break;
-    t.is(n < 3);
+    t.true(n.done == false);
   }
 });
