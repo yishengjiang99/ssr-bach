@@ -1,6 +1,6 @@
 import * as sfTypes from './sf.types';
 import assert from 'assert';
-import { Preset, Shdr } from './sf.types';
+import { Shdr } from './pdta';
 import { Zone } from './PresetZone';
 import { SF2File } from './sffile';
 import { LUT } from './LUT';

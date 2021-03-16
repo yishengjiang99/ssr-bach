@@ -5,16 +5,26 @@
     <title>Mocha</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="mocha.css" />
+    <script>
+      function noteload(data) {
+        debugger;
+      }
+    </script>
   </head>
   <body>
-    <div id="mocha"></div>
-    <script src="mocha.js"></script>
-    <script>
-      mocha.setup('bdd');
-    </script>
-    <script src="tests.spec.js"></script>
-    <script>
-      mocha.run();
+    <button>start</button>
+    <script src="./read.js"></script>
+    <script type="module">
+      const btn = document.querySelector('button');
+      btn.attributes['disabled'] = true;
+      let modd;
+      Module['onRuntimeInitialized'] = () => {
+        Module._rfff();
+        btn.attributes['disabled'] = false;
+        btn.onclick = () => {
+          Module._zoneinfo(0, 45, 33);
+        };
+      };
     </script>
   </body>
 </html>

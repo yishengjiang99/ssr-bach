@@ -12,9 +12,8 @@
   "scripts": {
     "postInstall": "chmod +x ffplay",
     "dev": "nodemon dist/index.js",
-    "build": "node make",
-    "test": "ava npm config get file"
-  },
+    "build": "node make;",
+    "test": "npx ava src/*.test.ts"  },
   "prettier": {
     "singleQuote": true,
     "trailingComma": "es5",

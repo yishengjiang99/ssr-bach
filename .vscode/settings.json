@@ -13,7 +13,18 @@
 		"assert.h": "c",
 		"ostream": "c",
 		"string.h": "c",
-		"types.h": "c"
+		"types.h": "c",
+		"cstring": "c",
+		"read.h": "c",
+		"fetch.h": "c",
+		"array": "c",
+		"iterator": "c",
+		"vector": "c",
+		"queue": "c",
+		"gen_ops.h": "c",
+		"math.h": "c",
+		"typeinfo": "c",
+		"emscripten.h": "c"
 	},
 	"C_Cpp.errorSquiggles": "Enabled"
 }

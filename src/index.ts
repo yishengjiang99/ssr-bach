@@ -11,18 +11,13 @@ export function httpd(port: number) {
   const { presets } = sf.sections.pdta;
   const tones = Object.values(presets[0]);
   const drums = Object.values(presets[128]);
-  let main: string = '',
-    left: string = `  
-  <ul class="list-group" style="max-height: 25vh; overflow-y: scroll">
-  ${tones.map((d) => presetlink(d))}
-  </ul>
-  <ul class="list-group" style="max-height: 25vh; overflow-y: scroll">
-  ${drums.map((d) => presetlink(d))}
-  </ul>`,
-    footer: string = '<div id="playerdiv">';
+  let {
+    main,
+    left,
+    footer,
+  }: { main: string; left: string; footer: string } = gg(tones, drums);
   const server = createServer((req, res) => {
     let m: any[];
-    res.writeHead;
     if ((m = req.url.match(/pcm\/(.*)/))) {
       if (!fs.existsSync(resolve('midi', decodeURIComponent(m[1]))))
         return res.end('HTTP/1.1 404');
@@ -38,10 +33,10 @@ export function httpd(port: number) {
     } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)\/(\d+)/))) {
       const [, bankId, presetId, key, vel] = m;
 
-      sf.renderCtx.keyOn({ bankId: bankId, presetId, key, vel }, 0.5, 0);
+      sf.keyOn({ bankId: bankId, presetId, key, vel }, 2.5, 0);
 
       res.writeHead(200, { 'Content-Type': 'audio/raw' });
-      res.end(sf.renderCtx.render(48000));
+      res.end(sf.render(48000));
       return;
       //res.end();
     } else if (req.url.startsWith('/js')) {
@@ -128,6 +123,19 @@ export function httpd(port: number) {
 
 httpd(3000).on('listening', (e: any) => console.log(e));
 
+function gg(tones: Preset[], drums: Preset[]) {
+  let main: string = '',
+    left: string = `  
+  <ul class="list-group" style="max-height: 25vh; overflow-y: scroll">
+  ${tones.map((d) => presetlink(d))}
+  </ul>
+  <ul class="list-group" style="max-height: 25vh; overflow-y: scroll">
+  ${drums.map((d) => presetlink(d))}
+  </ul>`,
+    footer: string = '<div id="playerdiv">';
+  return { main, left, footer };
+}
+
 function renderHtml(res: Writable, { main, left, footer }) {
   return res.write(/* html */ `
       
@@ -163,9 +171,7 @@ function renderHtml(res: Writable, { main, left, footer }) {
 
 function midilink(file: string): string {
   return `<li class='list-group-item'>
-  <a class='pcm' href='#/pcm/${encodeURIComponent(
-    file
-  )}")'  href='#'>${file}</a>
+  <a class='pcm' href='#/pcm/${encodeURIComponent(file)}'>${file}</a>
   </li>`;
 }
 function sampleLink(presetId, bankId, vel, key): string {

@@ -1,7 +1,8 @@
 import { envAmplitue } from './envAmplitue';
 import { SFGenerator, GenRange } from './generator';
 import { LUT } from './LUT';
-import { sf_gen_id as sfg, Shdr, adsrParams, adsrModParams } from './sf.types';
+import { Shdr } from './pdta';
+import { sf_gen_id as sfg, adsrParams, adsrModParams } from './sf.types';
 
 export type Zone = {
   velRange: GenRange;
@@ -15,31 +16,21 @@ export type Zone = {
   gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;
 };
 export function presetZone(
-  igenSet: SFGenerator[],
-  pgenSet: SFGenerator[],
-  pbagDefault: SFGenerator[],
-  ibagDefault: SFGenerator[],
+  igenSet: Record<number, SFGenerator>,
+  pgenSet: Record<number, SFGenerator>,
   shdr: Shdr[]
 ): Zone {
-  for (const operator in pbagDefault) {
-    if (!pgenSet[operator]) pgenSet[operator] = pbagDefault[operator];
-  }
-  for (const operator in ibagDefault) {
-    if (!igenSet[operator]) igenSet[operator] = ibagDefault[operator];
-  }
   function genval(genId: sfg): number {
     if (!pgenSet[genId] && !igenSet[genId])
       return SFGenerator.defaultValue(genId);
-    if (!igenSet[genId] && pgenSet[genId]) return pgenSet[genId].u16;
+    if (!igenSet[genId] && pgenSet[genId]) return pgenSet[genId].s16;
     if (igenSet[genId] && pgenSet[genId])
-      return igenSet[genId].u16 + pgenSet[genId].u16;
-    if (igenSet[genId] && !pgenSet[genId]) return igenSet[genId].u16;
+      return igenSet[genId].s16 + pgenSet[genId].s16;
+    if (igenSet[genId] && !pgenSet[genId]) return igenSet[genId].s16;
   }
   function getSFRange(genId: sfg.velRange | sfg.keyRange) {
-    const instRange = igenSet[genId]?.range ||
-      (ibagDefault && ibagDefault[genId]?.range) || { lo: 0, hi: 127 };
-    const prange = pgenSet[genId]?.range ||
-      (pbagDefault && pbagDefault[genId]?.range) || { lo: 0, hi: 127 };
+    const instRange = igenSet[genId]?.range || { lo: 0, hi: 127 };
+    const prange = pgenSet[genId]?.range || { lo: 0, hi: 127 };
     return {
       lo: Math.max(instRange.lo, prange.lo),
       hi: Math.min(instRange.hi, instRange.hi),

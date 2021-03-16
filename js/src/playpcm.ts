@@ -1,4 +1,4 @@
-const worker = new Worker('/js/fetchworker.js');
+const worker = new Worker('/js/build/fetchworker.js');
 let proc, ctx, analyzer;
 async function initCtx() {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
@@ -97,16 +97,9 @@ window.onmousedown = (e) => {
   if (e.target.classList.contains('pcm')) {
     e.preventDefault();
     e.stopPropagation();
-    startPCM(e.target.href);
-    return false;
 
-    // e.preventDefault();
-    // let t0 = performance.now();
-    // const onclick: EventListenerOrEventListenerObject = (e) => {
-    //   const vel = performance.now()[0] - t0[0];
-    //   const rvel = vel < 0 ? 1 - vel : vel;
-    //   start(e.target.href);
-    // };
+    startPCM(e.target.href.split('#')[1]);
+    return false;
   }
 };
 function initAnalyser() {

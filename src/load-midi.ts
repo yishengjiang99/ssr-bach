@@ -3,6 +3,13 @@ import { Note } from '@tonejs/midi/src/Note';
 import { readFileSync } from 'fs';
 import { Writable } from 'stream';
 import { SF2File } from './sffile';
+const modulse = require('../read.js');
+modulse['onRuntimeInitialized'] = () => {
+  debugger;
+  console.log('init');
+  modulse._rfff();
+  modulse._zoneinfo(0, 44, 123);
+};
 const midi_chan_vol_cc = 11;
 const midi_mast_vol_cc = 7;
 interface loadMidiProps {
@@ -37,7 +44,7 @@ export function loadMidi({
   let now = 0;
   let bpm = (tempos && tempos[0] && tempos[0].bpm) || 120;
   function registerNote(t: Track, note: Note) {
-    return sff.renderCtx.keyOn(
+    return sff.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,
         presetId: t.instrument.number,
@@ -62,7 +69,7 @@ export function loadMidi({
     let nextCycleStart = null;
     let notesPlayed = [];
     setInterval(() => {
-      sff.renderCtx.render(3.5 * 48);
+      sff.render(3.5 * 48);
     }, 3.5);
     for (const t of activeTracks) {
       if (
@@ -71,10 +78,7 @@ export function loadMidi({
         t.controlChanges[midi_chan_vol_cc].length &&
         now >= t.controlChanges[midi_chan_vol_cc][0].ticks
       ) {
-        sff.renderCtx.ccVol(
-          t.channel,
-          t.controlChanges[midi_chan_vol_cc][0].value
-        );
+        sff.ccVol(t.channel, t.controlChanges[midi_chan_vol_cc][0].value);
         t.controlChanges[midi_chan_vol_cc].shift();
       }
       while (t.notes.length && t.notes[0].time <= now + 0.1) {

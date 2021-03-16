@@ -1,4 +1,6 @@
+import { FILE } from 'dns';
 import { openSync, readSync, Stats, statSync } from 'fs';
+import { stringify } from 'querystring';
 export type Reader = {
   getc: () => number;
   get8: () => number;
@@ -12,6 +14,7 @@ export type Reader = {
   readN: (n: number) => Buffer;
   readNString: (n: number) => string;
   varLenInt: () => number;
+  seekToString: (str: string) => number | false;
 };
 export const LE = 0x00;
 export const BE = 0x01;
@@ -20,7 +23,15 @@ export function reader(path: string, opts: number = 0): Reader {
   let offset: number = 0;
   const le = (opts & endmask) == 0;
   const fd = openSync(path, 'r');
-
+  function seekToString(str) {
+    let m = 0;
+    const size = fstat().size;
+    while (offset < size) {
+      const c = getc();
+      if (c == str.charCodeAt(m++) && m == str.length) return offset;
+    }
+    return false;
+  }
   const getc = function (): number {
     const buffer: Buffer = Buffer.alloc(4);
     readSync(fd, buffer, 0, 4, offset);
@@ -85,6 +96,7 @@ export function reader(path: string, opts: number = 0): Reader {
     return r | c;
   }
   return {
+    seekToString,
     getc,
     get8,
     get16,

@@ -1,4 +1,3 @@
-/* @ts-ignore */
 let procPort;
 onmessage = async ({ data: { port, url } }) => {
   if (port) {

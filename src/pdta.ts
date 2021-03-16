@@ -4,7 +4,48 @@ import { LUT } from './LUT';
 import { envAmplitue } from './envAmplitue';
 import { SFGenerator } from './generator';
 import { presetZone } from './PresetZone';
-
+import { writeFileSync } from 'fs';
+import { SF2File } from './sffile';
+import { Preset } from './sf.types';
+export type Phdr = {
+  name: string;
+  presetId: number;
+  bankId: number;
+  pbagIndex: number;
+  pbags?: Pbag[];
+};
+export type SFGen = SFGenerator;
+export type Pbag = {
+  pgen_id: number;
+  pmod_id: number;
+  pgens: Record<number, SFGenerator>;
+};
+export type IBag = {
+  igen_id: number;
+  imod_id: number;
+  igens: Record<number, SFGenerator>;
+};
+export type Mod = {
+  src: number;
+  dest: number;
+  amt: number;
+  amtSrc: number;
+  transpose: number;
+};
+export type InstrHeader = { name: string; iBagIndex: number; ibags?: IBag[] };
+export type Shdr = {
+  name: string;
+  start: number;
+  end: number;
+  startLoop: number;
+  endLoop: number;
+  sampleRate: number;
+  originalPitch: number;
+  pitchCorrection: number;
+  sampleLink: number;
+  sampleType: number;
+};
+export type GenSet = Record<number, SFGenerator>;
 const sampleId_gen = 53;
 
 const velRangeGeneratorId = 44;
@@ -18,29 +59,23 @@ const pbagLength = 4;
 const pgenLength = 4;
 const pmodLength = 10;
 const instLength = 22;
+const pheaders: Phdr[] = [],
+  pbag: Pbag[] = [],
+  pgen: SFGen[] = [],
+  pmod: Mod[] = [],
+  iheaders: InstrHeader[] = [],
+  igen: SFGen[] = [],
+  imod: Mod[] = [],
+  ibag: IBag[] = [],
+  shdr: Shdr[] = [];
 
-const pheaders: sfTypes.Phdr[] = [],
-  pbag: sfTypes.Pbag[] = [],
-  pgen: sfTypes.SFGen[] = [],
-  pmod: sfTypes.Mod[] = [],
-  inst: sfTypes.InstrHeader[] = [],
-  igen: sfTypes.SFGen[] = [],
-  imod: sfTypes.Mod[] = [],
-  ibag: sfTypes.IBag[] = [],
-  shdr: sfTypes.Shdr[] = [];
-
-export function readPdta(
-  r: Reader
-): {
-  pheaders: sfTypes.Phdr[];
-  iheaders: sfTypes.InstrHeader[];
-  shdr: sfTypes.Shdr[];
-} {
+export function readPdta(r: Reader) {
   //const sections: Map<string, any> = new Map<string, any>();
   let n = 0;
   do {
     const sectionName = r.read32String();
     const sectionSize = r.get32();
+    console.log(sectionName, sectionSize);
     switch (sectionName) {
       case 'phdr':
         for (let i = 0; i < sectionSize; i += phdrLength) {
@@ -60,7 +95,7 @@ export function readPdta(
           pbag.push({
             pgen_id: r.get16(),
             pmod_id: r.get16(),
-            pgens: [],
+            pgens: {},
           });
           if (pheaders[pheaderId + 1] && i >= pheaders[pheaderId + 1].pbagIndex)
             pheaderId++;
@@ -70,12 +105,13 @@ export function readPdta(
       case 'pgen':
         for (let i = 0, pbagId = 0; i < sectionSize; i += pgenLength) {
           const pg = new SFGenerator(r.get16(), r.get16());
-
           if (pbag[pbagId + 1] && i >= pbag[pbagId + 1].pgen_id) {
             pbagId++;
           }
           pbag[pbagId].pgens[pg.operator] = pg;
+          break;
         }
+
         break;
       case 'pmod':
         for (let i = 0; i < sectionSize; i += pmodLength) {
@@ -90,7 +126,7 @@ export function readPdta(
         break;
       case 'inst':
         for (let i = 0; i < sectionSize; i += instLength) {
-          inst.push({
+          iheaders.push({
             name: r.readNString(20),
             iBagIndex: r.get16(),
             ibags: [],
@@ -102,10 +138,11 @@ export function readPdta(
           ibag.push({
             igen_id: r.get16(),
             imod_id: r.get16(),
-            igens: [],
+            igens: {},
           });
-          if (inst[instId + 1] && i >= inst[instId + 1].iBagIndex) instId++;
-          inst[instId].ibags.push(ibag[ibag.length - 1]);
+          if (iheaders[instId + 1] && i >= iheaders[instId + 1].iBagIndex)
+            instId++;
+          iheaders[instId].ibags.push(ibag[ibag.length - 1]);
         }
         break;
       case 'igen':
@@ -140,59 +177,60 @@ export function readPdta(
         break; // `seciont name [${sectionName}]`;
     }
   } while (n++ < 8);
-  return { pheaders, iheaders: inst, shdr };
 }
 
 export function parsePDTA(r: Reader) {
-  const { pheaders, iheaders, shdr } = readPdta(r);
+  readPdta(r);
+  const presets = [];
 
-  const presets: sfTypes.Preset[][] = [];
-
-  for (const header of pheaders) {
-    const preset: sfTypes.Preset = {
-      ...header,
-      defaultBag: null,
-      zones: [],
-    };
-
-    for (const _pbag of header.pbags) {
-      if (!_pbag.pgens) continue;
-      if (!_pbag.pgens[instrumentGenerator]) {
-        preset.defaultBag = _pbag.pgens;
-        continue;
-      }
-
-      const ihead = iheaders[_pbag.pgens[instrumentGenerator].u16];
-      let defaultInst;
-      for (const _ibag of ihead.ibags) {
-        if (!_ibag.igens[sampleId_gen]) {
-          defaultInst = _ibag;
-          continue;
+  mergeBagDefaults();
+  for (const pheader of pheaders) {
+    console.log(pheader);
+    presets[pheader.bankId] = presets[pheader.bankId] || [];
+    presets[pheader.bankId][pheader.presetId] = {
+      ...pheader,
+      zones: pheader.pbags.reduce((arr, pbagg) => {
+        console.log(pbagg);
+        if (!pbagg.pgens[instrumentGenerator]) {
+          console.log('no inst');
+          return arr;
         }
-
-        preset.zones.push(
-          presetZone(
-            _ibag.igens,
-            _pbag.pgens,
-
-            preset.defaultBag,
-            defaultInst,
-            shdr
-          )
+        const instt = iheaders[pbagg.pgens[instrumentGenerator].u16];
+        return arr.concat(
+          instt.ibags.map((ibagg) => presetZone(ibagg, pbagg, shdr))
         );
-        if (_ibag.igens[sfTypes.sf_gen_id.overridingRootKey]) {
-          break;
-          //last one of the instr
-        }
-      }
-    }
-    presets[header.bankId] = presets[header.bankId] || [];
-    presets[header.bankId][header.presetId] = preset;
+      }, []),
+    };
   }
-  return { presets, shdr, pheaders, inst };
+  return { presets, shdr, pheaders, inst: iheaders };
 }
 
-function nextShdr(r: Reader, shdr: sfTypes.Shdr[]) {
+function mergeBagDefaults() {
+  function mergeDefault(bag: GenSet, defaultBag: GenSet) {
+    for (const genOp of Object.keys(defaultBag)) {
+      if (!bag[genOp]) bag[genOp] = defaultBag[genOp];
+      console.log('merging ', genOp, 'from defualt bagg');
+    }
+  }
+  for (const header of iheaders) {
+    let defaultibag = header.ibags.filter(
+      (ipbag) => ipbag.igens[sampleId_gen] == null
+    )[0];
+    for (const ipbag of header.ibags) {
+      mergeDefault(ipbag, defaultibag);
+    }
+  }
+  for (const header of pheaders) {
+    let defaultPbag = header.pbags.filter(
+      (pbag) => pbag.pgens[instrumentGenerator] == null
+    )[0];
+    header.pbags.forEach((pbag) => {
+      mergeDefault(pbag, defaultPbag);
+    });
+  }
+}
+
+function nextShdr(r: Reader, shdr: Shdr[]) {
   const name = r.readNString(20);
   const [
     start,
