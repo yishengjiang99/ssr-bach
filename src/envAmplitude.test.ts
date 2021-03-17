@@ -7,7 +7,7 @@ console.log(g.next().value, g.next().done);
 let value, done;
 while (({ value, done } = g.next())) {
   if (done) break;
-  console.log(value);
+  // console.log(value);
 }
 console.log(g.next().value);
 console.log(g.next().value);

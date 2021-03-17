@@ -1,4 +1,5 @@
 import { Header, Midi, Track } from '@tonejs/midi';
+import { ControlChange } from '@tonejs/midi/dist/ControlChange';
 import { Note } from '@tonejs/midi/src/Note';
 import { readFileSync } from 'fs';
 import { Writable } from 'stream';
@@ -38,7 +39,7 @@ export function loadMidi({
   let now = 0;
   let bpm = (tempos && tempos[0] && tempos[0].bpm) || 120;
   function registerNote(t: Track, note: Note) {
-    return sff.keyOn(
+    return sff.rend_ctx.keyOn(
       {
         bankId: t.instrument.percussion ? 128 : 0,
         presetId: t.instrument.number,
@@ -62,19 +63,21 @@ export function loadMidi({
     }
     let nextCycleStart = null;
     let notesPlayed = [];
+    let ccs = [];
     setInterval(() => {
-      sff.render(3.5 * 48);
+      sff.rend_ctx.render(3.5 * 48);
     }, 3.5);
     for (const t of activeTracks) {
-      if (
-        t.controlChanges &&
-        t.controlChanges[midi_chan_vol_cc] &&
-        t.controlChanges[midi_chan_vol_cc].length &&
-        now >= t.controlChanges[midi_chan_vol_cc][0].ticks
-      ) {
-        sff.ccVol(t.channel, t.controlChanges[midi_chan_vol_cc][0].value);
+      const nextCC = getNextCCVol(t, midi_chan_vol_cc);
+
+      if (nextCC && now >= nextCC.ticks) {
+        sff.rend_ctx.chanVols[t.channel] = getNextCCVol(t).value;
         t.controlChanges[midi_chan_vol_cc].shift();
       }
+      // if (t.channel == 0 && now >= getNextCCVol(t, midi_mast_vol_cc).ticks) {
+      //   sff.mast = getNextCCVol(t).value;
+      //   t.controlChanges[midi_chan_vol_cc].shift();
+      // }
       while (t.notes.length && t.notes[0].time <= now + 0.1) {
         const note = t.notes.shift();
         registerNote(t, note);
@@ -89,4 +92,12 @@ export function loadMidi({
   }
 
   return { tracks, header, loop };
+}
+function getNextCCVol(t: Track, ccType = midi_chan_vol_cc): ControlChange {
+  return (
+    t.controlChanges &&
+    t.controlChanges[ccType] &&
+    t.controlChanges[ccType].length &&
+    t.controlChanges[ccType][0]
+  );
 }

@@ -1,44 +1,43 @@
-const worker = new Worker('/js/build/fetchworker.js');
-let proc, ctx, analyzer;
+// let proc, ctx, analyzer;
+let ctx, gainNode, av;
+
 async function initCtx() {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
-  await ctx.audioWorklet.addModule('/js/build/proc3.js');
+  await ctx.audioWorklet.addModule('js/proc2.js');
 }
-async function initProc(ctx, url) {
-  proc = new AudioWorkletNode(ctx, 'playback-processor', {
-    outputChannelCount: [2],
-  });
-  worker.postMessage({ url, port: proc.port }, [proc.port]);
-  await new Promise<void>((resolve) => {
-    worker.onmessage = ({ data: { ready } }) => {
-      if (ready == 1) resolve();
-    };
-  });
-  worker.onmessage = ({ data }) => console.log(data);
-  proc.connect(analyzer).connect(ctx.destination);
-}
-async function startPCM(url: string) {
+const init = () => {
+  ctx = new AudioContext();
+  gainNode = new GainNode(ctx);
+  av = new AnalyserNode(ctx);
+  gainNode.connect(av).connect(ctx.destination);
+  const { start } = AnalyzerView(av);
+  start();
+  return { gainNode, ctx };
+};
+async function start(midifile) {
   try {
-    console.log(url);
-    if (!ctx) await initCtx();
+    if (!ctx) init();
+    const dv = await fetch(midifile)
+      .then((resp) => resp.blob())
+      .then((blob) => blob.arrayBuffer())
+      .then((ab) => new DataView(ab))
+      .catch(console.log);
+    if (!dv) return;
+    const audb = ctx.createBuffer(2, dv.buffer.byteLength / 8, 48000);
+    const buffers = [audb.getChannelData(0), audb.getChannelData(1)];
 
-    if (ctx.state != 'running') await ctx.resume();
-    if (!analyzer) {
-      initAnalyser();
+    for (let i = 0; i < audb.length; i++) {
+      buffers[0][i] = dv.getFloat32(i * 8, true);
+      buffers[1][i] = dv.getFloat32(i * 8 + 4, true);
     }
-    await initProc(ctx, url);
-    setTimeout(() => {
-      const { start } = AnalyzerView(analyzer);
-      start();
-    }, 500);
+    const abs = new AudioBufferSourceNode(ctx, { buffer: audb });
+    abs.connect(gainNode);
+    abs.start();
   } catch (e) {
-    console.log(e.message);
+    console.log("<font color='red'>" + e.message + '</font>');
     throw e;
   }
 }
-
-document.body.innerHTML +=
-  "<canvas style='opacity:0;position:absolute;width:100vw;height:100vh;background-color:black;z-index:-1'></canvas>";
 
 var g_av_timers = [];
 const AnalyzerView = function (analyser, params = {}) {
@@ -49,7 +48,7 @@ const AnalyzerView = function (analyser, params = {}) {
   const canvasCtx = canvas.getContext('2d');
   canvas.setAttribute('width', width + '');
   canvas.setAttribute('height', height + '');
-  canvasCtx.fillStyle = 'rbga(0,2,2,0.1)';
+  canvasCtx.fillStyle = 'black';
   canvasCtx.lineWidth = 1;
   canvasCtx.strokeStyle = 'white';
   var dataArray = new Float32Array(av.fftSize);
@@ -72,6 +71,10 @@ const AnalyzerView = function (analyser, params = {}) {
       (accumulator, currentValue) => accumulator + currentValue / bufferLength
     );
     let rms = sum / 9;
+    if (sum == 0) {
+      setTimeout(draw, 100);
+      return;
+    }
 
     canvasCtx.clearRect(0, 0, width, height);
     canvasCtx.fillStyle = `rbga(10,10,10, ${rms * 100})`;
@@ -92,19 +95,20 @@ const AnalyzerView = function (analyser, params = {}) {
     start: () => requestAnimationFrame(draw),
   };
 };
+// };
 
 window.onmousedown = (e) => {
   if (e.target.classList.contains('pcm')) {
     e.preventDefault();
     e.stopPropagation();
 
-    startPCM(e.target.href.split('#')[1]);
+    start(e.target.href.split('#')[1]);
     return false;
   }
 };
 function initAnalyser() {
-  if (!analyzer) {
-    analyzer = new AnalyserNode(ctx);
-    analyzer.connect(ctx.destination);
+  if (!av) {
+    av = new AnalyserNode(ctx);
+    av.connect(ctx.destination);
   }
 }

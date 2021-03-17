@@ -3,6 +3,7 @@ import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SF2File } from './sffile';
 import { presetZone } from './PresetZone';
+import { assert } from 'console';
 export type Phdr = {
   name: string;
   presetId: number;
@@ -184,10 +185,12 @@ const { instrument, sampleID } = sfTypes.sf_gen_id;
 export function parsePDTA(r: Reader) {
   readPdta(r);
   const presets = [];
+  console.log(process.hrtime());
   for (let i = 0; i < pheaders.length - 1; i++) {
     const { pbagIndex, bankId, presetId } = pheaders[i];
     presets[bankId] = presets[bankId] || [];
     presets[bankId][presetId] = {
+      ...pheaders[i],
       zones: [],
     };
 
@@ -222,6 +225,8 @@ export function parsePDTA(r: Reader) {
           }
           if (!ibag_gen_set.has(sampleID)) {
             if (defaultIbag === null) defaultIbag = ibag_gen_set;
+          } else {
+            continue;
           }
           for (let gi = 0; gi < 60; gi++) {
             if (defaultPbag && defaultPbag.has(gi) && !pbag_gen_set.has(gi))
@@ -236,8 +241,8 @@ export function parsePDTA(r: Reader) {
         }
       }
     }
-    console.log(process.hrtime());
   }
+  console.log(process.hrtime());
   return { presets: presets, shdr, pheaders, inst: iheaders };
 }
 
@@ -264,6 +269,7 @@ function nextShdr(r: Reader, shdr: Shdr[]) {
     r.get16(),
     r.get16(),
   ];
+  assert(start / 2 < r.fstat().size);
 
   shdr.push({
     name,

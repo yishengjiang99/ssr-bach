@@ -1,8 +1,8 @@
 import { SF2File } from './sffile';
-import { Preset } from './sf.types';
+import { generatorNames, Preset } from './sf.types';
 import { loadMidiaa } from './load-midi';
 import * as fs from 'fs';
-import { createServer } from 'http';
+import { createServer, ServerResponse } from 'http';
 import { basename, resolve } from 'path';
 import { Writable } from 'stream';
 
@@ -15,7 +15,7 @@ export function httpd(port: number) {
     main,
     left,
     footer,
-  }: { main: string; left: string; footer: string } = gg(tones, drums);
+  }: { main: string; left: string; footer: string } = defaultHTML(tones, drums);
   const server = createServer((req, res) => {
     let m: any[];
     if ((m = req.url.match(/pcm\/(.*)/))) {
@@ -30,13 +30,37 @@ export function httpd(port: number) {
         res,
         48000
       ).loop();
-    } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)\/(\d+)/))) {
-      const [, bankId, presetId, key, vel] = m;
+    } else if ((m = req.url.match(/sample\/(\d+)\/(\d+)\/(\d+)/))) {
+      const [, presetId, key, vel] = m;
 
-      sf.keyOn({ bankId: bankId, presetId, key, vel }, 2.5, 0);
+      sf.rend_ctx.keyOn(
+        { bankId: presetId > 128 ? 9 : 0, presetId: presetId & 0x7f, key, vel },
+        2.5,
+        0
+      );
 
       res.writeHead(200, { 'Content-Type': 'audio/raw' });
-      res.end(sf.render(48000));
+      res.end(sf.rend_ctx.render(48000));
+      return;
+      //res.end();
+    } else if (req.url.match(/kks\/.*/)) {
+      let [_, _2, pid, key, vel] = req.url.split('/');
+      let bankId = 0;
+      let pidsrt = parseInt(pid);
+      if (pidsrt > 127) {
+        pidsrt = pidsrt - 128;
+        bankId = 9;
+      }
+      const prds = sf.sections.pdta.presets[bankId][pidsrt];
+      console.log(prds);
+      main = prds.zones
+        .map((z) => {
+          z.sample.name;
+        })
+
+        .join('<br>');
+      renderHtml(res, { main, left, footer });
+      res.end();
       return;
       //res.end();
     } else if (req.url.startsWith('/js')) {
@@ -49,9 +73,10 @@ export function httpd(port: number) {
 
       fs.createReadStream('./bootstrap.min.css').pipe(res);
       return;
-    } else if ((m = req.url.match(/preset\/(\d+)\/(\d+)/))) {
-      const presetHeaders = sf.sections.pdta.presets[m[2]][m[1]];
+    } else if ((m = req.url.match(/preset\/(\d+)/))) {
+      const presetHeaders = sf.sections.pdta.presets[0][m[1]];
       const colums = [
+        'PLAY',
         'delay',
         'attack',
         'hold',
@@ -67,38 +92,58 @@ export function httpd(port: number) {
       ];
       const { bankId, zones, presetId, name } = presetHeaders;
       res.writeHead(200, { 'content-type': 'text/html' });
-      function range(a, b) {
-        const arr = [];
-        for (let i = a; i < b; i++) {
-          arr.push(a);
-        }
-        return arr;
-      }
-      const zoneRows = zones.map((z) => [
-        range(z.keyRange.lo, z.keyRange.hi)
-          .map((k) => sampleLink(bankId, presetId, z.velRange.hi, k))
-          .join(' '),
-        z.keyRange.lo + '-' + z.keyRange.hi,
-        z.velRange.lo + '-' + z.velRange.hi,
-        z.pitchAdjust(z.velRange.lo),
-        z.pan,
-        z.sample?.originalPitch,
-        z.sample?.sampleRate,
-        z.sample?.name,
-      ]);
-
-      main = `${[bankId, presetId, name].join('|')}
+      renderHtml(res, {
+        main: `${[bankId, presetId, name].join('|')}
+        <div style='display:grid;grid-row-template:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr'>${[
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+        ].map((k) => sampleLink(presetId, 55, 40 + k))}</div>
       <table>
-        <thead><tr>${colums
-          .map((col) => `<td>${col}</td>`)
-          .join('')}</tr></thead>
-      <tr></tr>
-      ${zoneRows
+        <thead>
+        <tr>${colums.map((col) => `<td>${col}</td>`).join('')} </tr>
+        </thead>
+      <tbody>
+      ${zones
+        .map((z, i) => [
+          sampleLink(
+            presetId,
+            z.velRange.hi,
+            ~~((z.keyRange.lo + z.keyRange.hi) / 2) + i
+          ),
+          ...z.misc.adsr,
+          z.keyRange.lo + '-' + z.keyRange.hi,
+          z.velRange.lo + '-' + z.velRange.hi,
+          z.pitchAdjust(z.velRange.lo),
+          z.pan,
+          z.sample?.originalPitch,
+          z.sample?.sampleRate,
+          z.sample?.name,
+          `<a href='#' onclick='document.querySelector("#details")\
+           .innerHTML=\`${JSON.stringify(
+             Array.from(z.misc.igenSet.entries()).map(([k, { int16 }]) => [
+               generatorNames[k],
+               int16,
+             ])
+           )}\`'>details</a>`,
+        ])
         .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join('')}</tr>`)
         .join('')}
-      </table>`;
-
-      renderHtml(res, { main, left, footer });
+      </table><div 
+      style='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);' 
+      id=details></div>`,
+        left,
+        footer,
+      });
       res.end();
     } else {
       main =
@@ -121,9 +166,9 @@ export function httpd(port: number) {
   return server;
 }
 
-httpd(3000).on('listening', (e: any) => console.log(e));
+httpd(3000).on('listening', (e: any) => console.log('server up'));
 
-function gg(tones: Preset[], drums: Preset[]) {
+function defaultHTML(tones: Preset[], drums: Preset[]) {
   let main: string = '',
     left: string = `  
   <ul class="list-group" style="max-height: 25vh; overflow-y: scroll">
@@ -136,7 +181,10 @@ function gg(tones: Preset[], drums: Preset[]) {
   return { main, left, footer };
 }
 
-function renderHtml(res: Writable, { main, left, footer }) {
+function renderHtml(res: ServerResponse, { main, left, footer }) {
+  if (res.headersSent == false) {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+  }
   return res.write(/* html */ `
       
 <!DOCTYPE html5>
@@ -174,18 +222,14 @@ function midilink(file: string): string {
   <a class='pcm' href='#/pcm/${encodeURIComponent(file)}'>${file}</a>
   </li>`;
 }
-function sampleLink(presetId, bankId, vel, key): string {
+function sampleLink(presetId, vel, key): string {
   return `
-  <a class='pcm' href="#${['sample', bankId, presetId, key, vel].join(
-    '/'
-  )}">${key}</a>
+  <a class='pcm' href="#${['sample', presetId, key, vel].join('/')}">${key}</a>
     `;
 }
 function presetlink(p: Preset): string {
   return `<li class='list-group-item'><div>${p.name} (${p.zones.length})
-        <a href="/preset/${p.presetId}/${p.bankId}"'>go</a>
+        <a href="/preset/${p.presetId + (p.bankId > 0 ? 128 : 0)}"'>go</a>
         </div>
         </li>`;
 }
-
-// /*

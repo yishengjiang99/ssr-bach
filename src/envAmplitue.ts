@@ -1,14 +1,26 @@
 import { LUT } from './LUT';
 import { TimeCent } from './sf.types';
 
-export function* envAmplitue(envelopPhases, sustainCB, sr: number) {
+export function* envAmplitue(
+  envelopPhases,
+  sustainCB,
+  sr: number,
+  noteVelocity: number = 120
+) {
+  //	e->samplesUntilNextSegment = (int)(e->parameters.attack * ((145 - e->midiVelocity) / 144.0f) * outSampleRate);
+
   const [delay, attack, hold, decay, release] = envelopPhases;
-  const steps = [delay, attack, hold, decay, release, 3 * release].map(
-    (centisec) => {
-      console.log(centisec, LUT.absTC[~~centisec + 12000] * sr);
-      return LUT.absTC[~~centisec + 12000] * sr;
-    }
-  );
+  const attackVelModulated = attack * (145 - noteVelocity / 144); //1440 - attack / noteVelocity;
+  const steps = [
+    delay,
+    attackVelModulated,
+    hold,
+    decay,
+    release,
+    3 * release,
+  ].map((centisec) => {
+    return LUT.absTC[~~centisec + 12000] * sr;
+  });
 
   let deltas: TimeCent[] = [
     0,

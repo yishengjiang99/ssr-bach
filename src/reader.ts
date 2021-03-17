@@ -53,10 +53,7 @@ export function reader(path: string, opts: number = 0): Reader {
     return buffer.readUInt16LE();
   };
   const get32 = function (): number {
-    const buffer: Buffer = Buffer.alloc(16);
-    readSync(fd, buffer, 0, 16, offset);
-    offset += 4;
-    return le ? buffer.readUInt32LE(0) : buffer.readUInt32BE(0);
+    return (getc() | (getc() << 8) | (getc() << 16) | (getc() << 24)) >>> 0; //_
   };
   const read32String = function (): string {
     return [getc(), getc(), getc(), getc()]
