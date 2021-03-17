@@ -3,13 +3,7 @@ import { Note } from '@tonejs/midi/src/Note';
 import { readFileSync } from 'fs';
 import { Writable } from 'stream';
 import { SF2File } from './sffile';
-const modulse = require('../read.js');
-modulse['onRuntimeInitialized'] = () => {
-  debugger;
-  console.log('init');
-  modulse._rfff();
-  modulse._zoneinfo(0, 44, 123);
-};
+
 const midi_chan_vol_cc = 11;
 const midi_mast_vol_cc = 7;
 interface loadMidiProps {

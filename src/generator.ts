@@ -16,21 +16,21 @@ const {
 } = sf_gen_id;
 export type GenRange = { lo: number; hi: number };
 export class SFGenerator {
-  constructor(private _operator: sf_gen_id, private valbyte: number) {}
+  constructor(private _operator: sf_gen_id, private int16: number) {}
   add(modgen: SFGenerator) {
-    this.valbyte += modgen.valbyte;
+    this.int16 += modgen.int16;
   }
   get operator() {
     return this._operator;
   }
   get range(): GenRange {
-    return { lo: this.valbyte & 0x0f, hi: this.valbyte & 0xf0 };
+    return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0xff };
   }
   get u16() {
-    return this.valbyte; // | (this.hi << 8);
+    return this.int16 & 0x0ff0; // | (this.hi << 8);
   }
   get s16() {
-    return this.valbyte & 0x80 ? -0x10000 + this.valbyte : this.valbyte;
+    return this.int16;
   }
   static defaultValue(operator: sf_gen_id) {
     switch (operator) {

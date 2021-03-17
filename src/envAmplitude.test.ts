@@ -1,15 +1,15 @@
-require('ts-node').register();
 import { envAmplitue } from './envAmplitue';
 import test from 'ava';
-import { nextTick } from 'process';
-test('amps', (t) => {
-  const g = envAmplitue([-1200, -4000, -11000, -4000, -12000], 333, 48000);
-  let c = Math.pow(2, -1200 / 1200);
-  t.fail();
-  c = 0;
-  while (c++ < 10110) {
-    let n = g.next();
-    if (n.done) break;
-    t.true(n.done == false);
-  }
-});
+
+const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
+let c = Math.pow(2, -1200 / 1200);
+console.log(g.next().value, g.next().done);
+let value, done;
+while (({ value, done } = g.next())) {
+  if (done) break;
+  console.log(value);
+}
+console.log(g.next().value);
+console.log(g.next().value);
+console.log(g.next().value);
+console.log(g.next().value);

@@ -16,8 +16,8 @@ export type Zone = {
   gain: (noteVelocity: number, channelVol: number, masterVol: number) => number;
 };
 export function presetZone(
-  igenSet: Record<number, SFGenerator>,
-  pgenSet: Record<number, SFGenerator>,
+  igenSet: Map<number, SFGenerator>,
+  pgenSet: Map<number, SFGenerator>,
   shdr: Shdr[]
 ): Zone {
   function genval(genId: sfg): number {
@@ -29,11 +29,15 @@ export function presetZone(
     if (igenSet[genId] && !pgenSet[genId]) return igenSet[genId].s16;
   }
   function getSFRange(genId: sfg.velRange | sfg.keyRange) {
-    const instRange = igenSet[genId]?.range || { lo: 0, hi: 127 };
-    const prange = pgenSet[genId]?.range || { lo: 0, hi: 127 };
+    const instRange = igenSet.has(genId)
+      ? igenSet.get(genId).range
+      : { lo: 0, hi: 127 };
+    const prange = pgenSet.has(genId)
+      ? pgenSet.get(genId).range
+      : { lo: 0, hi: 127 };
     return {
       lo: Math.max(instRange.lo, prange.lo),
-      hi: Math.min(instRange.hi, instRange.hi),
+      hi: Math.min(instRange.hi, prange.hi),
     };
   }
   const samples = shdr[genval(sfg.sampleID)] || null;

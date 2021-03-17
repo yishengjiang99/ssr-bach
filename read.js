@@ -156,7 +156,7 @@ Module.expectedDataFileDownloads++;
    "audio": 0
   } ],
   "remote_package_size": 31281186,
-  "package_uuid": "c2e096cf-4869-4b9e-b67e-525fe84a4300"
+  "package_uuid": "08182d57-f13b-4522-87b0-72f6e2a26a01"
  });
 })();
 
@@ -1780,22 +1780,22 @@ var tempDouble;
 var tempI64;
 
 var ASM_CONSTS = {
- 65612832: function() {
+ 65612960: function() {
   return withBuiltinMalloc(function() {
    return allocateUTF8(Module["ASAN_OPTIONS"] || 0);
   });
  },
- 65612929: function() {
+ 65613057: function() {
   return withBuiltinMalloc(function() {
    return allocateUTF8(Module["LSAN_OPTIONS"] || 0);
   });
  },
- 65613026: function() {
+ 65613154: function() {
   return withBuiltinMalloc(function() {
    return allocateUTF8(Module["UBSAN_OPTIONS"] || 0);
   });
  },
- 65613124: function() {
+ 65613252: function() {
   var setting = Module["printWithColors"];
   if (setting != null) {
    return setting;
@@ -5335,31 +5335,6 @@ function _sysconf(name) {
  return -1;
 }
 
-function _upload(n, ptr) {
- let offset = ptr;
- const [lokey, hikey, lovel, hivel] = HEAPU8.subarray(offset, offset + 4);
- offset += 4;
- const [attentuation, lpf_cutff, lpf_q] = HEAP16.subarray(offset >> 1, offset + 14);
- offset += 14;
- const [pitchAdjust] = HEAPF32.subarray(offset >> 2, 4);
- offset += 4;
- const [start, end, loopStart, loopEnd, sampleRate] = HEAPU32.subarray(offset >> 2, 20);
- noteload({
-  lokey: lokey,
-  hikey: hikey,
-  lovel: lovel,
-  hivel: hivel,
-  attentuation: attentuation,
-  lpf_cutff: lpf_cutff,
-  lpf_q: lpf_q,
-  start: start,
-  end: end,
-  loopStart: loopStart,
-  loopEnd: loopEnd,
-  sampleRate: sampleRate
- });
-}
-
 var readAsmConstArgsArray = [];
 
 function readAsmConstArgs(sigPtr, buf) {
@@ -5505,19 +5480,16 @@ var asmLibraryArg = {
  "fd_write": _fd_write,
  "setTempRet0": _setTempRet0,
  "sigaction": _sigaction,
- "sysconf": _sysconf,
- "upload": _upload
+ "sysconf": _sysconf
 };
 
 var asm = createWasm();
 
 var ___wasm_call_ctors = Module["___wasm_call_ctors"] = createExportWrapper("__wasm_call_ctors");
 
-var _rfff = Module["_rfff"] = createExportWrapper("rfff");
-
 var _malloc = Module["_malloc"] = createExportWrapper("malloc");
 
-var _zoneinfo = Module["_zoneinfo"] = createExportWrapper("zoneinfo");
+var _main = Module["_main"] = createExportWrapper("main");
 
 var ___errno_location = Module["___errno_location"] = createExportWrapper("__errno_location");
 
@@ -5597,7 +5569,7 @@ var dynCall_viiijj = Module["dynCall_viiijj"] = createExportWrapper("dynCall_vii
 
 var dynCall_jii = Module["dynCall_jii"] = createExportWrapper("dynCall_jii");
 
-var ___heap_base = Module["___heap_base"] = 75406784;
+var ___heap_base = Module["___heap_base"] = 75406912;
 
 var ___global_base = Module["___global_base"] = 65536e3;
 
@@ -6466,6 +6438,40 @@ dependenciesFulfilled = function runCaller() {
  if (!calledRun) dependenciesFulfilled = runCaller;
 };
 
+function callMain(args) {
+ assert(runDependencies == 0, 'cannot call main when async dependencies remain! (listen on Module["onRuntimeInitialized"])');
+ assert(__ATPRERUN__.length == 0, "cannot call main when preRun functions remain to be called");
+ var entryFunction = Module["_main"];
+ args = args || [];
+ var argc = args.length + 1;
+ var argv = stackAlloc((argc + 1) * 4);
+ _asan_js_store_4(argv >> 2, allocateUTF8OnStack(thisProgram));
+ for (var i = 1; i < argc; i++) {
+  _asan_js_store_4((argv >> 2) + i, allocateUTF8OnStack(args[i - 1]));
+ }
+ _asan_js_store_4((argv >> 2) + argc, 0);
+ try {
+  var ret = entryFunction(argc, argv);
+  exit(ret, true);
+ } catch (e) {
+  if (e instanceof ExitStatus) {
+   return;
+  } else if (e == "unwind") {
+   noExitRuntime = true;
+   return;
+  } else {
+   var toLog = e;
+   if (e && typeof e === "object" && e.stack) {
+    toLog = [ e, e.stack ];
+   }
+   err("exception thrown: " + toLog);
+   quit_(1, e);
+  }
+ } finally {
+  calledMain = true;
+ }
+}
+
 function stackCheckInit() {
  _emscripten_stack_init();
  writeStackCookie();
@@ -6489,7 +6495,7 @@ function run(args) {
   initRuntime();
   preMain();
   if (Module["onRuntimeInitialized"]) Module["onRuntimeInitialized"]();
-  assert(!Module["_main"], 'compiled without a main, but one is present. if you added it from JS, use Module["onRuntimeInitialized"]');
+  if (shouldRunNow) callMain(args);
   postRun();
  }
  if (Module["setStatus"]) {
@@ -6561,5 +6567,9 @@ if (Module["preInit"]) {
   Module["preInit"].pop()();
  }
 }
+
+var shouldRunNow = true;
+
+if (Module["noInitialRun"]) shouldRunNow = false;
 
 run();

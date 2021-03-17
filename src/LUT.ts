@@ -34,6 +34,7 @@ export class LUT {
     }
   }
 }
+LUT.init();
 // console.log(LUT.velCB);
 // console.log(LUT.cent2amp);
 

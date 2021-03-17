@@ -4,17 +4,19 @@ import { TimeCent } from './sf.types';
 export function* envAmplitue(envelopPhases, sustainCB, sr: number) {
   const [delay, attack, hold, decay, release] = envelopPhases;
   const steps = [delay, attack, hold, decay, release, 3 * release].map(
-    (centisec) => LUT.absTC[~~centisec] * sr
+    (centisec) => {
+      console.log(centisec, LUT.absTC[~~centisec + 12000] * sr);
+      return LUT.absTC[~~centisec + 12000] * sr;
+    }
   );
 
   let deltas: TimeCent[] = [
     0,
-    960 / steps[1],
+    -960 / steps[1],
     0,
-
     sustainCB / steps[3],
     (960 - sustainCB) / 2 / steps[4],
-    (960 - sustainCB) / 2 / steps[5],
+    (960 - sustainCB) / 9 / steps[5],
   ];
   let amount;
   const amt = [960, 960, 0, sustainCB, 960 - sustainCB / 2];
@@ -22,7 +24,7 @@ export function* envAmplitue(envelopPhases, sustainCB, sr: number) {
     amount = amt.shift();
     while (steps[0] > 1) {
       amount += deltas[0];
-      if (amount < 0) return 0;
+      if (amount > 1100) return 0;
       yield amount;
       steps[0]--;
     }

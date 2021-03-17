@@ -3,7 +3,6 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
-#include <emscripten.h>
 
 typedef uint8_t uint8_t;
 typedef uint32_t uint32_t; // uint32_t;
@@ -101,27 +100,11 @@ typedef struct
 	genAmountType val;
 } igen;
 typedef struct
-{ /*
-    start,
-    end,
-    startLoop,
-    endLoop,
-    sampleRate,
-    originalPitch,
-    pitchCorrection,
-    sampleLink,
-    sampleType,
-	*/
-	char achSampleName[20];
-	uint32_t dwStart;
-	uint32_t dwEnd;
-	uint32_t dwStartloop;
-	uint32_t dwEndloop;
-	uint32_t dwSampleRate;
-	uint8_t byOriginalKey;
-	char chCorrection;
-	uint16_t wSampleLink;
-	uint16_t sfSampleType;
+{
+	char name[20];
+	uint32_t start, end, startLoop, endLoop, dwSampleRate;
+	uint8_t byOriginalKey, f1, f2, f3, ff4, f5;
+
 } shdr;
 // tsf_char20 sampleName;
 // tsf_u32 start, end, startLoop, endLoop, sampleRate;
@@ -323,17 +306,10 @@ void rfff()
 	fread(igens, sizeof(pgen_t), sh->size / sizeof(pgen_t), fd);
 
 	fread(sh, sizeof(section_header), 1, fd);
-
 	nshdrs = sh->size / sizeof(shdr);
 	fprintf(stdout, "%.4s:%u %lu %d\n", sh->name, sh->size, sizeof(shdr), nshdrs);
-
 	shdrs = (shdr *)malloc(sh->size);
-	for (int i = 0; i < nshdrs; i++)
-	{
-		fread(shdrs + i, 46, 1, fd);
-
-		//	fprintf(stdout, "%.20s %u %u\n", (shdrs + i)->achSampleName, (shdrs + i)->dwStart, (shdrs + i)->dwEnd);
-	}
+	fread(shdrs, sizeof(shdr), sh->size / sizeof(shdr), fd);
 }
 #define setAtt(attr, genid) z.attr = igenset[genid].val.shAmount + pgenset[genid].val.shAmount;
 #define offset(attr, genid) z.attr = z.attr + pgenset[genid].val.shAmount;
@@ -436,10 +412,6 @@ void zoneinfo(unsigned short pid, unsigned short key, unsigned short vel)
 							defaultIbag = k;
 							isInstDefault = 1;
 						}
-						// if (g.operator== SFGEN_velRange && g.val.ranges.hi != 0 &&(g.val.ranges.lo > vel || g.val.ranges.hi < vel))
-						// 	goto nextbag;
-						// if (g.operator== SFGEN_keyRange && g.val.ranges.hi != 0 &&(g.val.ranges.lo > key || g.val.ranges.hi < key))
-						// 	goto nextbag;
 						if (g.operator== SFGEN_sampleID)
 						{
 							hasSample = 1;
@@ -466,14 +438,10 @@ void zoneinfo(unsigned short pid, unsigned short key, unsigned short vel)
 					z.lokey = max(igenset[SFGEN_keyRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.lo);
 					z.hivel = min(igenset[SFGEN_keyRange].val.ranges.hi, pgenset[SFGEN_velRange].val.ranges.hi);
 					if (z.hivel < vel || z.lovel > vel || z.hikey < key || z.lokey > key)
-						;
+						continue;
+
 					shdr *samples = shdrs + igenset[SFGEN_sampleID].val.shAmount;
 					printf("\nt\tfound %d", igenset[SFGEN_sampleID].val.shAmount);
-					z.start = samples->dwStart;
-					z.end = samples->dwEnd;
-					z.loopStart = samples->dwStartloop;
-					z.loopEnd = samples->dwEndloop;
-					z.sampleRate = samples->dwSampleRate;
 
 					setAtt(attentuation, SFGEN_initialAttenuation);
 					setAtt(lpf_cutff, SFGEN_initialFilterFc);
@@ -518,20 +486,20 @@ void zoneinfo(unsigned short pid, unsigned short key, unsigned short vel)
 	}
 	printf("nothing");
 }
-// int main()
-// {
-// 	rfff();
-// 	zoneinfo(0, 54, 44);
+int main()
+{
+	rfff();
+	zoneinfo(0, 54, 44);
 
-// 	zoneinfo(0, 54, 55);
-// 	zoneinfo(0, 54, 57);
-// 	zoneinfo(0, 54, 55);
-// } // 	// 				z.sampl = shdrs + instGen->genlist[SFGEN_sampleID].val.shAmount;
-// 	// 				z.lovel = max(instGen->genlist[SFGEN_velRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.lo);
-// 	// 				z.hivel = min(instGen->genlist[SFGEN_velRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.hi);
-// 	// 				z.lokey = max(instGen->genlist[SFGEN_keyRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.lo);
-// 	// 				z.hivel = min(instGen->genlist[SFGEN_keyRange].val.ranges.hi, pgenset[SFGEN_velRange].val.ranges.hi);
-// 	// 				if (z.lokey > key || z.hikey < key || z.lovel > vel || z.hivel < vel)
-// 	// 				{
-// 	// 					continue;
-// 	// 				}
+	zoneinfo(0, 54, 55);
+	zoneinfo(0, 54, 57);
+	zoneinfo(0, 54, 55);
+} // 	// 				z.sampl = shdrs + instGen->genlist[SFGEN_sampleID].val.shAmount;
+  // 	// 				z.lovel = max(instGen->genlist[SFGEN_velRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.lo);
+  // 	// 				z.hivel = min(instGen->genlist[SFGEN_velRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.hi);
+  // 	// 				z.lokey = max(instGen->genlist[SFGEN_keyRange].val.ranges.lo, pgenset[SFGEN_velRange].val.ranges.lo);
+  // 	// 				z.hivel = min(instGen->genlist[SFGEN_keyRange].val.ranges.hi, pgenset[SFGEN_velRange].val.ranges.hi);
+  // 	// 				if (z.lokey > key || z.hikey < key || z.lovel > vel || z.hivel < vel)
+  // 	// 				{
+  // 	// 					continue;
+  // 	// 				}

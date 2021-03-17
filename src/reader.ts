@@ -14,6 +14,7 @@ export type Reader = {
   readN: (n: number) => Buffer;
   readNString: (n: number) => string;
   varLenInt: () => number;
+  getUint16: () => number;
   seekToString: (str: string) => number | false;
 };
 export const LE = 0x00;
@@ -44,6 +45,12 @@ export function reader(path: string, opts: number = 0): Reader {
   const get16 = function (): number {
     if (le) return get8() | (get8() << 8);
     else return (get8() << 8) | get8();
+  };
+  const getUint16 = function (): number {
+    const buffer: Buffer = Buffer.alloc(8);
+    readSync(fd, buffer, 0, 4, offset);
+    offset += 2;
+    return buffer.readUInt16LE();
   };
   const get32 = function (): number {
     const buffer: Buffer = Buffer.alloc(16);
@@ -106,6 +113,7 @@ export function reader(path: string, opts: number = 0): Reader {
     skip,
     getOffset,
     setOffset,
+    getUint16,
     readN,
     readNString,
     varLenInt,
