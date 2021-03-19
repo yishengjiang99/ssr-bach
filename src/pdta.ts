@@ -100,9 +100,7 @@ export function readPdta(r: Reader) {
         for (let i = 0, pbagId = 0; i < sectionSize; i += pgenLength) {
           const opid = r.get8();
           r.get8();
-          const lo = r.get8(),
-            hi = r.get8();
-          const amt = lo | (hi << 8);
+          const amt = r.getS16();
 
           const pg = new SFGenerator(opid, amt); //, r.get16());
           if (pbag[pbagId + 1] && i >= pbag[pbagId + 1].pgen_id) {
@@ -146,13 +144,14 @@ export function readPdta(r: Reader) {
         for (let i = 0, ibagId = 0; i < sectionSize; i += 4) {
           const opid = r.get8();
           r.get8();
-          const amt = (r.get8() << 8) | r.get8();
+          const amt = r.getS16();
 
           const gen = new SFGenerator(opid, amt); //, r.get16());
           if (ibag[ibagId + 1] && i >= ibag[ibagId + 1].igen_id) {
             ibagId++;
           }
           igen.push(gen);
+          console.log(sfTypes.generatorNames[opid], amt);
         }
 
         break;
@@ -208,7 +207,7 @@ export function parsePDTA(r: Reader) {
         if (defaultPbag === null) defaultPbag = pbag_gen_set;
       } else {
         const instId = pbag_gen_set.get(instrument).u16;
-        if (!iheaders[instId]) {
+        if (instId >= iheaders.length) {
           console.log('no ', instId, 'in instid');
           continue;
         }

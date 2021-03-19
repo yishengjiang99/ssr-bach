@@ -1,10 +1,11 @@
 import { FILE } from 'dns';
 import { openSync, readSync, Stats, statSync } from 'fs';
-import { stringify } from 'querystring';
 export type Reader = {
   getc: () => number;
   get8: () => number;
-  get16: () => number;
+  getS16: () => number;
+  get16: () => ncumber;
+
   read32String: () => string;
   get32: () => number;
   fstat: () => Stats;
@@ -45,6 +46,11 @@ export function reader(path: string, opts: number = 0): Reader {
   const get16 = function (): number {
     if (le) return get8() | (get8() << 8);
     else return (get8() << 8) | get8();
+  };
+  const getS16 = function (): number {
+    let amt = get8() || get8() << 8;
+    if (amt & 0x8000) amt = -0x10000 + amt;
+    return amt;
   };
   const getUint16 = function (): number {
     const buffer: Buffer = Buffer.alloc(8);
@@ -103,6 +109,7 @@ export function reader(path: string, opts: number = 0): Reader {
     seekToString,
     getc,
     get8,
+    getS16,
     get16,
     read32String,
     get32,
