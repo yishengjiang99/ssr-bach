@@ -23,7 +23,7 @@ export class Envelope {
       hold: 0,
     };
   }
-  db_of_t() { }
+  db_of_t() {}
 
   private _phases: EnvelopePhases;
   public get phases(): EnvelopePhases {
@@ -49,16 +49,16 @@ export class LFO {
     filter: centTone;
     volume: centibel;
   } = {
-      pitch: 0,
-      filter: 0,
-      volume: 0,
-    };
+    pitch: 0,
+    filter: 0,
+    volume: 0,
+  };
 }
 export enum LOOPMODES {
   NO_LOOP,
   CONTINUOUS_LOOP,
   NO_LOOP_EQ,
-  LOOP_DURATION_PRESS
+  LOOP_DURATION_PRESS,
 }
 export function cent2hz(centiHz) {
   return 8.176 * Math.pow(2, centiHz / 1200.0);

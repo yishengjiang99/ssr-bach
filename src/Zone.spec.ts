@@ -1,6 +1,8 @@
 import test from 'ava';
+import { assert } from 'console';
 import { envAmplitue } from './envAmplitue';
 import { SFGenerator } from './generator';
+import { LUT } from './LUT';
 import { Shdr } from './pdta';
 import { sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
@@ -21,10 +23,6 @@ const sample = {
 test('1', (t) => {
   const zone = new SFZone(sample);
   zone.applyGenVal(new SFGenerator(sf_gen_id.attackVolEnv, -1200));
-  
   console.log(zone.volEnv);
   t.truthy(zone.volEnv);
-  // 1200log2(.01) = -7973
-  const sampleR = 1200 * Math.log2(1 / 48000);
-  envAmplitue(zone.volEnv.
 });

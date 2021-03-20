@@ -18,7 +18,7 @@ export type Zone = {
 export function presetZone(
   igenSet: Map<number, SFGenerator>,
   pgenSet: Map<number, SFGenerator>,
-  shdr: Shdr[]
+  samples: Shdr
 ): Zone {
   function genval(genId: sfg): number {
     if (!pgenSet[genId] && !igenSet[genId])
@@ -40,15 +40,11 @@ export function presetZone(
       hi: Math.min(instRange.hi, prange.hi),
     };
   }
-  const samples = shdr[genval(sfg.sampleID)] || null;
-  if (!samples) {
-    debugger;
-  }
   const envelope = envAmplitue(
     adsrParams.map((p) => genval(p)),
     genval(sfg.sustainVolEnv),
     48000
-  );
+  ).genDBVals();
   const egSustain = (960 - genval(sfg.sustainVolEnv)) / 960;
   // db to val ((-200.0 / 960) * Math.log((i * i) / (127 * 127))) / Math.log(10);
 

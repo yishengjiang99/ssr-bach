@@ -41,6 +41,8 @@ export type Shdr = {
   sampleLink: number;
   sampleType: number;
 };
+const { instrument, sampleID } = sfTypes.sf_gen_id;
+
 export type GenSet = Record<number, SFGenerator>;
 const sampleId_gen = 53;
 
@@ -172,15 +174,49 @@ export function readPdta(r: Reader) {
           i < sectionSize;
           i += ShdrLength ///20 + 4 * 5 + 1 + 1 + 4)
         ) {
-          nextShdr(r, shdr);
+          const name = r.readNString(20);
+          const [
+            start,
+            end,
+            startLoop,
+            endLoop,
+            sampleRate,
+            originalPitch,
+            pitchCorrection,
+            sampleLink,
+            sampleType,
+          ] = [
+            r.get32(),
+            r.get32(),
+            r.get32(),
+            r.get32(),
+            r.get32(),
+            r.get8(),
+            r.get8(),
+            r.get16(),
+            r.get16(),
+          ];
+
+          shdr.push({
+            name,
+            start,
+            end,
+            startLoop,
+            endLoop,
+            sampleRate,
+            originalPitch,
+            pitchCorrection,
+            sampleLink,
+            sampleType,
+          });
         }
+
         break;
       default:
         break; // `seciont name [${sectionName}]`;
     }
   } while (n++ < 8);
 }
-const { instrument, sampleID } = sfTypes.sf_gen_id;
 export function parsePDTA(r: Reader) {
   readPdta(r);
   const presets = [];
@@ -222,7 +258,10 @@ export function parsePDTA(r: Reader) {
           }
           if (!ibag_gen_set.has(sampleID)) {
             if (defaultIbag === null) defaultIbag = ibag_gen_set;
+            continue;
           }
+          const samples = shdr[ibag_gen_set.get(sampleID).s16];
+          if (!samples) continue;
           for (let gi = 0; gi < 60; gi++) {
             if (defaultPbag && defaultPbag.has(gi) && !pbag_gen_set.has(gi))
               pbag_gen_set.set(gi, defaultPbag.get(gi));
@@ -230,54 +269,25 @@ export function parsePDTA(r: Reader) {
               ibag_gen_set.set(gi, defaultIbag.get(gi));
             }
           }
-          presets[bankId][presetId].zones.push(
-            presetZone(ibag_gen_set, pbag_gen_set, shdr)
-          );
+          const preset = presetZone(ibag_gen_set, pbag_gen_set, samples);
+          presets[bankId][presetId].zones.push(preset);
         }
       }
     }
-    console.log(process.hrtime());
   }
-  return { presets: presets, shdr, pheaders, inst: iheaders };
+  return {
+    presets: presets,
+    shdr,
+    pheaders,
+    inst: iheaders,
+    igen,
+    ibag,
+    pgen,
+    pbag,
+  };
 }
+export function depthFirstSearch(string: String) {}
 
-function nextShdr(r: Reader, shdr: Shdr[]) {
-  const name = r.readNString(20);
-  const [
-    start,
-    end,
-    startLoop,
-    endLoop,
-    sampleRate,
-    originalPitch,
-    pitchCorrection,
-    sampleLink,
-    sampleType,
-  ] = [
-    r.get32(),
-    r.get32(),
-    r.get32(),
-    r.get32(),
-    r.get32(),
-    r.get8(),
-    r.get8(),
-    r.get16(),
-    r.get16(),
-  ];
-
-  shdr.push({
-    name,
-    start,
-    end,
-    startLoop,
-    endLoop,
-    sampleRate,
-    originalPitch,
-    pitchCorrection,
-    sampleLink,
-    sampleType,
-  });
-}
 export function test() {
   const {
     sections: {

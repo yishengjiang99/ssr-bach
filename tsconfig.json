@@ -2,7 +2,6 @@
 
   "compilerOptions": {
     "moduleResolution": "node",
-    "sourceMap": true,
     "outDir": "./dist",
     "esModuleInterop":true,
     "target": "es2018",

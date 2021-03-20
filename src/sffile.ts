@@ -65,7 +65,7 @@ export class SF2File {
     } while (size > 0);
     this.sections = sections;
   }
-  findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
+  findPreset = ({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) => {
     const sections = this.sections;
     const noteHave =
       !sections.pdta.presets[bankId + ''] ||
@@ -91,7 +91,7 @@ export class SF2File {
     }
     console.log(presetId, bankId, 'not found');
     return null;
-  }
+  };
 
   keyOn(
     { bankId, presetId, key, vel }: sfTypes.FindPresetProps,
