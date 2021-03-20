@@ -24,7 +24,8 @@
 		"gen_ops.h": "c",
 		"math.h": "c",
 		"typeinfo": "c",
-		"emscripten.h": "c"
+		"emscripten.h": "c",
+		"index.h": "c"
 	},
 	"C_Cpp.errorSquiggles": "Enabled"
 }

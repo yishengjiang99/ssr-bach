@@ -9,6 +9,7 @@ export class LUT {
   static absTC: number[] = [];
 
   static init() {
+    if (LUT.absTC.length > 0) return;
     for (let n = 0; n < 20000; n += 1)
       LUT.absTC[n] = Math.pow(2.0, (n - 12000.0) / 1200.0);
 
