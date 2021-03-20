@@ -1,15 +1,21 @@
 import { envAmplitue } from './envAmplitue';
 import test from 'ava';
+import { assert } from 'console';
+test('baisc', (t) => {
+  const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
+  t.is(g.stages.length, 5);
+  t.assert(g.deltas[1] < 0);
+  t.assert(g.deltas.every((d) => d != Infinity));
 
-const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
-let c = Math.pow(2, -1200 / 1200);
-console.log(g.next().value, g.next().done);
-let value, done;
-while (({ value, done } = g.next())) {
-  if (done) break;
-  // console.log(value);
-}
-console.log(g.next().value);
-console.log(g.next().value);
-console.log(g.next().value);
-console.log(g.next().value);
+  console.log(g.deltas);
+});
+test('full attenuate during decay', (t) => {
+  const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 1000, 47);
+  t.is(g.stages.length, 5);
+  t.assert(g.deltas[1] < 0);
+  t.assert(g.deltas.every((d) => d != Infinity));
+  t.assert(g.deltas.every((d) => d != Infinity));
+  Array.from(g.genDBVals()).map((v) => {
+    t.assert(!v.isNaN);
+  });
+});

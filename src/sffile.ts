@@ -45,7 +45,7 @@ export class SF2File {
     this.sections = sections;
     this.rend_ctx = new RenderCtx(this);
   }
-  findPreset({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) {
+  findPreset = ({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) => {
     const sections = this.sections;
     const noteHave =
       !sections.pdta.presets[bankId] ||
