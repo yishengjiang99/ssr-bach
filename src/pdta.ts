@@ -3,6 +3,7 @@ import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SF2File } from './sffile';
 import { presetZone } from './PresetZone';
+import { assert } from 'console';
 export type Phdr = {
   name: string;
   presetId: number;
@@ -220,10 +221,12 @@ export function readPdta(r: Reader) {
 export function parsePDTA(r: Reader) {
   readPdta(r);
   const presets = [];
+  console.log(process.hrtime());
   for (let i = 0; i < pheaders.length - 1; i++) {
     const { pbagIndex, bankId, presetId } = pheaders[i];
     presets[bankId] = presets[bankId] || [];
     presets[bankId][presetId] = {
+      ...pheaders[i],
       zones: [],
     };
 
@@ -258,6 +261,7 @@ export function parsePDTA(r: Reader) {
           }
           if (!ibag_gen_set.has(sampleID)) {
             if (defaultIbag === null) defaultIbag = ibag_gen_set;
+]
             continue;
           }
           const samples = shdr[ibag_gen_set.get(sampleID).s16];
@@ -285,9 +289,8 @@ export function parsePDTA(r: Reader) {
     pgen,
     pbag,
   };
-}
-export function depthFirstSearch(string: String) {}
 
+}
 export function test() {
   const {
     sections: {

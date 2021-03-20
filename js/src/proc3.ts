@@ -34,7 +34,7 @@
           while (value.byteLength >= chunk) {
             that.buffers.push(value.slice(0, chunk));
             value = value.slice(chunk);
-            if (!that.started && that.buffers.length > 31) {
+            if (!that.started && that.buffers.length > 1) {
               that.started = true;
               that.port.postMessage({ ready: 1 });
             }
@@ -49,10 +49,10 @@
       if (this.started == false || this.buffers.length < 1) return true;
       if (this.ended) return false;
       const ob = this.buffers.shift();
-      const fl = new Float32Array(ob);
+      const fl = new DataView(ob.buffer);
       for (let i = 0; i < 128; i++) {
-        outputs[0][0][i] = ob.slice(i * 8, i * 8 + 4);
-        outputs[0][1][i] = ob.slice(i * 8 + 4, i * 8 + 8);
+        outputs[0][0][i] = fl.getFloat32(8 * i, true);
+        outputs[0][1][i] = fl.getFloat32(8 * i, true);
       }
       return true;
     }

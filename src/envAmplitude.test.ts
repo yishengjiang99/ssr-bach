@@ -1,7 +1,6 @@
 import { envAmplitue } from './envAmplitue';
 import test from 'ava';
 import { assert } from 'console';
-
 test('baisc', (t) => {
   const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
   t.is(g.stages.length, 5);

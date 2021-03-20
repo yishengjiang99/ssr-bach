@@ -7,7 +7,10 @@ import { sf_gen_id as sfg, adsrParams, adsrModParams } from './sf.types';
 export type Zone = {
   velRange: GenRange;
   keyRange: GenRange;
-  envelope: Generator<number, number, Error>;
+  envelope: (
+    sr: number,
+    noteVelocity: number
+  ) => Generator<number, number, Error>;
   misc?: any;
   sample: Shdr;
   pan?: number;
@@ -57,15 +60,24 @@ export function presetZone(
       : samples.originalPitch;
 
   const pitchInput =
-    100 * (loopKey + genval(sfg.coarseTune) + genval(sfg.fineTune));
+    100 * (loopKey + genval(sfg.coarseTune)) + genval(sfg.fineTune);
   const sampRatio = samples.sampleRate / 48000;
   return {
     velRange,
     keyRange,
-    envelope,
     sample: samples,
+    envelope: (sr, vel) =>
+      envAmplitue(
+        adsrParams.map((p) => genval(p)),
+        genval(sfg.sustainVolEnv),
+        sr,
+        vel
+      ),
     pitchAdjust: (outputKey: number) => {
-      return sampRatio * Math.pow(2, (pitchInput - outputKey * 100) / 1200);
+      console.log(
+        sampRatio * Math.pow(2, (outputKey * 100 - pitchInput) / 1200)
+      );
+      return sampRatio * Math.pow(2, (outputKey * 100 - pitchInput) / 1200);
     },
     gain: (
       noteVelocity: number,
@@ -81,5 +93,11 @@ export function presetZone(
       return LUT.cent2amp[~~centiDB];
     },
     pan: genval(sfg.pan),
+    misc: {
+      igenSet,
+      pgenSet,
+      adsr: adsrParams.map((p) => genval(p)),
+      genval,
+    },
   };
 }
