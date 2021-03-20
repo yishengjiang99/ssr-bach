@@ -1,6 +1,9 @@
 import { envAmplitue } from './envAmplitue';
 import test from 'ava';
-
+test('env', (t) => {
+  const g=envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
+  t.assert(g.next().done)
+});
 const g = envAmplitue([-12000, -12000, -12000, -4000, -333], 333, 48000);
 let c = Math.pow(2, -1200 / 1200);
 console.log(g.next().value, g.next().done);

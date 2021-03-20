@@ -12,7 +12,7 @@
   "scripts": {
     "postInstall": "chmod +x ffplay",
     "dev": "nodemon dist/index.js",
-    "build": "node make;",
+    "build": "ts-node src/index.ts",``
     "test": "npx ava src/*.test.ts"  },
   "prettier": {
     "singleQuote": true,
