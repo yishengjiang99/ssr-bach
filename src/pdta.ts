@@ -1,8 +1,8 @@
 import * as sfTypes from './sf.types';
 import { Reader } from './reader';
 import { SFGenerator } from './generator';
-import { SF2File } from './sffile';
 import { SFZone } from './Zone';
+import { FORMERR } from 'dns';
 export type Phdr = {
   name: string;
   presetId: number;
@@ -51,7 +51,8 @@ const ShdrLength = 46;
 const imodLength = 10;
 const phdrLength = 38;
 const pbagLength = 4;
-const pgenLength = 4;
+const pgenLength = 4,
+  igenLength = 4;
 const pmodLength = 10;
 const instLength = 22;
 
@@ -81,7 +82,6 @@ export class PDTA {
               bankId: r.get16(),
               pbagIndex: r.get16(),
               misc: [r.get32(), r.get32(), r.get32()],
-              pbags: [],
             };
             this.phdr.push(phdrItem);
           }
@@ -93,19 +93,25 @@ export class PDTA {
               pmod_id: r.get16(),
               pzone: new SFZone(),
             });
-            if (pheaderId >= this.phdr[pheaderId + 1].pbagIndex) pheaderId++;
-            this.phdr[pheaderId].pbags.push(i);
           }
           break;
         case 'pgen':
           // r.setOffset(r.getOffset() + sectionSize);
-          for (let i = 0, pbagId = 0; i < sectionSize; i += pgenLength) {
+          for (
+            let pgenId = 0, pbagId = 0;
+            pgenId < sectionSize / pgenLength;
+            pgenId++
+          ) {
             const opid = r.get8();
             r.get8();
             const v = r.getS16();
             const pg = new SFGenerator(opid, v);
             this.pgen.push(pg);
-            if (this.pbag[pbagId + 1] && i >= this.pbag[pbagId + 1].pgen_id) {
+
+            if (
+              this.pbag[pbagId + 1] &&
+              pgenId >= this.pbag[pbagId + 1].pgen_id
+            ) {
               pbagId++;
             }
             this.pbag[pbagId].pzone.applyGenVal(pg);
@@ -127,36 +133,37 @@ export class PDTA {
             this.iheaders.push({
               name: r.readNString(20),
               iBagIndex: r.get16(),
-              ibags: [],
             });
           }
           break;
         case 'ibag':
-          for (let i = 0, instId = 0; i < sectionSize; i += pbagLength) {
+          for (let i = 0; i < sectionSize; i += pbagLength) {
             this.ibag.push({
               igen_id: r.get16(),
               imod_id: r.get16(),
               izone: new SFZone(),
             });
-            if (
-              this.iheaders[instId + 1] &&
-              i > this.iheaders[instId + 1].iBagIndex
-            )
-              instId++;
-            this.iheaders[instId].ibags.push(i);
           }
           break;
         case 'igen':
-          for (let i = 0, ibagId = 0; i < sectionSize; i += 4) {
+          let ibagId = 0;
+          let lastIgenId = this.ibag[ibagId + 1].igen_id - 1;
+          for (let i = 0; i < sectionSize; i += igenLength) {
             const opid = r.get8();
             r.get8();
             const amt = r.getS16();
-            const gen = new SFGenerator(opid, amt); //, r.get16());
+            const gen = new SFGenerator(opid, amt);
+            const igenId = this.igen.length; //, r.get16());
             this.igen.push(gen);
-            if (this.ibag[ibagId + 1] && i >= this.ibag[ibagId + 1].igen_id)
+            if (
+              ibagId < this.ibag.length - 1 &&
+              igenId >= this.ibag[ibagId + 1].igen_id - 1
+            ) {
               ibagId++;
+            }
             this.ibag[ibagId].izone.applyGenVal(gen);
           }
+
           break;
         case 'imod':
           for (let i = 0; i < sectionSize; i += imodLength) {
@@ -215,33 +222,50 @@ export class PDTA {
         default:
           break; // `seciont name [${sectionName}]`;
       }
-    } while (n++ < 9);
+    } while (n++ <= 10);
   }
 
   findPreset(pid, bank_id, key = -1, vel = -1): SFZone[] {
-    let presets = [];
+    const presets: SFZone[] = [];
+    const uniqInstSet = new Set();
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
     for (let i = 0; i < this.phdr.length - 1; i++) {
       if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) continue;
-      const matchingpzones = phdr[i].pbags
-        .map((idx) => pbag[idx].pzone)
-        .filter((pzone) => pzone.instrumentID !== -1)
-        .filter((pzone) => pzone.keyRange.lo < key && pzone.keyRange.hi > key)
-        .filter((pzone) => pzone.velRange.lo < vel && pzone.velRange.hi > vel);
-      for (const pzone of matchingpzones) {
-        const izones = iheaders[pzone.instrumentID].ibags
-          .map((idx) => ibag[idx].izone)
-          .filter((izone) => izone.sampleID !== -1)
-          .filter((izone) => izone.keyRange.lo < key && izone.keyRange.hi > key)
-          .filter((izone) => izone.velRange.lo < vel && izone.velRange.hi > vel)
-          .forEach((izone) => {
-            pzone.generators.forEach((g) => {
-              izone.applyGenVal(g);
-            });
-            presets.push(izone);
+      let predefault: SFZone;
+      for (let j = phdr[i].pbagIndex; j < phdr[i + 1].pbagIndex; j++) {
+        const pzone = pbag[j].pzone;
+        if (pzone.instrumentID == -1) {
+          if (!predefault) predefault = pzone;
+          continue;
+        }
+        if (pzone.keyRange.hi < key || pzone.velRange.lo > key) continue;
+        const instrument = iheaders[pbag[j].pzone.instrumentID];
+        const lastIbag =
+          pbag[j].pzone.instrumentID < iheaders.length
+            ? iheaders[pbag[j].pzone.instrumentID + 1].iBagIndex - 1
+            : ibag.length - 1;
+        if (!instrument) continue;
+        let instDefault;
+        for (let j = instrument.iBagIndex; j <= lastIbag; j++) {
+          //} phdr[i + 1].pbagIndex; j++) {
+          const izone = this.ibag[j].izone;
+          if (izone.sampleID == -1) {
+            if (!instDefault) instDefault = izone;
+            continue;
+          }
+          //if (shdr[izone.sampleID] == null) continue;
+
+          if (izone.keyRange.hi < key || izone.keyRange.lo > key) continue;
+          if (izone.velRange.hi < vel || izone.velRange.lo > vel) continue;
+
+          pzone.generators.forEach((g) => {
+            g.operator !== sampleId_gen && izone.applyGenVal(g);
           });
+          presets.push(izone);
+        }
       }
-      return presets;
     }
+
+    return presets;
   }
 }

@@ -23,6 +23,5 @@ const sample = {
 test('1', (t) => {
   const zone = new SFZone();
   zone.applyGenVal(new SFGenerator(sf_gen_id.attackVolEnv, -1200));
-  console.log(zone.volEnv);
   t.truthy(zone.volEnv);
 });

@@ -64,10 +64,10 @@ export class RenderCtx {
     this.voices[channelId] = {
       channel: channelId,
       zone: zone,
-      smpl: zone.sample,
+      smpl: zone.shdr,
       length: ~~(duration * this.sampleRate),
       ratio: rt.pitchRatio,
-      iterator: zone.sample.start,
+      iterator: zone.shdr.start,
       key: key,
       pan: {
         left: Math.sqrt(0.5 - zone.pan),
@@ -84,7 +84,7 @@ export class RenderCtx {
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     let shift = 0.0;
     let iterator = channel.iterator || channel.smpl.start;
-    console.log(channel.smpl.startLoop, channel.smpl.endLoop);
+    // console.log(channel.smpl.startLoop, channel.smpl.endLoop);
     for (let offset = 0; offset < blockLength - 1; offset++) {
       assert(iterator >= channel.smpl.start && iterator <= channel.smpl.end);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;

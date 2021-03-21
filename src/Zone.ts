@@ -41,7 +41,7 @@ export class SFZone {
   instrumentID: number = -1;
   pitch: number = 60;
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
-  sampleID: number;
+  sampleID: number = -1;
   generators: SFGenerator[] = [];
   shdr: Shdr = null;
 
@@ -230,11 +230,14 @@ would be 1200log2(.01) = -7973. */
         this.sampleOffsets.startLoop += 15 << gen.s16;
         break;
       case keynum:
+        break;
       case velocity:
+        break;
       case initialAttenuation:
         this.attenuate = centidb2gain(gen.s16);
         break;
       case reserved2:
+        break;
       case endloopAddrsCoarse:
         this.sampleOffsets.endLoop += 15 << gen.s16;
         break;
@@ -246,7 +249,12 @@ would be 1200log2(.01) = -7973. */
         break;
 
       case sampleID:
+        //onsole.log('apply sample ' + gen.s16 + 'cur ');
+        if (this.sampleID != -1) {
+          throw 'applying to existing sample id';
+        }
         this.sampleID = gen.s16;
+        break;
       case sampleModes:
         break;
       case reserved3:
@@ -254,10 +262,12 @@ would be 1200log2(.01) = -7973. */
       case scaleTuning:
         break;
       case exclusiveClass:
+        break;
       case overridingRootKey:
         if (gen.s16 > -1) this.pitch = gen.s16;
         break;
       case unused5:
+        break;
       case endOper:
         break;
       default:

@@ -10,6 +10,6 @@ test('renderctx', (t) => {
   t.assert(ctx.voices[0].envelopeIterator.next().done == false);
   t.assert(ctx.voices[0].iterator >= 0);
   const b = ctx.render(128);
-  console.log(ctx.voices[0].zone.pitchAdjust(44)); //);
+  //console.log(ctx.voices[0].zone.pitchAdjust(44)); //);
   assert(Float32Array.from(b).every((f) => f <= 1.0));
 });

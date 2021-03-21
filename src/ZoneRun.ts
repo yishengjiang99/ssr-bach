@@ -25,7 +25,7 @@ export function runtime(
     sustain,
     sampleRate,
     noteEnd
-  ); //.genDBVals();
+  );
   const pitchRatio =
     (Math.pow(2, (zone.pitch - key) / 1200) * zone.shdr.sampleRate) /
     this.sampleRate;
