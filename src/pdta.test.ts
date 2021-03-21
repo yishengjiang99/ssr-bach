@@ -3,22 +3,17 @@ import test from 'ava';
 import { assert } from 'console';
 import { reader } from './reader';
 test('pdta', (t) => {
-  const {
-    sections: {
-      pdta: { pheaders, inst, presets, shdr },
-    },
-  } = new SF2File('./file.sf2');
-  t.assert(pheaders instanceof Array);
-  console.log(pheaders[0].pbags[0].pgens);
-
-  t.assert(presets[0][0].name !== null);
-  presets[0][0].zones.map((z) => {
+  const { pdta } = new SF2File('./file.sf2');
+  t.assert(pdta.phdr instanceof Array);
+  const presets = pdta.findPreset(0);
+  t.assert(pdta.findPreset(0)[0].sample.name != null); // [0][0].name !== null);
+  presets.map((z) => {
     t.assert(z.sample != null);
     t.assert(z.sample.start >= 0);
-    t.assert(z.pitchAdjust(70) < 2 * 2 * 2 * 2.0);
+    t.assert(z.pitch != NaN);
   });
-  t.truthy(presets[128][0]);
+  t.truthy(pdta.findPreset(128));
   const r = reader('./file.sf2');
   const fsize = r.fstat().size;
-  t.assert(shdr.every((sh) => sh.start * 2 < fsize));
+  t.assert(pdta.shdr.every((sh) => sh.start * 2 < fsize));
 });

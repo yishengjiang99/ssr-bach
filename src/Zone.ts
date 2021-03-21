@@ -7,15 +7,19 @@ import {
   centidb2gain,
   timecent2sec,
 } from './centTone';
-import { envAmplitue } from './envAmplitue';
-import { GenRange, SFGenerator } from './generator';
+import { SFGenerator } from './generator';
 import { Shdr } from './pdta';
 import { sf_gen_id } from './sf.types';
 
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
   velRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
-  sample: Shdr;
+  sampleOffsets: Partial<Shdr> = {
+    start: 0,
+    end: 0,
+    startLoop: 0,
+    endLoop: 0,
+  };
   modLFO = new LFO();
   vibrLFO = new LFO();
   modEnv = new Envelope();
@@ -37,26 +41,41 @@ export class SFZone {
   instrumentID: number = -1;
   pitch: number = 60;
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
-  constructor(shdr: Shdr) {
-    this.sample = shdr;
+  sampleID: number;
+  generators: SFGenerator[] = [];
+  shdr: Shdr = null;
+
+  set sample(shdr: Shdr) {
+    this.shdr = shdr;
+    this.sampleOffsets.start += shdr.start;
+    this.sampleOffsets.end += shdr.end;
+    this.sampleOffsets.startLoop += shdr.endLoop;
+    this.sampleOffsets.endLoop += shdr.endLoop;
     this.pitch = shdr.originalPitch * 100 + shdr.pitchCorrection;
   }
+  get sample() {
+    return {
+      ...this.shdr,
+      ...this.sampleOffsets,
+    };
+  }
+
   applyGenVal(gen: SFGenerator): void {
     switch (gen.operator) {
       case startAddrsOffset:
-        this.sample.start += gen.s16;
+        this.sampleOffsets.start += gen.s16;
         break;
       case endAddrsOffset:
-        this.sample.end += gen.s16;
+        this.sampleOffsets.end += gen.s16;
         break;
       case startloopAddrsOffset:
-        this.sample.startLoop += gen.s16;
+        this.sampleOffsets.startLoop += gen.s16;
         break;
       case endloopAddrsOffset:
-        this.sample.endLoop += gen.s16;
+        this.sampleOffsets.endLoop += gen.s16;
         break;
       case startAddrsCoarseOffset:
-        this.sample.start += 15 << gen.s16;
+        this.sampleOffsets.start += 15 << gen.s16;
         break;
       case modLfoToPitch:
         this.modLFO.effects.pitch = cent2hz(gen.s16);
@@ -82,7 +101,7 @@ export class SFZone {
         this.modEnv.effects.filter = cent2hz(gen.s16);
         break;
       case endAddrsCoarseOffset:
-        this.sample.end += 15 << gen.s16;
+        this.sampleOffsets.end += 15 << gen.s16;
         break;
       case modLfoToVolume:
         this.modLFO.effects.volume = centidb2gain(gen.s16);
@@ -92,7 +111,7 @@ export class SFZone {
         this.chorus = gen.s16;
         break;
       case reverbEffectsSend:
-        this.chorus = gen.s16;
+        this.reverbSend = gen.s16;
 
         break;
       case pan:
@@ -190,7 +209,7 @@ A negative value indicates a time less than one second; a positive value
 a time longer than one second.  http://www.synthfont.com/SFSPEC21.PDF For example, . For example, a release time of 10 msec
 would be 1200log2(.01) = -7973. */
       case releaseVolEnv:
-        this.volEnv.phases.release.decay = gen.s16; //timecent2sec(gen.s16);
+        this.volEnv.phases.release = gen.s16; //timecent2sec(gen.s16);
         break;
 
       case keynumToVolEnvHold:
@@ -208,7 +227,7 @@ would be 1200log2(.01) = -7973. */
         this.velRange = gen.range;
         break;
       case startloopAddrsCoarse:
-        this.sample.startLoop += 15 << gen.s16;
+        this.sampleOffsets.startLoop += 15 << gen.s16;
         break;
       case keynum:
       case velocity:
@@ -217,7 +236,7 @@ would be 1200log2(.01) = -7973. */
         break;
       case reserved2:
       case endloopAddrsCoarse:
-        this.sample.endLoop += 15 << gen.s16;
+        this.sampleOffsets.endLoop += 15 << gen.s16;
         break;
       case coarseTune:
         this.pitch += gen.s16 * 100; //semitone
@@ -227,6 +246,7 @@ would be 1200log2(.01) = -7973. */
         break;
 
       case sampleID:
+        this.sampleID = gen.s16;
       case sampleModes:
         break;
       case reserved3:
@@ -243,6 +263,7 @@ would be 1200log2(.01) = -7973. */
       default:
         throw 'unexpected operator';
     }
+    this.generators.push(gen);
   }
 }
 

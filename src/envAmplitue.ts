@@ -8,6 +8,9 @@ export function envAmplitue(
   const stages = [delay, attack, hold, decay, release].map((centisec) =>
     centisec <= -12000 ? 1 : Math.pow(2, centisec / 1200) * sr
   );
+  if (noteReleaseTime) {
+    noteReleaseTime * sr;
+  }
   const amt = [960, 960, 0, 0, sustainCB];
   const deltas = [
     0 /*delay*/,

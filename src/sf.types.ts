@@ -1,6 +1,5 @@
 import { SFGenerator } from './generator';
 import { Shdr, Phdr, InstrHeader, IBag } from './pdta';
-import { Zone } from './PresetZone';
 export type FindPresetProps = {
   bankId: number;
   presetId: number;
@@ -15,39 +14,9 @@ export enum ch_state {
   decay,
   releasing,
 }
-export type Channel = {
-  channel: number;
-  smpl: Shdr;
-  zone?: Zone;
-  length: number;
-  ratio: number;
-  iterator: number;
-  ztransform?: (input: number) => number;
-  gain?: number;
-  pan?: number;
-  key?: number;
-  envelopeIterator?: IterableIterator<number>;
-};
-export type RIFFSFBK = {
-  pdta?: {
-    offset: number;
-    presets: Preset[][];
-    pheaders: Phdr[];
-    inst: InstrHeader[];
-    shdr: Shdr[];
-  };
-  sdta?: {
-    offset: number;
-    data: Buffer;
-    size: number;
-  };
-};
+
 export type Range = { lo: number; hi: number };
 
-export type Preset = Phdr & {
-  defaultBag?: IBag;
-  zones?: Zone[];
-};
 export const generatorNames = `#define SFGEN_startAddrsOffset         0
 #define SFGEN_endAddrsOffset           1
 #define SFGEN_startloopAddrsOffset     2

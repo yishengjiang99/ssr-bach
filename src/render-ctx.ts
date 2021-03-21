@@ -1,13 +1,14 @@
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { Shdr } from './pdta';
-import { Zone } from './PresetZone';
 import { SF2File } from './sffile';
 import { LUT } from './LUT';
+import { SFZone } from './Zone';
+import { runtime } from './ZoneRun';
 export type Voice = {
   channel: number;
   smpl: Shdr;
-  zone?: Zone;
+  zone?: SFZone;
   length: number;
   ratio: number;
   iterator: number;
@@ -22,7 +23,13 @@ export class RenderCtx {
   constructor(private sff: SF2File) {
     LUT.init();
   }
-  masterVol: number;
+  private _masterVol: number;
+  public get masterVol(): number {
+    return this._masterVol;
+  }
+  public set masterVol(value: number) {
+    this._masterVol = value;
+  }
 
   /* db attentuate.. */
   private _chanVols: number[] = new Array(16).fill(0);
@@ -36,7 +43,7 @@ export class RenderCtx {
   sampleRate: 48000 = 48000;
 
   keyOn(
-    { bankId, presetId, key, vel }: sfTypes.FindPresetProps,
+    { bankId, presetId, key, vel },
     duration: number,
     channelId: number
   ): Voice {
@@ -45,28 +52,35 @@ export class RenderCtx {
       presetId,
       key,
       vel,
-    });
+    })[0];
     if (!zone) return;
+    const rt = runtime(zone, {
+      key: key,
+      noteVelocity: vel,
+      sampleRate: this.sampleRate,
+      chanVol: this.chanVols[channelId],
+      masterVol: this.masterVol,
+    });
     this.voices[channelId] = {
       channel: channelId,
       zone: zone,
       smpl: zone.sample,
       length: ~~(duration * this.sampleRate),
-      ratio: zone.pitchAdjust(key),
+      ratio: rt.pitchRatio,
       iterator: zone.sample.start,
       key: key,
       pan: {
         left: Math.sqrt(0.5 - zone.pan),
         right: Math.sqrt(0.5 + zone.pan),
       },
-      envelopeIterator: zone.envelope(this.sampleRate, vel),
-      gain: zone.gain(vel, this.chanVols[channelId], this.masterVol),
+      envelopeIterator: rt.envelope,
+      gain: rt.gain,
     };
     return this.voices[channelId];
   }
 
   _render(channel: Voice, outputArr: Buffer, blockLength) {
-    const input: Buffer = this.sff.sections.sdta.data;
+    const input: Buffer = this.sff.sdta.floats;
     const looper = channel.smpl.endLoop - channel.smpl.startLoop;
     let shift = 0.0;
     let iterator = channel.iterator || channel.smpl.start;

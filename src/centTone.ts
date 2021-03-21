@@ -14,32 +14,23 @@ type EnvelopePhases = {
   hold;
 };
 export class Envelope {
-  constructor() {
-    this._phases = {
-      decay: -12000,
-      attack: -12000,
-      delay: -12000,
-      release: -12000,
-      hold: 0,
-    };
-  }
-  db_of_t() {}
-
-  private _phases: EnvelopePhases;
-  public get phases(): EnvelopePhases {
-    return this._phases;
-  }
-  public set phases(value: EnvelopePhases) {
-    this._phases = value;
-  }
-  private _effects: Effects;
-  public get effects(): Effects {
-    return this._effects;
-  }
-  public set effects(value: Effects) {
-    this._effects = value;
-  }
-  sustain: centibel;
+  effects: {
+    pitch: centTone;
+    filter: centTone;
+    volume: centibel;
+  } = {
+    pitch: 0,
+    filter: 0,
+    volume: 0,
+  };
+  phases: EnvelopePhases = {
+    decay: 0,
+    attack: -0,
+    delay: 0.10001812246532978,
+    release: -3986,
+    hold: -3986,
+  };
+  sustain: number = 300;
 }
 export class LFO {
   delay: TimeCent = 0;

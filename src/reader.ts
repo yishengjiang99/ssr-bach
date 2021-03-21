@@ -4,7 +4,7 @@ export type Reader = {
   getc: () => number;
   get8: () => number;
   getS16: () => number;
-  get16: () => ncumber;
+  get16: () => number;
 
   read32String: () => string;
   get32: () => number;
@@ -48,7 +48,7 @@ export function reader(path: string, opts: number = 0): Reader {
     else return (get8() << 8) | get8();
   };
   const getS16 = function (): number {
-    let amt = get8() || get8() << 8;
+    let amt = get8() | (get8() << 8);
     if (amt & 0x8000) amt = -0x10000 + amt;
     return amt;
   };

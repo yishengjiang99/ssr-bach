@@ -1,14 +1,14 @@
-import { parsePDTA } from './pdta';
+import { PDTA } from './pdta';
 import { reader } from './reader';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
-
 export class SF2File {
-  sections: sfTypes.RIFFSFBK;
-  chanVols: number[] = new Array(16).fill(0);
+  pdta: PDTA;
+  sdta: any;
   rend_ctx: RenderCtx;
-  static fromBuffer() {}
+  _bit16s: Buffer;
+  _nsamples: number;
   constructor(path: string) {
     const r = reader(path);
     assert(r.read32String(), 'RIFF');
@@ -22,54 +22,30 @@ export class SF2File {
       const section = r.read32String();
       size = size - sectionSize;
       if (section === 'pdta') {
-        sections.pdta = {
-          offset: r.getOffset(),
-          ...parsePDTA(r),
-        };
+        this.pdta = new PDTA(r);
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
-        const nsamples = (sectionSize - 4) / 2;
-        const floatBuffer = Buffer.allocUnsafe(nsamples * 4);
-        const bit16s = r.readN(sectionSize - 4);
-        for (let i = 0; i < nsamples; i++)
-          floatBuffer.writeFloatLE(bit16s.readInt16LE(i * 2) / 0x7fff, i * 4);
-        sections.sdta = {
-          offset: r.getOffset(),
-          data: floatBuffer,
-          sectionSize,
+        this._bit16s = r.readN(sectionSize - 4);
+        this._nsamples = (sectionSize - 4) / 2;
+        this.sdta = {
+          nsamples: this._nsamples,
+          data: this._bit16s,
+          get floats() {
+            const ob: Buffer = Buffer.alloc(sectionSize);
+            for (let i = 0; i < sectionSize; i++)
+              -ob.writeFloatLE(this.bit16s.readInt16LE(i * 2) / 0x7fff, i * 4);
+            return ob;
+          },
         };
       } else {
         r.skip(sectionSize);
       }
     } while (size > 0);
-    this.sections = sections;
     this.rend_ctx = new RenderCtx(this);
   }
-  findPreset = ({ bankId, presetId, key, vel }: sfTypes.FindPresetProps) => {
-    const sections = this.sections;
-    const noteHave =
-      !sections.pdta.presets[bankId] ||
-      !sections.pdta.presets[bankId][presetId] ||
-      !sections.pdta.presets[bankId][presetId].zones;
-    if (noteHave) {
-      console.log('no', bankId, presetId, key, vel);
-      return null;
-    }
-    const presetZones = sections.pdta.presets[bankId][presetId].zones;
-    for (const z of presetZones) {
-      if (!z.sample) continue;
-      if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
-      if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
-      if (z.velRange.hi - z.velRange.lo > 77) continue;
-      return z;
-    }
-    for (const z of presetZones) {
-      if (!z.sample) continue;
-      if (z.velRange.lo > vel || z.velRange.hi < vel) continue;
-      if (z.keyRange.lo > key || z.keyRange.hi < key) continue;
-      return z;
-    }
-    console.log(presetId, bankId, 'not found');
-    return null;
-  }
+
+  findPreset = (props: sfTypes.FindPresetProps) => {
+    const { bankId, presetId, key, vel } = props;
+    return this.pdta.findPreset(presetId, bankId, key, vel);
+  };
 }
