@@ -40,7 +40,6 @@ export type Shdr = {
   sampleLink: number;
   sampleType: number;
 };
-const { instrument, sampleID } = sfTypes.sf_gen_id;
 
 export type GenSet = Record<number, SFGenerator>;
 const sampleId_gen = 53;
@@ -85,7 +84,7 @@ export class PDTA {
           }
           break;
         case 'pbag':
-          for (let i = 0, pheaderId = 0; i < sectionSize; i += pbagLength) {
+          for (let i = 0; i < sectionSize; i += pbagLength) {
             this.pbag.push({
               pgen_id: r.get16(),
               pmod_id: r.get16(),
