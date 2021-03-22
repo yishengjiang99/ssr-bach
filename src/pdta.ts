@@ -2,7 +2,6 @@ import * as sfTypes from './sf.types';
 import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
-import { FORMERR } from 'dns';
 export type Phdr = {
   name: string;
   presetId: number;
@@ -72,7 +71,6 @@ export class PDTA {
     do {
       const sectionName = r.read32String();
       const sectionSize = r.get32();
-      console.log(sectionName, sectionSize);
       switch (sectionName) {
         case 'phdr':
           for (let i = 0; i < sectionSize; i += phdrLength) {
@@ -182,52 +180,32 @@ export class PDTA {
             i < sectionSize;
             i += ShdrLength ///20 + 4 * 5 + 1 + 1 + 4)
           ) {
-            const name = r.readNString(20);
-            const [
-              start,
-              end,
-              startLoop,
-              endLoop,
-              sampleRate,
-              originalPitch,
-              pitchCorrection,
-              sampleLink,
-              sampleType,
-            ] = [
-              r.get32(),
-              r.get32(),
-              r.get32(),
-              r.get32(),
-              r.get32(),
-              r.get8(),
-              r.get8(),
-              r.get16(),
-              r.get16(),
-            ];
-
             this.shdr.push({
-              name,
-              start,
-              end,
-              startLoop,
-              endLoop,
-              sampleRate,
-              originalPitch,
-              pitchCorrection,
-              sampleLink,
-              sampleType,
+              name: r.readNString(20),
+              start: r.get32(),
+              end: r.get32(),
+              startLoop: r.get32(),
+              endLoop: r.get32(),
+              sampleRate: r.get32(),
+              originalPitch: r.get8(),
+              pitchCorrection: r.get8(),
+              sampleLink: r.get16(),
+              sampleType: r.get16(),
             });
           }
           break;
         default:
-          break; // `seciont name [${sectionName}]`;
+          break;
       }
-    } while (n++ <= 10);
+    } while (n++ <= 9);
   }
-
-  findPreset(pid, bank_id, key = -1, vel = -1): SFZone[] {
+  /**
+   * any preceived verbosity in the following lines of code
+   * was done to ensure correctness
+   */
+  findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
     const presets: SFZone[] = [];
-    const uniqInstSet = new Set();
+    const visited = new Set();
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
     for (let i = 0; i < this.phdr.length - 1; i++) {
       if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) continue;
@@ -238,25 +216,34 @@ export class PDTA {
           if (!predefault) predefault = pzone;
           continue;
         }
-        if (pzone.keyRange.hi < key || pzone.velRange.lo > key) continue;
+        if (key > -1 && (pzone.keyRange.hi < key || pzone.keyRange.lo > key))
+          continue;
+        if (vel > -1 && (pzone.velRange.hi < vel || pzone.velRange.lo > vel))
+          continue;
+
         const instrument = iheaders[pbag[j].pzone.instrumentID];
+        if (!instrument) continue;
+        predefault &&
+          predefault.generators.forEach((g) => {
+            g.operator !== instrumentGenerator && pzone.applyGenVal(g);
+          });
+        let instDefault;
         const lastIbag =
           pbag[j].pzone.instrumentID < iheaders.length
             ? iheaders[pbag[j].pzone.instrumentID + 1].iBagIndex - 1
             : ibag.length - 1;
-        if (!instrument) continue;
-        let instDefault;
         for (let j = instrument.iBagIndex; j <= lastIbag; j++) {
-          //} phdr[i + 1].pbagIndex; j++) {
           const izone = this.ibag[j].izone;
           if (izone.sampleID == -1) {
             if (!instDefault) instDefault = izone;
             continue;
           }
-          //if (shdr[izone.sampleID] == null) continue;
-
-          if (izone.keyRange.hi < key || izone.keyRange.lo > key) continue;
-          if (izone.velRange.hi < vel || izone.velRange.lo > vel) continue;
+          if (shdr[izone.sampleID] == null) continue;
+          izone.sample = shdr[izone.sampleID];
+          if (key > -1 && (izone.keyRange.hi < key || izone.keyRange.lo > key))
+            continue;
+          if (vel > -1 && (izone.velRange.hi < vel || izone.velRange.lo > vel))
+            continue;
 
           pzone.generators.forEach((g) => {
             g.operator !== sampleId_gen && izone.applyGenVal(g);

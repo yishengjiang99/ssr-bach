@@ -1,6 +1,5 @@
 import {
   LFO,
-  Envelope,
   centibel,
   LOOPMODES,
   cent2hz,
@@ -22,17 +21,26 @@ export class SFZone {
   };
   modLFO = new LFO();
   vibrLFO = new LFO();
-  modEnv = new Envelope();
-  volEnv = {
-    phases: {
-      decay: -12000,
-      attack: -12000,
-      delay: 0,
-      release: -3000,
-      hold: -12000,
-    },
-    sustain: 300,
-  };
+  private _modEnv;
+  public get modEnv() {
+    if (!this._modEnv) {
+      this._modEnv = SFZone.defaultEnv;
+    }
+    return this._modEnv;
+  }
+  public set modEnv(value) {
+    this._modEnv = value;
+  }
+  private _volEnv;
+  public get volEnv() {
+    if (!this._volEnv) {
+      this._volEnv = SFZone.defaultEnv;
+    }
+    return this._volEnv;
+  }
+  public set volEnv(value) {
+    this._volEnv = value;
+  }
   lpf: { cutoff: number; q: number } = { cutoff: 0, q: 1 };
   chorus: number = 0; /* chrous web %/10 */
   reverbSend: number = 0; /* percent of signal to send back.. in 0.1% units*/
@@ -43,7 +51,7 @@ export class SFZone {
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID: number = -1;
   generators: SFGenerator[] = [];
-  shdr: Shdr = null;
+  private shdr: Shdr = null;
 
   set sample(shdr: Shdr) {
     this.shdr = shdr;
@@ -136,17 +144,17 @@ export class SFZone {
         this.vibrLFO.freq = gen.s16;
         break;
       case delayModEnv:
-        this.modEnv.phases.delay = timecent2sec(gen.s16);
+        this.modEnv.phases.delay = gen.s16;
         break;
 
       case attackModEnv:
-        this.modEnv.phases.attack = timecent2sec(gen.s16);
+        this.modEnv.phases.attack = gen.s16;
         break;
       case holdModEnv:
-        this.modEnv.phases.attack = timecent2sec(gen.s16);
+        this.modEnv.phases.attack = gen.s16; // timecent2sec(gen.s16);
         break;
       case decayModEnv:
-        this.modEnv.phases.decay = timecent2sec(gen.s16);
+        this.modEnv.phases.decay = gen.s16; //timecent2sec(gen.s16);
         break;
 
       case sustainModEnv /* percent of fullscale*/:
@@ -160,7 +168,7 @@ export class SFZone {
       case keynumToModEnvDecay:
         break;
       case delayVolEnv:
-        this.volEnv.phases.delay = timecent2sec(gen.s16);
+        this.volEnv.phases.delay = gen.s16;
         break;
 
       case attackVolEnv /*This is the time, in absolute timecents, from the end of the Volume
@@ -221,10 +229,12 @@ would be 1200log2(.01) = -7973. */
       case reserved1:
         break;
       case keyRange:
-        this.keyRange = gen.range;
+        this.keyRange.lo = Math.max(gen.range.lo, this.keyRange.lo);
+        this.keyRange.hi = Math.min(gen.range.hi, this.keyRange.hi);
         break;
       case velRange:
-        this.velRange = gen.range;
+        this.velRange.lo = Math.max(gen.range.lo, this.velRange.lo);
+        this.velRange.hi = Math.min(gen.range.hi, this.velRange.hi); // = gen.range;
         break;
       case startloopAddrsCoarse:
         this.sampleOffsets.startLoop += 15 << gen.s16;
@@ -275,8 +285,18 @@ would be 1200log2(.01) = -7973. */
     }
     this.generators.push(gen);
   }
+  static defaultEnv = {
+    phases: {
+      decay: -1000,
+      attack: -12000,
+      delay: -12000,
+      release: -3000,
+      hold: -12000,
+    },
+    sustain: 300,
+    effects: {},
+  };
 }
-
 const {
   startAddrsOffset,
   endAddrsOffset,

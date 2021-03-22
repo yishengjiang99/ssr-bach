@@ -13,25 +13,7 @@ type EnvelopePhases = {
   release;
   hold;
 };
-export class Envelope {
-  effects: {
-    pitch: centTone;
-    filter: centTone;
-    volume: centibel;
-  } = {
-    pitch: 0,
-    filter: 0,
-    volume: 0,
-  };
-  phases: EnvelopePhases = {
-    decay: 0,
-    attack: -0,
-    delay: 0.10001812246532978,
-    release: -3986,
-    hold: -3986,
-  };
-  sustain: number = 300;
-}
+
 export class LFO {
   delay: TimeCent = 0;
   freq: centTone = 0;

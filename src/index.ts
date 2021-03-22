@@ -1,16 +1,27 @@
-import { stdout } from 'process';
 import { SF2File } from './sffile';
-const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
-const [bankId, presetId] = [instrument & 0x80, instrument & 0x7f];
-const sf = new SF2File(process.argv[2] || 'file.sf2');
+import { ffp } from './sinks';
+const t1 = () => {
+  const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
+  const [bankId, presetId] = [instrument & 0x80, instrument & 0x7f];
+  const sf = new SF2File(process.argv[2] || 'file.sf2');
 
-const pz = sf.findPreset({ bankId: 0, presetId: 0, key: 44, vel: 65 });
-
-process.stdout.write(
-  JSON.stringify(
-    pz.map((z) => {
-      const { sampleOffsets, vibrLFO, modEnv, sampleID, pitch } = z;
-      return { sampleOffsets, vibrLFO, modEnv, sampleID, pitch };
-    })
-  )
-);
+  const voice = sf.rend_ctx.keyOn({
+    presetId: 0,
+    bankId: 0,
+    vel: 100,
+    key: 60,
+  });
+  console.log(voice);
+};
+const t2 = () => {
+  const ctx = new SF2File('file.sf2').rend_ctx;
+  ctx.keyOn(44, 45, 0);
+  let n = 48000 * 2;
+  console.log(ctx.voices);
+  const writeff = ffp();
+  while (n > 0) {
+    writeff.write(ctx.render(1024));
+    n -= 1024;
+  }
+};
+t2();

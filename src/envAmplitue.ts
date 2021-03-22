@@ -1,16 +1,27 @@
-export function envAmplitue(
+export type Envelope = {
+  genDBVals: () => Generator<number, number, Error>;
+  stages: number[];
+  deltas: number[];
+  triggerRelease: () => void;
+};
+export function Envelope(
   envelopPhases,
   sustainCB,
   sr: number,
-  noteReleaseTime?: number // this is not required because we might not know when we call this functio
-) {
+  noteVelocity: number = 70
+): Envelope {
   const [delay, attack, hold, decay, release] = envelopPhases;
-  const stages = [delay, attack, hold, decay, release].map((centisec) =>
+  const attackModulated = (attack * (144 - noteVelocity)) / 127;
+  const stages = [
+    delay,
+    attackModulated,
+    hold,
+    decay,
+    release,
+  ].map((centisec) =>
     centisec <= -12000 ? 1 : Math.pow(2, centisec / 1200) * sr
   );
-  if (noteReleaseTime) {
-    noteReleaseTime * sr;
-  }
+
   const amt = [960, 960, 0, 0, sustainCB];
   const deltas = [
     0 /*delay*/,
