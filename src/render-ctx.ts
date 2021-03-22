@@ -115,7 +115,7 @@ export class RenderCtx {
         );
         newVal = hermite4(shift, vm1, v0, v1, v2);
       } else {
-        newVal = input.readFloatLE(iterator) * 4;
+        newVal = input.readFloatLE(iterator * 4);
       }
 
       //spline lerp found on internet
