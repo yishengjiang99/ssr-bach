@@ -1,5 +1,6 @@
 import { FILE } from 'dns';
 import { openSync, readSync, Stats, statSync } from 'fs';
+import { keys } from './utilv1';
 export type Reader = {
   getc: () => number;
   get8: () => number;
@@ -30,7 +31,13 @@ export function reader(path: string, opts: number = 0): Reader {
     const size = fstat().size;
     while (offset < size) {
       const c = getc();
-      if (c == str.charCodeAt(m++) && m == str.length) return offset;
+      if (c == str.charCodeAt(m)) {
+        m++;
+        if (m == str.length) return offset;
+        else {
+          console.log(m);
+        }
+      }
     }
     return false;
   }

@@ -93,7 +93,6 @@ export class PDTA {
           }
           break;
         case 'pgen':
-          // r.setOffset(r.getOffset() + sectionSize);
           for (
             let pgenId = 0, pbagId = 0;
             pgenId < sectionSize / pgenLength;
@@ -104,7 +103,6 @@ export class PDTA {
             const v = r.getS16();
             const pg = new SFGenerator(opid, v);
             this.pgen.push(pg);
-
             if (
               this.pbag[pbagId + 1] &&
               pgenId >= this.pbag[pbagId + 1].pgen_id
@@ -158,9 +156,9 @@ export class PDTA {
             ) {
               ibagId++;
             }
+
             this.ibag[ibagId].izone.applyGenVal(gen);
           }
-
           break;
         case 'imod':
           for (let i = 0; i < sectionSize; i += imodLength) {
@@ -210,44 +208,52 @@ export class PDTA {
       if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) continue;
       let predefault: SFZone;
       for (let j = phdr[i].pbagIndex; j < phdr[i + 1].pbagIndex; j++) {
+        let pcpy = new SFZone();
         const pzone = pbag[j].pzone;
         if (pzone.instrumentID == -1) {
-          if (!predefault) predefault = pzone;
+          if (!predefault) {
+            predefault = pzone;
+            pzone.generators.forEach((g) => pcpy.applyGenVal(g));
+          }
           continue;
+        } else {
+          pzone.generators.forEach((g) => pcpy.applyGenVal(g));
         }
-        if (key > -1 && (pzone.keyRange.hi < key || pzone.keyRange.lo > key))
-          continue;
-        if (vel > -1 && (pzone.velRange.hi < vel || pzone.velRange.lo > vel))
+
+        const keyOutofRange = pcpy.keyRange.hi < key || pcpy.keyRange.lo > key;
+        if (key > -1 && keyOutofRange) continue;
+        if (vel > -1 && (pcpy.velRange.hi < vel || pcpy.velRange.lo > vel))
           continue;
 
-        const instrument = iheaders[pbag[j].pzone.instrumentID];
+        const instrument = iheaders[pcpy.instrumentID];
         if (!instrument) continue;
-        predefault &&
-          predefault.generators.forEach((g) => {
-            g.operator !== instrumentGenerator && pzone.applyGenVal(g);
-          });
         let instDefault;
         const lastIbag =
-          pbag[j].pzone.instrumentID < iheaders.length
-            ? iheaders[pbag[j].pzone.instrumentID + 1].iBagIndex - 1
+          pcpy.instrumentID < iheaders.length - 1
+            ? iheaders[pcpy.instrumentID + 1].iBagIndex - 1
             : ibag.length - 1;
         for (let j = instrument.iBagIndex; j <= lastIbag; j++) {
           const izone = this.ibag[j].izone;
+          const izoneCopy = new SFZone();
           if (izone.sampleID == -1) {
-            if (!instDefault) instDefault = izone;
+            if (!instDefault) {
+              instDefault = izone;
+              izone.generators.forEach((g) => izoneCopy.applyGenVal(g));
+            }
             continue;
+          } else {
+            izone.generators.forEach((g) => izoneCopy.applyGenVal(g));
           }
           if (shdr[izone.sampleID] == null) continue;
-          izone.sample = shdr[izone.sampleID];
+          pcpy.generators.forEach((g) => {
+            g.operator !== sampleId_gen && izoneCopy.applyGenVal(g);
+          });
           if (key > -1 && (izone.keyRange.hi < key || izone.keyRange.lo > key))
             continue;
           if (vel > -1 && (izone.velRange.hi < vel || izone.velRange.lo > vel))
             continue;
-
-          pzone.generators.forEach((g) => {
-            g.operator !== sampleId_gen && izone.applyGenVal(g);
-          });
-          presets.push(izone);
+          izoneCopy.sample = shdr[izone.sampleID];
+          presets.push(izoneCopy);
         }
       }
     }

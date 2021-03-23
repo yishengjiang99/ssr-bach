@@ -3,12 +3,11 @@ import { reader } from './reader';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
+import { SFZone } from './Zone';
 export class SF2File {
   pdta: PDTA;
-  sdta: any;
+  sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
-  _bit16s: Buffer;
-  _nsamples: number;
   constructor(path: string) {
     const r = reader(path);
     assert(r.read32String(), 'RIFF');
@@ -28,14 +27,13 @@ export class SF2File {
         const nsamples = (sectionSize - 4) / 2;
         const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);
-        const s16tof32 = (i16) => (i16 > 0 ? i16 / 0x7fff : -1 - i16 / 0x8000);
+        const s16tof32 = (i16) => i16 / 0xffff;
         for (let i = 0; i < nsamples; i++) {
           const n = bit16s.readInt16LE(i * 2);
           ob.writeFloatLE(s16tof32(n), i * 4);
         }
         this.sdta = {
-          _floats: null,
-          nsamples: this._nsamples,
+          nsamples: nsamples,
           data: ob,
           bit16s: bit16s,
         };
@@ -46,7 +44,7 @@ export class SF2File {
     this.rend_ctx = new RenderCtx(this);
   }
 
-  findPreset = (props: sfTypes.FindPresetProps) => {
+  findPreset = (props: sfTypes.FindPresetProps): SFZone[] => {
     const { bankId, presetId, key, vel } = props;
     const zones = this.pdta.findPreset(presetId, bankId, key, vel);
     return zones;

@@ -1,11 +1,4 @@
-import {
-  LFO,
-  centibel,
-  LOOPMODES,
-  cent2hz,
-  centidb2gain,
-  timecent2sec,
-} from './centTone';
+import { LFO, centibel, LOOPMODES } from './centTone';
 import { SFGenerator } from './generator';
 import { Shdr } from './pdta';
 import { sf_gen_id } from './sf.types';
@@ -19,8 +12,26 @@ export class SFZone {
     startLoop: 0,
     endLoop: 0,
   };
-  modLFO = new LFO();
-  vibrLFO = new LFO();
+  private _modLFO: LFO = null;
+  public get modLFO() {
+    if (!this._modLFO) {
+      this._modLFO = SFZone.defaultLFO;
+    }
+    return this._modLFO;
+  }
+  public set modLFO(value) {
+    this._modLFO = value;
+  }
+  private _vibrLFO: LFO = null;
+  public get vibrLFO() {
+    if (!this._vibrLFO) {
+      this.vibrLFO = SFZone.defaultLFO;
+    }
+    return this._vibrLFO;
+  }
+  public set vibrLFO(value) {
+    this._vibrLFO = value;
+  }
   private _modEnv;
   public get modEnv() {
     if (!this._modEnv) {
@@ -41,13 +52,13 @@ export class SFZone {
   public set volEnv(value) {
     this._volEnv = value;
   }
-  lpf: { cutoff: number; q: number } = { cutoff: 0, q: 1 };
-  chorus: number = 0; /* chrous web %/10 */
-  reverbSend: number = 0; /* percent of signal to send back.. in 0.1% units*/
-  pan: number = 0; /* shift to right percent */
-  attenuate: centibel = 0 /*db in attentuation*/;
+  lpf: { cutoff: number; q: number } = { cutoff: 0, q: -1 };
+  chorus: number; /* chrous web %/10 */
+  reverbSend: number; /* percent of signal to send back.. in 0.1% units*/
+  pan: number = -1; /* shift to right percent */
+  attenuate: centibel = 0; /*db in attentuation*/
   instrumentID: number = -1;
-  pitch: number = 60;
+  pitch: number = -1;
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID: number = -1;
   generators: SFGenerator[] = [];
@@ -57,7 +68,7 @@ export class SFZone {
     this.shdr = shdr;
     this.sampleOffsets.start += shdr.start;
     this.sampleOffsets.end += shdr.end;
-    this.sampleOffsets.startLoop += shdr.endLoop;
+    this.sampleOffsets.startLoop += shdr.startLoop;
     this.sampleOffsets.endLoop += shdr.endLoop;
     this.pitch = shdr.originalPitch * 100 + shdr.pitchCorrection;
   }
@@ -86,33 +97,33 @@ export class SFZone {
         this.sampleOffsets.start += 15 << gen.s16;
         break;
       case modLfoToPitch:
-        this.modLFO.effects.pitch = cent2hz(gen.s16);
+        this.modLFO.effects.pitch = gen.s16;
         break;
       case vibLfoToPitch:
-        this.vibrLFO.effects.pitch = cent2hz(gen.s16);
+        this.vibrLFO.effects.pitch = gen.s16;
         break;
       case modEnvToPitch:
-        this.modEnv.effects.pitch = cent2hz(gen.s16);
+        this.modEnv.effects.pitch = gen.s16;
         break;
 
       case initialFilterFc:
-        this.lpf.cutoff = cent2hz(gen.s16);
+        this.lpf.cutoff = gen.s16;
         break;
       case initialFilterQ:
-        this.lpf.q = cent2hz(gen.s16);
+        this.lpf.q = gen.s16;
         break;
       case modLfoToFilterFc:
-        this.modLFO.effects.filter = cent2hz(gen.s16);
+        this.modLFO.effects.filter = gen.s16;
         break;
 
       case modEnvToFilterFc:
-        this.modEnv.effects.filter = cent2hz(gen.s16);
+        this.modEnv.effects.filter = gen.s16;
         break;
       case endAddrsCoarseOffset:
         this.sampleOffsets.end += 15 << gen.s16;
         break;
       case modLfoToVolume:
-        this.modLFO.effects.volume = centidb2gain(gen.s16);
+        this.modLFO.effects.volume = gen.s16;
         break;
       case unused1:
       case chorusEffectsSend:
@@ -154,15 +165,19 @@ export class SFZone {
         this.modEnv.phases.attack = gen.s16; // timecent2sec(gen.s16);
         break;
       case decayModEnv:
+        this.volEnv.default = false;
+
         this.modEnv.phases.decay = gen.s16; //timecent2sec(gen.s16);
         break;
 
       case sustainModEnv /* percent of fullscale*/:
+        this.volEnv.default = false;
+
         this.modEnv.sustain = gen.s16;
         break;
 
       case releaseModEnv:
-        this.modEnv.phases.release = timecent2sec(gen.s16);
+        this.modEnv.phases.release = gen.s16;
         break;
       case keynumToModEnvHold:
       case keynumToModEnvDecay:
@@ -188,10 +203,12 @@ export class SFZone {
         break;
 
       case decayVolEnv:
+        this.volEnv.default = false;
+
         this.volEnv.phases.decay = gen.s16; //timecent2sec(gen.s16);
         break;
 
-      case sustainVolEnv /** \']
+      /** \']
       
       http://www.synthfont.com/SFSPEC21.PDF  is the decrease in level, expressed in centibels, to which the
       Volume Envelope value ramps during the decay phase. For the Volume
@@ -201,8 +218,11 @@ export class SFZone {
       positive value indicates a decay to the corresponding level. Values less
       than zero are to be interpreted as zero; conventionally 1000 indicates
       full attenuation. For example, a sustain level which corresponds to an
-absolute value 12dB below of peak would be 120. */:
-        this.volEnv.sustain = (960 - gen.s16) / 960;
+absolute value 12dB below of peak would be 120. */
+      case sustainVolEnv:
+        this.volEnv.sustain = gen.s16;
+        this.volEnv.default = false;
+
         break;
 
       /*This is the time, in absolute timecents, for a 100% change in the
@@ -244,7 +264,7 @@ would be 1200log2(.01) = -7973. */
       case velocity:
         break;
       case initialAttenuation:
-        this.attenuate = centidb2gain(gen.s16);
+        this.attenuate = gen.s16;
         break;
       case reserved2:
         break;
@@ -286,6 +306,7 @@ would be 1200log2(.01) = -7973. */
     this.generators.push(gen);
   }
   static defaultEnv = {
+    default: true,
     phases: {
       decay: -1000,
       attack: -12000,
@@ -295,6 +316,11 @@ would be 1200log2(.01) = -7973. */
     },
     sustain: 300,
     effects: {},
+  };
+  static defaultLFO: LFO = {
+    delay: 0,
+    freq: -1200,
+    effects: { pitch: 0, filter: 0, volume: 0 },
   };
 }
 const {

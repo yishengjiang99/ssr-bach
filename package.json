@@ -11,7 +11,7 @@
   },
   "scripts": {
     "postInstall": "chmod +x ffplay",
-    "dev": "nodemon dist/index.js",
+    "dev": "nodemon src/server.ts",
     "build": "ts-node src/index.ts",
     "test": "npx ava src/*.test.ts"
   },
@@ -34,6 +34,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tonejs/midi": "^2.0.27"
+    "@tonejs/midi": "^2.0.27",
+    "chrome-launcher": "^0.13.4",
+    "express": "^4.17.1",
+    "midiread": "^1.0.0"
   }
 }

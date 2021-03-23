@@ -52,7 +52,7 @@ export class RenderCtx {
     ];
   }
 
-  private _masterVol: number = 70;
+  private _masterVol: number = 120;
   public get masterVol(): number {
     return this._masterVol;
   }
@@ -68,7 +68,7 @@ export class RenderCtx {
     this._chanVols = value;
   }
 
-  keyOn(key, vel = 79, channelId = 0) {
+  keyOn(key, vel, channelId = 0) {
     const { presetId, bankId } = this.programs[channelId];
     const zones = this.sff.findPreset({
       bankId,
@@ -76,7 +76,6 @@ export class RenderCtx {
       key,
       vel,
     });
-    console.log(zones);
     if (!zones || !zones.length) return;
 
     zones.forEach((zone, i) => {
@@ -91,25 +90,28 @@ export class RenderCtx {
   }
 
   keyOff(channelId) {
-    this.voices[channelId].envelope.triggerRelease();
+    this.voices[channelId]?.envelope?.triggerRelease();
   }
   _render(voice: Voice, outputArr: Buffer, blockLength) {
     const input: Buffer = this.sff.sdta.data;
     const looper = voice.smpl.endLoop - voice.smpl.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.smpl.start;
-    const channelGain = voice.gain(
-      this.chanVols[voice.channel % 16],
-      this.masterVol
-    );
+
+    const centibles = voice.envelopeIterator.next().value;
+    const ampEnv = Math.pow(10, (voice.zone.attenuate - centibles) / 200);
+    const chgain = voice.gain(33, 53);
+    console.log(chgain);
     // console.log(channel.smpl.startLoop, channel.smpl.endLoop);
-    for (let offset = 0; offset < blockLength - 1; offset++) {
-      assert(iterator >= voice.smpl.start && iterator <= voice.smpl.end);
+    for (let offset = 0; offset < blockLength; offset++) {
+      if (!(iterator >= voice.smpl.start && iterator <= voice.smpl.end)) {
+        console.error(voice.smpl);
+      }
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       let currentVal = outputArr.readFloatLE(outputByteOffset);
       if (isNaN(currentVal)) currentVal = 0.0;
       let newVal;
-      if (iterator > 8) {
+      if (offset > 4) {
         const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
           input.readFloatLE((iterator + i) * 4)
         );
@@ -118,39 +120,46 @@ export class RenderCtx {
         newVal = input.readFloatLE(iterator * 4);
       }
 
-      //spline lerp found on internet
-      //   const envval = channel.envelopeIterator.next();
-      const gainvol = voice.envelopeIterator.next().value;
-      let sum = currentVal + newVal * gainvol * channelGain;
-      //(newVal * channel.gain) / n;
-      if (sum > 0.9 || sum < -0.9) sum *= 0.8;
+      let sum = currentVal + newVal * ampEnv * chgain;
+
       outputArr.writeFloatLE(sum * voice.pan.left, outputByteOffset);
       outputArr.writeFloatLE(sum * voice.pan.right, outputByteOffset + 4);
-      // if (offset % 200 == 42) {
-      //   console.log(currentVal, newVal, input.readFloatLE(outputByteOffset));
-      // }
+      if (offset % 200 == 42) {
+        //console.log(currentVal, newVal, input.readFloatLE(outputByteOffset));
+      }
+      shift += voice.ratio;
+
       while (shift >= 1) {
         iterator++;
         shift--;
       }
-      shift += voice.ratio;
-      while (iterator >= voice.smpl.endLoop) {
+
+      if (iterator >= voice.smpl.endLoop) {
         iterator -= looper;
       }
       if (iterator >= voice.smpl.end) {
         //  console.log('hit sample emd ,,,', channel.length);
-        if (voice.length > 0) throw 'error with loop';
+        // if (voice.length > 0) throw 'error with loop';
       }
     }
-    voice.length -= blockLength;
 
+    voice.length -= blockLength;
     voice.iterator = iterator;
   }
   render(blockSize) {
     const output = Buffer.alloc(blockSize * 8);
-    this.voices.map((c) => {
-      this._render(c, output, blockSize);
-    });
+    this.voices
+      .filter((v) => v.length && v.length > 0)
+      .map((voice) => {
+        // console.log(
+        //   voice.ratio,
+        //   voice.length,
+        //   voice.smpl.start,
+        //   voice.smpl.startLoop,
+        //   voice.smpl.end
+        // );
+        this._render(voice, output, blockSize);
+      });
     return output;
   }
 }
@@ -187,13 +196,11 @@ export function runtime(zone: SFZone, params: RunTimeParams): Voice {
     sustain,
   } = zone.volEnv;
   const ampEnv = Envelope(
-    [delay, (attack * (144 - noteVelocity)) / 127, hold, decay, release],
+    [delay, attack, hold, decay, release],
     sustain,
     sampleRate
   );
-  const pitchRatio =
-    (Math.pow(2, (zone.pitch - key * 100) / 1200) * zone.sample.sampleRate) /
-    sampleRate;
+  const pitchRatio = 1;
   return {
     channel: channelId,
     zone: zone,
@@ -204,18 +211,17 @@ export function runtime(zone: SFZone, params: RunTimeParams): Voice {
     iterator: zone.sample.start,
     key: key,
     pan: {
-      left: Math.sqrt(0.5 - zone.pan),
-      right: Math.sqrt(0.5 + zone.pan),
+      left: 0.5 - zone.pan / 1000,
+      right: 0.5 + zone.pan / 1000,
     },
     envelope: ampEnv,
     envelopeIterator: ampEnv.genDBVals(),
     gain: function (chanVol, mastVol = 127) {
-      const attentuation: centibel =
-        zone.attenuate +
-        LUT.midiCB[chanVol] +
-        LUT.velCB[noteVelocity] +
-        LUT.midiCB[mastVol];
-      return LUT.cent2amp[attentuation];
+      const velCB =
+        (-200.0 / 960) * Math.log((noteVelocity * noteVelocity) / (127 * 127));
+      const attenuateCB = zone.attenuate;
+      const midiCB = (-200.0 / 960) * Math.log(chanVol / 127);
+      return Math.pow(10, (velCB + attenuateCB + midiCB) / 200.0);
     },
     //rt.gain,
   };

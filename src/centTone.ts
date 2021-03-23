@@ -1,32 +1,17 @@
-type centTone = number;
-type TimeCent = number;
+export type centTone = number;
+export type TimeCent = number;
 export type centibel = number;
-type Effects = {
-  pitch: centTone;
-  filter: centTone;
-  volume: centibel;
-};
-type EnvelopePhases = {
-  delay: any;
-  attack;
-  decay;
-  release;
-  hold;
-};
 
-export class LFO {
-  delay: TimeCent = 0;
-  freq: centTone = 0;
+export type LFO = {
+  default?: boolean;
+  delay: TimeCent;
+  freq: centTone;
   effects: {
     pitch: centTone;
     filter: centTone;
     volume: centibel;
-  } = {
-    pitch: 0,
-    filter: 0,
-    volume: 0,
   };
-}
+};
 export enum LOOPMODES {
   NO_LOOP,
   CONTINUOUS_LOOP,
@@ -39,6 +24,6 @@ export function cent2hz(centiHz) {
 export function timecent2sec(timecent) {
   return Math.pow(2, timecent / 1200.0);
 }
-export function centidb2gain(timecent) {
-  return Math.pow(2, timecent / 1200.0);
+export function centidb2gain(centibel) {
+  return Math.pow(10, centibel / 200);
 }

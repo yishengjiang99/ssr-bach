@@ -1,10 +1,11 @@
 import test from 'ava';
-import { parsePDTA } from './pdta';
 import { reader } from './reader';
+import { openSync, writeFileSync } from 'fs';
 test('reader.seekToString', (t) => {
-  const r = reader('./sm.sf2');
+  writeFileSync('test111.txt', 'abcdefghijk');
+  const r = reader('./test111.txt');
   t.truthy(r);
-  r.seekToString('pdta');
-  const p = parsePDTA(r);
-  console.log(p.presets['0']['0']);
+  r.seekToString('def');
+  console.log(r.getOffset());
+  t.assert(r.getOffset() == 5);
 });
