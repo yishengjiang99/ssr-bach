@@ -1,8 +1,8 @@
-import { LFO, centibel, LOOPMODES } from './centTone';
+import { centibel, LOOPMODES } from './centTone';
 import { SFGenerator } from './generator';
 import { Shdr } from './pdta';
 import { sf_gen_id } from './sf.types';
-
+type LFOParams = typeof SFZone.defaultLFO;
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
   velRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
@@ -12,9 +12,9 @@ export class SFZone {
     startLoop: 0,
     endLoop: 0,
   };
-  private _modLFO: LFO = null;
+  private _modLFO: LFOParams = SFZone.defaultLFO;
   public get modLFO() {
-    if (!this._modLFO) {
+    if (this._modLFO) {
       this._modLFO = SFZone.defaultLFO;
     }
     return this._modLFO;
@@ -22,30 +22,24 @@ export class SFZone {
   public set modLFO(value) {
     this._modLFO = value;
   }
-  private _vibrLFO: LFO = null;
+  private _vibrLFO: LFOParams = SFZone.defaultLFO;
   public get vibrLFO() {
-    if (!this._vibrLFO) {
-      this.vibrLFO = SFZone.defaultLFO;
-    }
     return this._vibrLFO;
   }
   public set vibrLFO(value) {
     this._vibrLFO = value;
   }
-  private _modEnv;
+  private _modEnv = SFZone.defaultEnv;
   public get modEnv() {
-    if (!this._modEnv) {
-      this._modEnv = SFZone.defaultEnv;
-    }
     return this._modEnv;
   }
   public set modEnv(value) {
     this._modEnv = value;
   }
-  private _volEnv;
+  private _volEnv = SFZone.defaultEnv;
   public get volEnv() {
-    if (!this._volEnv) {
-      this._volEnv = SFZone.defaultEnv;
+    if (!this._modEnv) {
+      this._modEnv = SFZone.defaultEnv;
     }
     return this._volEnv;
   }
@@ -162,7 +156,9 @@ export class SFZone {
         this.modEnv.phases.attack = gen.s16;
         break;
       case holdModEnv:
-        this.modEnv.phases.attack = gen.s16; // timecent2sec(gen.s16);
+        this.modEnv.default = false;
+
+        this.modEnv.phases.hold = gen.s16; // timecent2sec(gen.s16);
         break;
       case decayModEnv:
         this.volEnv.default = false;
@@ -171,7 +167,7 @@ export class SFZone {
         break;
 
       case sustainModEnv /* percent of fullscale*/:
-        this.volEnv.default = false;
+        this.modEnv.default = false;
 
         this.modEnv.sustain = gen.s16;
         break;
@@ -315,11 +311,11 @@ would be 1200log2(.01) = -7973. */
       hold: -12000,
     },
     sustain: 300,
-    effects: {},
+    effects: { pitch: 0, filter: 0, volume: 0 },
   };
-  static defaultLFO: LFO = {
+  static defaultLFO: any = {
     delay: 0,
-    freq: -1200,
+    freq: 1,
     effects: { pitch: 0, filter: 0, volume: 0 },
   };
 }

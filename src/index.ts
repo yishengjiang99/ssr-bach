@@ -73,11 +73,13 @@ function t5() {
     phases: { delay, attack, hold, decay, release },
     sustain,
   } = vol;
-  const g = Envelope([delay, attack, hold, decay, release], sustain, sr);
+  const g = new Envelope([delay, attack, hold, decay, release], sustain, sr);
   let i = 0;
   const hh = require('fs').createWriteStream('ss.pcm');
   const so = ffp();
-  for (const v of g.genDBVals()) {
+  while (g.done == false) {
+    const v = g.val;
+
     const o = Math.pow(10, v / 200) * Math.sin(((440 * 6.14) / 48000) * i);
     i++;
     const iob = Buffer.alloc(4);
@@ -92,7 +94,7 @@ function t6() {
   // ctx.programs[1] = { presetId: 55, bankId: 0 };
   const {
     smpl: { originalPitch, sampleRate },
-    ratio,
+    ratio: ratio,
   } = ctx.keyOn(44, 122, 0);
   const b = require('./cspawn').cspawn(
     'ffplay -i pipe:0 -ac 2 -ar ' + sampleRate + ' -f f32le'
@@ -109,4 +111,4 @@ function t6() {
     b.stdin.write(ctx.render(sampleRate / 2));
   }, 555);
 }
-t6();
+t3();

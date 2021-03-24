@@ -1,69 +1,88 @@
 import { cb } from 'ava';
+import { centibel, centime } from './centTone';
+/**
+ABSOLUTE CENTIBELS - An absolute measure of the attenuation of a signal, based on a reference of
+zero being no attenuation. A centibel is a tenth of a decibel, or a ratio in signal amplitude of the two
+hundredth root of 10, approximately 1.011579454.
+RELATIVE CENTIBELS - A relative measure of the attenua
+ */
 
-export type Envelope = {
-  genDBVals: () => Generator<number, number, Error>;
-  stages: number[];
-  deltas: number[];
-  triggerRelease: () => void;
-};
+export enum EnvelopeTarget {
+  VOLUME,
+  PITCH,
+  FILTER,
+}
+enum stages {
+  delay,
+  attack,
+  hold,
+  decay,
+  release,
+  done,
+}
+const dbfs = 1440;
 
-export function Envelope(
-  envelopPhases,
-  sustainCB,
-  sr: number,
-  noteVelocity: number = 70
-): Envelope {
-  let tookSteps = 0;
-  const [delay, attack, hold, decay, release] = envelopPhases;
-  // const attackModulated = (attack * (144 - noteVelocity)) / 127;
-  const stages = [delay, attack, hold, decay, release].map((centisec) =>
-    centisec <= -12000 ? 1 : Math.pow(2, centisec / 1200) * sr
-  );
-  const amts = [0, 0, 1440, 1440, 9614406 - sustainCB, 0];
-
-  const deltas = [
-    0 /*delay*/,
-    1440 / stages[1] /*att*/,
-    0 /*holding*/,
-    (sustainCB - 1440) / stages[3] /*decay*/,
-    -1440 / stages[4],
-  ];
-  let releasing = false;
-  let releaseStep;
-  function triggerRelease(time = -1) {
-    releaseStep = time / sr;
-    if (time == -1) {
-      releasing = true;
-    }
-    releasing = true;
-  }
-  function* genDBVals() {
-    let amount = amts[0];
-    for (let stag = 0; stag < 5; stag++) {
-      while (stages[stag]-- > 0) {
-        amount += 128 * deltas[stag];
-        tookSteps += 128;
-        yield amount;
-        if (releaseStep && tookSteps >= releaseStep) {
-          releasing = true;
-        }
-        if (stag < 4 && releasing === true) {
-          stag = 4;
-          /* prorated stage[4]steps via db loss acrued via decay stage*/
-          stages[4] = (amount / -1440) * stages[4];
-          continue;
-        }
-        if (amount < -`55`) {
-          return 0;
-        }
-      }
-    }
-    return amount;
-  }
-  return {
-    genDBVals,
-    stages,
-    deltas,
-    triggerRelease,
+export class Envelope {
+  target: EnvelopeTarget;
+  state: {
+    stage: number;
+    stageStep: number;
+  } = {
+    stage: 0,
+    stageStep: 0,
   };
+  sr: number;
+  stages: number[] = [];
+  deltas: number[];
+  keyOff: boolean = false;
+  ampCB: number;
+  modifier: number;
+  constructor(
+    envelopePhases: centime[],
+    sustainCB: centibel,
+    sampleRate: number = 48000
+  ) {
+    this.stages = envelopePhases.map((centisec) =>
+      centisec <= -12000 ? 1 : Math.pow(2, centisec / 1200) * sampleRate
+    );
+    const amts = [0, 0, dbfs, dbfs, dbfs - sustainCB, 0];
+    const { delay, attack, hold, decay, release } = stages;
+    this.deltas = [
+      0,
+      amts[attack] - amts[delay],
+      amts[hold] - amts[attack],
+      amts[decay] - amts[hold],
+      amts[release] - amts[hold],
+      0,
+    ].map((change, idx) => change / this.stages[idx]);
+    this.ampCB = 0;
+  }
+  modulate(fn) {
+    fn();
+  }
+  get done() {
+    return this.ampCB < -10 || this.state.stage == stages.done;
+  }
+  get val() {
+    this.ampCB += this.deltas[this.state.stage];
+    this.state.stageStep++;
+    if (this.state.stageStep >= this.stages[this.state.stage]) {
+      this.state.stage++;
+      this.state.stageStep = 0;
+    }
+    return this.ampCB;
+  }
+  get gain() {
+    return Math.pow(10, (1 - this.val) / 200);
+  }
+  get stage() {
+    return this.state.stage;
+  }
+  triggerRelease() {
+    if (this.state.stage < stages.release) {
+      this.state.stage = stages.release;
+      this.state.stageStep = 0;
+      this.stages[stages.release] = this.ampCB / this.deltas[stages.release];
+    }
+  }
 }

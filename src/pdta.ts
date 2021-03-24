@@ -209,16 +209,18 @@ export class PDTA {
       let predefault: SFZone;
       for (let j = phdr[i].pbagIndex; j < phdr[i + 1].pbagIndex; j++) {
         let pcpy = new SFZone();
+        if (predefault)
+          predefault.generators.forEach((g) => {
+            pcpy.applyGenVal(g);
+          });
         const pzone = pbag[j].pzone;
         if (pzone.instrumentID == -1) {
           if (!predefault) {
             predefault = pzone;
-            pzone.generators.forEach((g) => pcpy.applyGenVal(g));
           }
           continue;
-        } else {
-          pzone.generators.forEach((g) => pcpy.applyGenVal(g));
         }
+        pzone.generators.forEach((g) => pcpy.applyGenVal(g));
 
         const keyOutofRange = pcpy.keyRange.hi < key || pcpy.keyRange.lo > key;
         if (key > -1 && keyOutofRange) continue;
@@ -227,6 +229,7 @@ export class PDTA {
 
         const instrument = iheaders[pcpy.instrumentID];
         if (!instrument) continue;
+
         let instDefault;
         const lastIbag =
           pcpy.instrumentID < iheaders.length - 1
@@ -235,10 +238,12 @@ export class PDTA {
         for (let j = instrument.iBagIndex; j <= lastIbag; j++) {
           const izone = this.ibag[j].izone;
           const izoneCopy = new SFZone();
+          if (instDefault)
+            instDefault.generators.forEach((g) => izoneCopy.applyGenVal(g));
+
           if (izone.sampleID == -1) {
             if (!instDefault) {
               instDefault = izone;
-              izone.generators.forEach((g) => izoneCopy.applyGenVal(g));
             }
             continue;
           } else {

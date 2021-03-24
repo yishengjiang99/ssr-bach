@@ -5,7 +5,7 @@ import { SF2File } from './sffile';
 import { LUT } from './LUT';
 import { SFZone } from './Zone';
 import { centibel } from './centTone';
-import { Envelope } from './envAmplitue';
+import { Envelope } from './runtime';
 export type Voice = {
   channel?: number;
   smpl: Shdr;
@@ -195,7 +195,7 @@ export function runtime(zone: SFZone, params: RunTimeParams): Voice {
     phases: { delay, attack, hold, decay, release },
     sustain,
   } = zone.volEnv;
-  const ampEnv = Envelope(
+  const ampEnv = new Envelope(
     [delay, attack, hold, decay, release],
     sustain,
     sampleRate
@@ -215,7 +215,7 @@ export function runtime(zone: SFZone, params: RunTimeParams): Voice {
       right: 0.5 + zone.pan / 1000,
     },
     envelope: ampEnv,
-    envelopeIterator: ampEnv.genDBVals(),
+    envelopeIterator: ampEnv.iterator(),
     gain: function (chanVol, mastVol = 127) {
       const velCB =
         (-200.0 / 960) * Math.log((noteVelocity * noteVelocity) / (127 * 127));

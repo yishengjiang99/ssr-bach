@@ -1,17 +1,8 @@
 export type centTone = number;
 export type TimeCent = number;
 export type centibel = number;
+export type centime = number;
 
-export type LFO = {
-  default?: boolean;
-  delay: TimeCent;
-  freq: centTone;
-  effects: {
-    pitch: centTone;
-    filter: centTone;
-    volume: centibel;
-  };
-};
 export enum LOOPMODES {
   NO_LOOP,
   CONTINUOUS_LOOP,
