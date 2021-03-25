@@ -1,0 +1,322 @@
+{
+  "0-127-0-127": {
+    "keyRange": { "lo": 0, "hi": 127 },
+    "velRange": { "lo": 0, "hi": 127 },
+    "sampleOffsets": {
+      "start": 9526095,
+      "end": 9583471,
+      "startLoop": 9530857,
+      "endLoop": 9583465
+    },
+    "_modLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_vibrLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_modEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "_volEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "lpf": { "cutoff": 0, "q": -1 },
+    "pan": -1,
+    "attenuate": 0,
+    "instrumentID": 217,
+    "pitch": 6000,
+    "sampleMode": 1,
+    "sampleID": 521,
+    "shdr": {
+      "name": "Bell Organ",
+      "start": 9526095,
+      "end": 9583471,
+      "startLoop": 9530857,
+      "endLoop": 9583465,
+      "sampleRate": 44100,
+      "originalPitch": 60,
+      "pitchCorrection": 0,
+      "sampleLink": 0,
+      "sampleType": 1
+    },
+    "reverbSend": 70
+  },
+  "0-127-66-65": {
+    "keyRange": { "lo": 66, "hi": 65 },
+    "velRange": { "lo": 0, "hi": 127 },
+    "sampleOffsets": {
+      "start": 1665788,
+      "end": 1673901,
+      "startLoop": 1673682,
+      "endLoop": 1673895
+    },
+    "_modLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_vibrLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_modEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "_volEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "lpf": { "cutoff": 0, "q": -1 },
+    "pan": -1,
+    "attenuate": 0,
+    "instrumentID": 217,
+    "pitch": 6000,
+    "sampleMode": 1,
+    "sampleID": 65,
+    "shdr": {
+      "name": "Celeste-D#4",
+      "start": 1665773,
+      "end": 1673886,
+      "startLoop": 1673667,
+      "endLoop": 1673880,
+      "sampleRate": 33000,
+      "originalPitch": 60,
+      "pitchCorrection": 0,
+      "sampleLink": 0,
+      "sampleType": 1
+    },
+    "reverbSend": 70
+  },
+  "0-127-74-65": {
+    "keyRange": { "lo": 74, "hi": 65 },
+    "velRange": { "lo": 0, "hi": 127 },
+    "sampleOffsets": {
+      "start": 9599384,
+      "end": 9606726,
+      "startLoop": 9606494,
+      "endLoop": 9606720
+    },
+    "_modLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_vibrLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_modEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "_volEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "lpf": { "cutoff": 0, "q": -1 },
+    "pan": -1,
+    "attenuate": 75,
+    "instrumentID": 217,
+    "pitch": 6000,
+    "sampleMode": 1,
+    "sampleID": 524,
+    "shdr": {
+      "name": "Celeste-A4",
+      "start": 9599384,
+      "end": 9606726,
+      "startLoop": 9606494,
+      "endLoop": 9606720,
+      "sampleRate": 33000,
+      "originalPitch": 60,
+      "pitchCorrection": 0,
+      "sampleLink": 0,
+      "sampleType": 1
+    },
+    "reverbSend": 70
+  },
+  "0-127-84-65": {
+    "keyRange": { "lo": 84, "hi": 65 },
+    "velRange": { "lo": 0, "hi": 127 },
+    "sampleOffsets": {
+      "start": 1673918,
+      "end": 1681629,
+      "startLoop": 1681414,
+      "endLoop": 1681638
+    },
+    "_modLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_vibrLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_modEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "_volEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "lpf": { "cutoff": 0, "q": -1 },
+    "pan": -1,
+    "attenuate": 82,
+    "instrumentID": 217,
+    "pitch": 6000,
+    "sampleMode": 1,
+    "sampleID": 66,
+    "shdr": {
+      "name": "Celeste-F#5",
+      "start": 1673918,
+      "end": 1681629,
+      "startLoop": 1681399,
+      "endLoop": 1681623,
+      "sampleRate": 33000,
+      "originalPitch": 60,
+      "pitchCorrection": 0,
+      "sampleLink": 0,
+      "sampleType": 1
+    },
+    "reverbSend": 70
+  },
+  "0-127-91-65": {
+    "keyRange": { "lo": 91, "hi": 65 },
+    "velRange": { "lo": 0, "hi": 127 },
+    "sampleOffsets": {
+      "start": 9593095,
+      "end": 9599352,
+      "startLoop": 9599148,
+      "endLoop": 9599361
+    },
+    "_modLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_vibrLFO": {
+      "delay": 7973,
+      "freq": -884,
+      "effects": { "pitch": -8, "filter": 562, "volume": 1 }
+    },
+    "_modEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "_volEnv": {
+      "default": false,
+      "phases": {
+        "decay": 2786,
+        "attack": -7973,
+        "delay": -7973,
+        "release": 1365,
+        "hold": 1018
+      },
+      "sustain": 960,
+      "effects": { "pitch": 94, "filter": -500, "volume": 0 }
+    },
+    "lpf": { "cutoff": 0, "q": -1 },
+    "pan": -1,
+    "attenuate": 100,
+    "instrumentID": 217,
+    "pitch": 6000,
+    "sampleMode": 1,
+    "sampleID": 523,
+    "shdr": {
+      "name": "Celeste-D#6",
+      "start": 9593095,
+      "end": 9599352,
+      "startLoop": 9599133,
+      "endLoop": 9599346,
+      "sampleRate": 33000,
+      "originalPitch": 60,
+      "pitchCorrection": 0,
+      "sampleLink": 0,
+      "sampleType": 1
+    },
+    "reverbSend": 70
+  }
+}

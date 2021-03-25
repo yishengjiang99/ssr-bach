@@ -1,0 +1,15 @@
+{
+  "name": "emcc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "make.js",
+  "scripts": {
+    "build": "node make"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "soundfont2": "^0.3.0"
+  }
+}

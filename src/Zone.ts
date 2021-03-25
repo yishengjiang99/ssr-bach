@@ -52,7 +52,15 @@ export class SFZone {
   pan: number = -1; /* shift to right percent */
   attenuate: centibel = 0; /*db in attentuation*/
   instrumentID: number = -1;
-  pitch: number = -1;
+  rootkey: number = -1;
+  tuning: number = 0;
+
+  public get pitch(): number {
+    const rk = this.rootkey > -1 ? this.rootkey : this.sample.originalPitch;
+
+    return rk * 100 + this.tuning + Math.log2(this.sample.sampleRate) * 1200;
+  }
+
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID: number = -1;
   generators: SFGenerator[] = [];
@@ -64,7 +72,6 @@ export class SFZone {
     this.sampleOffsets.end += shdr.end;
     this.sampleOffsets.startLoop += shdr.startLoop;
     this.sampleOffsets.endLoop += shdr.endLoop;
-    this.pitch = shdr.originalPitch * 100 + shdr.pitchCorrection;
   }
   get sample() {
     return {
@@ -268,10 +275,10 @@ would be 1200log2(.01) = -7973. */
         this.sampleOffsets.endLoop += 15 << gen.s16;
         break;
       case coarseTune:
-        this.pitch += gen.s16 * 100; //semitone
+        this.tuning += gen.s16 * 100; //semitone
         break;
       case fineTune:
-        this.pitch += gen.s16; //tone
+        this.tuning += gen.s16; //tone
         break;
 
       case sampleID:
@@ -290,7 +297,7 @@ would be 1200log2(.01) = -7973. */
       case exclusiveClass:
         break;
       case overridingRootKey:
-        if (gen.s16 > -1) this.pitch = gen.s16;
+        if (gen.s16 > -1) this.rootkey = gen.s16;
         break;
       case unused5:
         break;

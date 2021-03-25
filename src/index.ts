@@ -1,7 +1,8 @@
 import { centidb2gain } from './centTone';
-import { Envelope } from './envAmplitue';
+import { Envelope, Runtime } from './runtime';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
+import { sleep } from './utilv1';
 const t1 = () => {
   const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
   const [bankId, presetId] = [instrument & 0x80, instrument & 0x7f];
@@ -89,26 +90,77 @@ function t5() {
     if (i == 24000) g.triggerRelease();
   }
 }
-function t6() {
+async function t6() {
   const ctx = new SF2File('file.sf2').rend_ctx;
-  // ctx.programs[1] = { presetId: 55, bankId: 0 };
-  const {
-    smpl: { originalPitch, sampleRate },
-    ratio: ratio,
-  } = ctx.keyOn(44, 122, 0);
+
   const b = require('./cspawn').cspawn(
-    'ffplay -i pipe:0 -ac 2 -ar ' + sampleRate + ' -f f32le'
-  );
-  ctx.keyOn(35, 45, 0);
-  let i = 33;
-  let ch = 1;
-  console.log(originalPitch, ratio);
-  setTimeout(() => b.kill(), 55555);
+    'ffplay -i pipe:0 -ac 2 -ar ' + 48000 + ' -f f32le'
+  ).stdin;
+
+  let k = 33;
   setInterval(() => {
-    ctx.keyOff(ch - 1);
-    ctx.keyOn(35, i++, ch);
-    ch = (ch + 1) & 12;
-    b.stdin.write(ctx.render(sampleRate / 2));
-  }, 555);
+    ctx.keyOn(k, 127 - k, 0);
+    k++;
+    if (k > 55) k -= ~~(Math.random() * 54);
+  }, 500);
+  setInterval(() => {
+    b.write(ctx.render(4800));
+  }, 100);
 }
-t3();
+function testEnvelopeTriggerRelease() {
+  const sff = new SF2File('file.sf2');
+  const vol = sff.findPreset({ bankId: 0, presetId: 0, key: 60, vel: 70 })[0]
+    .volEnv;
+  const sr = 48000;
+  const {
+    phases: { delay, attack, hold, decay, release },
+    sustain,
+  } = vol;
+  const g = new Envelope([delay, attack, hold, decay, release], sustain, sr);
+  console.log(vol.phases, g.stages, g.deltas, g.val, g.state);
+  g.shift(1000);
+  console.log(g.val, g.state);
+  g.shift(1000);
+  console.log(g.val, g.state);
+  g.shift(1000);
+  g.triggerRelease();
+  console.log(g.val, g.state);
+  console.log(g.val, g.state);
+  g.shift(1000);
+}
+function testtunning() {
+  const sff = new SF2File('file.sf2');
+  const vol = sff.findPreset({ bankId: 0, presetId: 0, key: 33, vel: 44 });
+  const r = new Runtime(
+    vol[0],
+    { key: 86, velocity: 44, channel: 0 },
+    sff.rend_ctx
+  );
+  console.log(vol[0], r.mods);
+
+  console.log(r.run(128));
+  let n = 48000;
+  while (n > 0) {
+    console.log(r.run(128).volume);
+    // console.log(
+    //   r.mods.modLFO.cycles,
+    //   r.mods.modVol.deltas,
+    //   r.mods.vibrLFO.delta,
+    //   r.mods.ampVol.state,
+    //   r.mods.modVol.state
+    // );
+    n -= 128;
+  }
+
+  const g = new Envelope(
+    {
+      decay: 2400,
+      attack: -7973,
+      delay: -7973,
+      release: -2786,
+      hold: -7973,
+    },
+    1000
+  );
+}
+t6();
