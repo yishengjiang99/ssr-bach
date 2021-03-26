@@ -3,17 +3,14 @@ import {
   cent2hz,
   centibel,
   centidb2gain,
-  centime,
   centTone,
   dbfs,
   ModEffects,
   stagesEnum,
 } from './runtime.types';
 import { Shdr } from './pdta';
-import { Note, Ctx } from './runtime.types';
-import { tc2ms } from './timecent2ms';
+import { Note } from './runtime.types';
 import { RenderCtx } from './render-ctx';
-import { SF2File } from './sffile';
 type runFunction = (
   steps: number
 ) => { volume: number; pitch: number; filter: number };
@@ -27,7 +24,7 @@ export class Runtime {
     pan: { left: number; right: number };
   };
   run: (steps: number) => { volume: number; pitch: number; filter: number };
-  mods: any;
+  mods: { ampVol; modVol; modLFO; vibrLFO };
   length: number;
   sample: Shdr;
   iterator: number;

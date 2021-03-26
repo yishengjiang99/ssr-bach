@@ -4,16 +4,16 @@ import { RenderCtx } from './render-ctx';
 import { SF2File } from './sffile';
 
 test('renderctx', (t) => {
-  const ctx = new RenderCtx(new SF2File('sm.sf2'));
-  ctx.keyOn(55, 122, 0);
-  t.assert(ctx.voices[0].mods[0].iterate().next().done == false);
+  const ctx = new RenderCtx(new SF2File('file.sf2'));
+  ctx.keyOn(55, 13, 0);
+  t.assert(ctx.voices[0].mods.ampVol.done == false);
   t.assert(ctx.voices[0].iterator >= 0);
   t.assert(ctx.voices[0].staticLevels.pitch != NaN);
   t.assert(ctx.voices[0].iterator == ctx.voices[0].smpl.start);
   const b = ctx.render(5);
 
   t.assert(
-    ctx.voices[0].iterator ===
+    ctx.voices[0].iterator >
       Math.floor(ctx.voices[0].smpl.start + ctx.voices[0].run(5).pitch * 4)
   );
 });

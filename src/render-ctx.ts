@@ -134,7 +134,7 @@ export class RenderCtx {
     voice.length -= blockLength;
     voice.iterator = iterator;
   }
-  render(blockSize) {
+  render = (blockSize) => {
     const output = Buffer.alloc(blockSize * 8);
     this.voices
       .filter((v) => v.length && v.length > 0)
@@ -149,7 +149,7 @@ export class RenderCtx {
         this._render(voice, output, blockSize);
       });
     return output;
-  }
+  };
 }
 function hermite4(frac_pos, xm1, x0, x1, x2) {
   const c = (x1 - xm1) * 0.5;

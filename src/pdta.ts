@@ -254,9 +254,9 @@ export class PDTA {
           }
           if (shdr[izone.sampleID] == null) continue;
 
-          pcpy.generators.forEach((g) => {
-            g.operator !== sampleId_gen && izoneCopy.applyGenVal(g, 4);
-          });
+          // pcpy.generators.forEach((g) => {
+          //   g.operator !== sampleId_gen && izoneCopy.applyGenVal(g, 4);
+          // });
 
           izoneCopy.sample = shdr[izone.sampleID];
           presets.push(izoneCopy);

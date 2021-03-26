@@ -29,10 +29,12 @@
     <div class="container">
       <div id="root"></div>
     </div>
-    <script>
+    <script type="module">
+      import { start } from './js/dist/playpcm.js';
       let ctx, gainNode;
       async function playSample(url, cb) {
         try {
+          debugger;
           if (!ctx) {
             ctx = new AudioContext({
               sampleRate: 48000,
@@ -43,8 +45,9 @@
           }
 
           const dv = await fetch(url)
-            .then((resp) => {
+            .then((resp, header) => {
               cb('resp got');
+
               return resp.arrayBuffer();
             })
             .then((ab) => new DataView(ab))
@@ -54,6 +57,7 @@
           const audb = ctx.createBuffer(2, dv.buffer.byteLength / 8, 48000);
           const buffers = [audb.getChannelData(0), audb.getChannelData(1)];
           for (let i = 0; i < audb.length; i++) {
+            console.log(dv.getFloat32(i, true));
             buffers[0][i] = dv.getFloat32(i * 4, true);
             buffers[1][i] = dv.getFloat32(i * 4, true);
           }
@@ -67,6 +71,8 @@
       }
     </script>
     <script type="text/babel">
+      import { Runtime } from 'js/runtime.js';
+
       function ZoneUI({ zone, setPane2Txt }) {
         const [details, setDetails] = React.useState('');
         return (
@@ -87,8 +93,8 @@
                       2
                     )
                   );
-                  playSample(
-                    `/sample/${zone.keyRange.lo}/${zone.velRange.lo}`,
+                  start(
+                    `/sample/${zone.keyRange.lo}/${zone.velRange.hi}`,
                     (update) => setDetails(update)
                   );
                 }}
@@ -137,7 +143,6 @@
       }
     </script>
     <script type="module">
-      import { rend } from 'js/build/rend.js';
       let sff;
       function showerror(e) {
         document.write(e.message);

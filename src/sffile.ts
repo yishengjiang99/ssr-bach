@@ -24,10 +24,8 @@ export class SF2File {
     }
   }
   read(r) {
-    assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
-    assert(r.read32String(), 'sfbk');
-    assert(r.read32String(), 'LIST');
+
     size -= 64;
     const sections: any = {};
     do {
@@ -37,7 +35,6 @@ export class SF2File {
       if (section === 'pdta') {
         this.pdta = new PDTA(r);
       } else if (section === 'sdta') {
-        assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
         const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);

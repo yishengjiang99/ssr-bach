@@ -23,7 +23,7 @@ const t2 = () => {
     n -= 1024;
   }
 };
-function t3() {
+function cachesets() {
   const { std_inst_names } = require('./utilv1');
 
   const sf = new SF2File('file.sf2');
@@ -164,4 +164,4 @@ function testtunning() {
   );
 }
 
-t3();
+t6();
