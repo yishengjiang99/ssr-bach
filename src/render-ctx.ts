@@ -13,7 +13,7 @@ type Program = {
 };
 const log2of48000 = 18660; //Math.log2(48000) * 1200;
 export class RenderCtx {
-  sampleRate: 48000 = 48000;
+  sampleRate: number = 48000;
   voices: Runtime[] = [];
   outputCard: Buffer = Buffer.alloc(1024);
   programs: { presetId: number; bankId: number }[];

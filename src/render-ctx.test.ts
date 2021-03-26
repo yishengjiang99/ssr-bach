@@ -6,15 +6,15 @@ import { SF2File } from './sffile';
 test('renderctx', (t) => {
   const ctx = new RenderCtx(new SF2File('sm.sf2'));
   ctx.keyOn(55, 122, 0);
-  t.assert(ctx.voices[0].envelopeIterator.next().done == false);
+  t.assert(ctx.voices[0].mods[0].iterate().next().done == false);
   t.assert(ctx.voices[0].iterator >= 0);
-  t.assert(ctx.voices[0].ratio != NaN);
+  t.assert(ctx.voices[0].staticLevels.pitch != NaN);
   t.assert(ctx.voices[0].iterator == ctx.voices[0].smpl.start);
   const b = ctx.render(5);
 
   t.assert(
     ctx.voices[0].iterator ===
-      Math.floor(ctx.voices[0].smpl.start + ctx.voices[0].ratio * 4)
+      Math.floor(ctx.voices[0].smpl.start + ctx.voices[0].run(5).pitch * 4)
   );
 });
 test('mixing', (t) => {
@@ -31,5 +31,5 @@ test('sf runtime', (t) => {
   const sff = new SF2File('file.sf2');
   const rctx = sff.rend_ctx;
   const v = rctx.keyOn({ bankId: 0, presetId: 0, key: 44, vel: 44 }, 0.5, 0);
-  t.assert(v.ratio != NaN);
+  t.assert(v.staticLevels.pitch != NaN);
 });

@@ -105,7 +105,7 @@ export class PDTA {
             this.pgen.push(pg);
             if (
               this.pbag[pbagId + 1] &&
-              pgenId >= this.pbag[pbagId + 1].pgen_id
+              pgenId >= this.pbag[pbagId + 1].pgen_id - 1
             ) {
               pbagId++;
             }
@@ -142,18 +142,16 @@ export class PDTA {
           break;
         case 'igen':
           let ibagId = 0;
-          let lastIgenId = this.ibag[ibagId + 1].igen_id - 1;
-          for (let i = 0; i < sectionSize; i += igenLength) {
+
+          for (let igenId = 0; igenId < sectionSize / igenLength; igenId++) {
             const opid = r.get8();
             r.get8();
             const amt = r.getS16();
             const gen = new SFGenerator(opid, amt);
-            const igenId = this.igen.length; //, r.get16());
+            // const igenId = this.igen.length; //, r.get16());
             this.igen.push(gen);
-            if (
-              ibagId < this.ibag.length - 1 &&
-              igenId >= this.ibag[ibagId + 1].igen_id - 1
-            ) {
+
+            if (igenId >= this.ibag[ibagId + 1]?.igen_id - 1) {
               ibagId++;
             }
 
@@ -207,12 +205,9 @@ export class PDTA {
     for (let i = 0; i < this.phdr.length - 1; i++) {
       if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) continue;
       let predefault: SFZone;
-      for (let j = phdr[i].pbagIndex; j < phdr[i + 1].pbagIndex; j++) {
+      for (let j = phdr[i].pbagIndex; j <= phdr[i + 1].pbagIndex - 1; j++) {
         let pcpy = new SFZone();
-        if (predefault)
-          predefault.generators.forEach((g) => {
-            pcpy.applyGenVal(g);
-          });
+
         const pzone = pbag[j].pzone;
         if (pzone.instrumentID == -1) {
           if (!predefault) {
@@ -220,43 +215,49 @@ export class PDTA {
           }
           continue;
         }
-        pzone.generators.forEach((g) => pcpy.applyGenVal(g));
+        pzone.generators.forEach((g) => pcpy.applyGenVal(g, j));
 
-        const keyOutofRange = pcpy.keyRange.hi < key || pcpy.keyRange.lo > key;
-        if (key > -1 && keyOutofRange) continue;
         if (vel > -1 && (pcpy.velRange.hi < vel || pcpy.velRange.lo > vel))
           continue;
 
         const instrument = iheaders[pcpy.instrumentID];
         if (!instrument) continue;
 
-        let instDefault;
+        let instDefault, idefId;
         const lastIbag =
           pcpy.instrumentID < iheaders.length - 1
-            ? iheaders[pcpy.instrumentID + 1].iBagIndex - 1
+            ? iheaders[pcpy.instrumentID + 1].iBagIndex
             : ibag.length - 1;
-        for (let j = instrument.iBagIndex; j <= lastIbag; j++) {
+        /**            if (igenId >= this.ibag[ibagId + 1]?.igen_id - 1) {
+         */
+        for (let j = instrument.iBagIndex; j < lastIbag; j++) {
           const izone = this.ibag[j].izone;
           const izoneCopy = new SFZone();
-          if (instDefault)
-            instDefault.generators.forEach((g) => izoneCopy.applyGenVal(g));
-
+          if (instDefault) {
+            // instDefault.generators.forEach((g) =>
+            //   izoneCopy.applyGenVal(g, idefId)
+            // );
+          }
           if (izone.sampleID == -1) {
+            idefId = j;
             if (!instDefault) {
               instDefault = izone;
             }
             continue;
           } else {
-            izone.generators.forEach((g) => izoneCopy.applyGenVal(g));
+            if (
+              key > -1 &&
+              (izone.keyRange.hi < key || izone.keyRange.lo > key)
+            )
+              continue;
+            izone.generators.forEach((g) => izoneCopy.applyGenVal(g, j << 8));
           }
           if (shdr[izone.sampleID] == null) continue;
+
           pcpy.generators.forEach((g) => {
-            g.operator !== sampleId_gen && izoneCopy.applyGenVal(g);
+            g.operator !== sampleId_gen && izoneCopy.applyGenVal(g, 4);
           });
-          if (key > -1 && (izone.keyRange.hi < key || izone.keyRange.lo > key))
-            continue;
-          if (vel > -1 && (izone.velRange.hi < vel || izone.velRange.lo > vel))
-            continue;
+
           izoneCopy.sample = shdr[izone.sampleID];
           presets.push(izoneCopy);
         }

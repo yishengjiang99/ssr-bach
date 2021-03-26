@@ -12,7 +12,7 @@
   "scripts": {
     "postInstall": "chmod +x ffplay",
     "dev": "nodemon src/server.ts",
-    "build": "ts-node src/index.ts",
+    "build": "nodemon src/app.ts",
     "test": "npx ava src/*.test.ts"
   },
   "prettier": {
@@ -35,8 +35,14 @@
   "license": "ISC",
   "dependencies": {
     "@tonejs/midi": "^2.0.27",
+    "body-parser": "^1.19.0",
     "chrome-launcher": "^0.13.4",
+    "comlink": "^4.3.0",
     "express": "^4.17.1",
-    "midiread": "^1.0.0"
+    "form-data": "^3.0.1",
+    "grepupload": "^1.1.10",
+    "midiread": "^1.0.0",
+    "ts-node": "^9.1.1",
+    "webassembly": "^0.11.0"
   }
 }

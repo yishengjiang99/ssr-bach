@@ -1,6 +1,6 @@
 export function readMidi(
   buffer: Uint8Array,
-  onMsg: (str: string, obj?: any) => void
+  cb: (str: string, obj?: any) => void
 ) {
   const reader = bufferReader(buffer);
   const {
@@ -18,7 +18,6 @@ export function readMidi(
   const format = read16();
   const ntracks = read16();
   const division = read16();
-  onMsg('header', { chunkType, headerLength, format, ntracks, division });
   let g_time = -1000;
   type Track = {
     endofTrack: number;
@@ -50,12 +49,14 @@ export function readMidi(
     for (const track of tracks) {
       reader.offset = track.offset;
       while (track.time <= g_time && reader.offset < track.endofTrack) {
-        track.time += readVarLength();
-        readMessage(track);
+        const deltaT = readVarLength();
+        track.time += deltaT;
+
+        readMessage(track, (cmd, obj) => cb(cmd, { ...obj, deltaT }));
       }
       track.offset = reader.offset;
     }
-    function readMessage(track: { program: number | boolean }) {
+    function readMessage(track: { program: number | boolean }, onMsg) {
       const msg = fgetc();
       if (!msg) return false;
       let meta;

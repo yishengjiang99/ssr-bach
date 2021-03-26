@@ -23,7 +23,7 @@ const test = () => {
       console.log(entry);
     });
   });
-  perfObserver.observe({ entryTypes: ['measure'], buffer: true });
+  perfObserver.observe({ entryTypes: ['measure'], buffered: true });
   performance.mark('log2-start');
   for (let i = 1; i < 3333; i++) {
     log2(i);

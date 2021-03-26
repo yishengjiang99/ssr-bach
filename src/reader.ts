@@ -1,6 +1,5 @@
-import { FILE } from 'dns';
 import { openSync, readSync, Stats, statSync } from 'fs';
-import { keys } from './utilv1';
+
 export type Reader = {
   getc: () => number;
   get8: () => number;

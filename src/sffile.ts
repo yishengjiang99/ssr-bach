@@ -4,12 +4,26 @@ import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
+import { bufferReader } from './readmidi';
+
 export class SF2File {
   pdta: PDTA;
   sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
-  constructor(path: string) {
-    const r = reader(path);
+  static fromURL(url: string, cb) {
+    fetch(url)
+      .then((res) => res.arrayBuffer())
+      .then((ab) => {
+        const [riff, size, sfbk, list, skip, info] = new Uint32Array(ab, 0, 24);
+      });
+  }
+  constructor(path: string = '') {
+    if (path) {
+      const r = reader(path);
+      this.read(r);
+    }
+  }
+  read(r) {
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
     assert(r.read32String(), 'sfbk');

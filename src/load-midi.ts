@@ -1,11 +1,19 @@
 import { readMidi } from './readmidi';
 import { readFileSync } from 'fs';
-import { Writable, PassThrough } from 'stream';
+import { Writable } from 'stream';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
-import { basename } from 'path';
-import { createServer } from 'http';
-import { execSync } from 'child_process';
+import * as Comlink from 'comlink/dist/esm/comlink';
+import nodeEndpoint from 'comlink/dist/esm/node-adapter';
+
+async function init(sffile, midfile) {
+  const worker = new Worker('./worker.mjs');
+  //@ts-ignore
+  const api = Comlink.wrap(nodeEndpoint(worker));
+  //@ts-ignore
+  console.log(api.loadSF2(sffile));
+}
+init('file.sf2', 'song.mid');
 const midi_chan_vol_cc = 11;
 const midi_mast_vol_cc = 7;
 interface loadMidiProps {
@@ -63,8 +71,3 @@ export function loadMidiBuffer(buffer, sff, output) {
     },
   };
 }
-loadMidi({
-  source: process.argv[2],
-  sff: new SF2File('file.sf2'),
-  output: ffp(),
-}).start();

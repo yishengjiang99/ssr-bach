@@ -1,11 +1,12 @@
 import { centibel, LOOPMODES } from './centTone';
 import { SFGenerator } from './generator';
 import { Shdr } from './pdta';
-import { sf_gen_id } from './sf.types';
+import assert from 'assert';
+import { generatorNames, sf_gen_id } from './sf.types';
 type LFOParams = typeof SFZone.defaultLFO;
 export class SFZone {
-  keyRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
-  velRange: { lo: number; hi: number } = { lo: 0, hi: 127 };
+  keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
+  velRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
   sampleOffsets: Partial<Shdr> = {
     start: 0,
     end: 0,
@@ -80,7 +81,7 @@ export class SFZone {
     };
   }
 
-  applyGenVal(gen: SFGenerator): void {
+  applyGenVal(gen: SFGenerator, from?: number): void {
     switch (gen.operator) {
       case startAddrsOffset:
         this.sampleOffsets.start += gen.s16;
@@ -254,10 +255,19 @@ would be 1200log2(.01) = -7973. */
       case keyRange:
         this.keyRange.lo = Math.max(gen.range.lo, this.keyRange.lo);
         this.keyRange.hi = Math.min(gen.range.hi, this.keyRange.hi);
+
         break;
       case velRange:
         this.velRange.lo = Math.max(gen.range.lo, this.velRange.lo);
-        this.velRange.hi = Math.min(gen.range.hi, this.velRange.hi); // = gen.range;
+        this.velRange.hi = Math.min(gen.range.hi, this.velRange.hi);
+        try {
+          assert(this.velRange.lo <= this.velRange.hi);
+        } catch (e) {
+          this.generators.map((g) =>
+            console.log(generatorNames[g.operator], g.range, g.from)
+          );
+          console.trace();
+        }
         break;
       case startloopAddrsCoarse:
         this.sampleOffsets.startLoop += 15 << gen.s16;
@@ -306,6 +316,7 @@ would be 1200log2(.01) = -7973. */
       default:
         throw 'unexpected operator';
     }
+    gen.from = from;
     this.generators.push(gen);
   }
   static defaultEnv = {

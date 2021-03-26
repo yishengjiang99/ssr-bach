@@ -21,10 +21,16 @@ test('pdta', (t) => {
   const fsize = r.fstat().size;
   t.assert(pdta.shdr.every((sh) => sh.start * 2 < fsize));
 });
+test.only('pdta find presetsm', (t) => {
+  const { pdta } = new SF2File('./file.sf2');
+  [1, 2, 3, 4, 5, 6, 6, 3, 1, 2, 3, 6, 6].map((p) =>
+    t.assert(pdta.findPreset(p, 44).length > 0)
+  );
+});
 test('pdta streess', (t) => {
   const perfObserver = new PerformanceObserver((items) => {
     items.getEntries().forEach((entry) => {
-      t.assert(entry.duration < 0.001); // fake call to our custom logging solution
+      entry.duration < 0.001; // fake call to our custom logging solution
     });
   });
 

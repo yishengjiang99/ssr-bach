@@ -1,7 +1,7 @@
 import test from 'ava';
 import { cent2hz, timecent2sec } from './centTone';
 
-import { LFO, staticLevels, VoiceRuntime } from './runtime';
+import { LFO, Runtime } from './runtime';
 import { generatorTypes, sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
 import { tc2ms } from './timecent2ms';
@@ -51,10 +51,10 @@ test('runtime function', (t) => {
   })[0];
   t.truthy(zone);
   sffile.rend_ctx.sampleRate = zone.sample.sampleRate;
-  const krates = staticLevels(
+  const rt = new Runtime(
     zone,
-    { velocity: 100, key: zone.sample.originalPitch, channel: 0 },
+    { velocity: 100, key: 50, channel: 0 },
     sffile.rend_ctx
   );
-  t.truthy(krates.pitch);
+  t.truthy(rt.staticLevels.pitch);
 });

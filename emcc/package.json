@@ -4,7 +4,7 @@
   "description": "",
   "main": "make.js",
   "scripts": {
-    "build": "node make"
+    "build": "node make;tsc"
   },
   "keywords": [],
   "author": "",

@@ -16,6 +16,7 @@ const {
 } = sf_gen_id;
 export type GenRange = { lo: number; hi: number };
 export class SFGenerator {
+  from: number = 0;
   constructor(private _operator: sf_gen_id, private int16: number) {}
   add(modgen: SFGenerator) {
     this.int16 += modgen.int16;
