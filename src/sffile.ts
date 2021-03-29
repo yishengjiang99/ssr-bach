@@ -5,6 +5,11 @@ import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
 import { bufferReader } from './readmidi';
+import { sleep, std_inst_names } from './utilv1';
+import { ffp } from './sinks';
+import { loop } from './Utils';
+import { cspawn } from './cspawn';
+import { createWriteStream } from 'fs';
 
 export class SF2File {
   pdta: PDTA;
@@ -24,8 +29,10 @@ export class SF2File {
     }
   }
   read(r) {
+    assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
-
+    assert(r.read32String(), 'sfbk');
+    assert(r.read32String(), 'LIST');
     size -= 64;
     const sections: any = {};
     do {
@@ -35,6 +42,7 @@ export class SF2File {
       if (section === 'pdta') {
         this.pdta = new PDTA(r);
       } else if (section === 'sdta') {
+        assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
         const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);
@@ -60,4 +68,40 @@ export class SF2File {
     const zones = this.pdta.findPreset(presetId, bankId, key, vel);
     return zones;
   };
+  stdout() {
+    this.rend_ctx.output = cspawn(
+      'ffplay -f f32le -i pipe:0 -ac 2 -ar 48000'
+    ).stdin;
+  }
+  play(instrument: string, key = 44, vel = 66) {
+    let found = 0;
+
+    for (let idx = 0; idx < std_inst_names.length; idx++) {
+      if (std_inst_names[idx].includes(instrument)) {
+        console.log('playing ' + std_inst_names[idx]);
+        found = 1;
+        this.rend_ctx.programs[0] = { presetId: idx, bankId: 0 };
+        break;
+      }
+    }
+    this.rend_ctx.keyOn(key, vel, 0);
+  }
+  key(key, vel = 57) {
+    this.rend_ctx.keyOn(key, vel, 0);
+
+    //this.rend_ctx.render(48000);
+  }
+}
+async function test() {
+  const ff = new SF2File('file.sf2');
+  ff.rend_ctx.output = process.stdout; //();
+
+  ff.play('piano', 55, 55);
+  ff.rend_ctx.render(48000);
+  ff.play('trumpet', 56, 66);
+  ff.rend_ctx.render(48000);
+
+  ff.play('french', 55, 44);
+  ff.rend_ctx.render(48000);
+  ff.rend_ctx.output.end();
 }

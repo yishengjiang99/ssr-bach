@@ -23,6 +23,7 @@ test('mixing', (t) => {
   ctx.keyOn(67, 44, 1);
   const b = ctx.render(466);
   t.assert(b.byteLength == 466 * 8);
+
   for (let i = 0; i < b.byteLength - 4; i += 4) {
     t.assert(b.readFloatLE(i) <= 1.0);
   }
@@ -30,6 +31,6 @@ test('mixing', (t) => {
 test('sf runtime', (t) => {
   const sff = new SF2File('file.sf2');
   const rctx = sff.rend_ctx;
-  const v = rctx.keyOn({ bankId: 0, presetId: 0, key: 44, vel: 44 }, 0.5, 0);
+  const v = rctx.keyOn(35, 45, 0);
   t.assert(v.staticLevels.pitch != NaN);
 });

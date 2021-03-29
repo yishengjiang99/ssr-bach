@@ -6,6 +6,8 @@ import { LUT } from './LUT';
 import { SFZone } from './Zone';
 import { centibel } from './centTone';
 import { Envelope, Runtime } from './runtime';
+import { Writable } from 'node:stream';
+import { loop } from './Utils';
 
 type Program = {
   bankId: number;
@@ -61,18 +63,15 @@ export class RenderCtx {
       vel,
     });
     if (!zones || !zones.length) return;
-
-    zones.forEach((zone, i) => {
-      this.voices[channelId + 16 * i] = new Runtime(
-        zone,
-        {
-          key: key,
-          velocity: vel,
-          channel: channelId,
-        },
-        this
-      );
-    });
+    this.voices[channelId] = new Runtime(
+      zones[0],
+      {
+        key: key,
+        velocity: vel,
+        channel: channelId,
+      },
+      this
+    );
 
     return this.voices[channelId];
   }
@@ -87,7 +86,6 @@ export class RenderCtx {
     let iterator = voice.iterator || voice.sample.start;
 
     const { volume, pitch, filter } = voice.run(blockLength);
-    // console.log(channel.smpl.startLoop, channel.smpl.endLoop);
     for (let offset = 0; offset < blockLength; offset++) {
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       let currentVal = outputArr.readFloatLE(outputByteOffset);
@@ -112,8 +110,14 @@ export class RenderCtx {
         sum * voice.staticLevels.pan.right,
         outputByteOffset + 4
       );
-      if (offset % 200 == 42) {
-        //console.log(currentVal, newVal, input.readFloatLE(outputByteOffset));
+      if (process.env.debug) {
+        console.log(
+          offset,
+          volume,
+          currentVal,
+          newVal,
+          input.readFloatLE(outputByteOffset)
+        );
       }
       shift += pitch;
 
@@ -134,24 +138,22 @@ export class RenderCtx {
     voice.length -= blockLength;
     voice.iterator = iterator;
   }
+  output: Writable;
   render = (blockSize) => {
-    const output = Buffer.alloc(blockSize * 8);
+    const ob = Buffer.alloc(blockSize * Float32Array.BYTES_PER_ELEMENT * 2);
+    loop(blockSize * 2, (n) =>
+      ob.writeFloatLE(0, n * Float32Array.BYTES_PER_ELEMENT)
+    );
     this.voices
       .filter((v) => v.length && v.length > 0)
       .map((voice) => {
-        // console.log(
-        //   voice.ratio,
-        //   voice.length,
-        //   voice.smpl.start,
-        //   voice.smpl.startLoop,
-        //   voice.smpl.end
-        // );
-        this._render(voice, output, blockSize);
+        this._render(voice, ob, blockSize);
       });
-    return output;
+    if (this.output) this.output.write(ob);
+    else return ob;
   };
 }
-function hermite4(frac_pos, xm1, x0, x1, x2) {
+export function hermite4(frac_pos, xm1, x0, x1, x2) {
   const c = (x1 - xm1) * 0.5;
   const v = x0 - x1;
   const w = c + v;

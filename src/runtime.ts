@@ -9,8 +9,11 @@ import {
   stagesEnum,
 } from './runtime.types';
 import { Shdr } from './pdta';
+import assert from 'assert';
 import { Note } from './runtime.types';
 import { RenderCtx } from './render-ctx';
+import { timecent2sec } from './centTone';
+import { LUT } from './LUT';
 type runFunction = (
   steps: number
 ) => { volume: number; pitch: number; filter: number };
@@ -28,13 +31,14 @@ export class Runtime {
   length: number;
   sample: Shdr;
   iterator: number;
+  zone: SFZone;
 
   constructor(zone: SFZone, note: Note, ctx: RenderCtx) {
+    this.zone = zone;
     this.staticLevels = {
       gainCB:
-        zone.attenuate +
-        (-200.0 / 960) *
-          Math.log10((note.velocity * note.velocity) / (127 * 127)),
+        zone.attenuate + LUT.midiCB[note.velocity] * LUT.midiCB[note.velocity],
+
       pitch:
         note.key * 100 -
         zone.tuning -
@@ -66,15 +70,8 @@ export class Runtime {
     );
     this.run = (steps: number) => {
       const arates = {
-        volume: centidb2gain(this.staticLevels.gainCB - (960 - ampVol.ampCB)),
-        pitch: Math.pow(
-          2,
-          (this.staticLevels.pitch +
-            modLFO.val * modLFO.effects.pitch +
-            vibrLFO.val * vibrLFO.effects.pitch +
-            modVol.gain * modVol.effects.pitch) /
-            1200
-        ),
+        volume: centidb2gain(this.staticLevels.gainCB) * ampVol.gain,
+        pitch: timecent2sec(this.staticLevels.pitch + modVol.modCenTune),
         filter: cent2hz(
           this.staticLevels.filter +
             modVol.val * modVol.effects.filter +
@@ -145,45 +142,60 @@ export class Envelope {
   stages: number[] = [];
   deltas: number[];
   keyOff: boolean = false;
-  ampCB: number;
+  egval: number;
   modifier: number;
   constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
+    if (phases[4]) {
+      const [delay, attack, hold, decay, release] = phases;
+      return new Envelope(
+        { delay, attack, hold, decay, release },
+        sustainCB,
+        sampleRate
+      );
+    }
     const { delay, attack, hold, decay, release } = phases;
     this.stages = [delay, attack, hold, decay, release]
       .map((centime) => Math.pow(2, centime / 1200) * sampleRate)
       .map((t) => Math.max(1, t));
-    const amts = [0, 0, dbfs, dbfs, dbfs - sustainCB, 0];
-    // const { delay, attack, hold, decay, release, done } = stagesEnum;
+    const normalizedSustain = (dbfs - sustainCB) / dbfs;
+    const amts = [0, 0, 1, 1, normalizedSustain, 0];
     this.deltas = [
       0,
-      dbfs / this.stages[1],
+      1 / this.stages[1],
       0,
-      -sustainCB / this.stages[3],
-      -dbfs / this.stages[4],
+      (1 - normalizedSustain) / this.stages[3],
+      -1 / this.stages[4],
       0,
     ];
-    this.ampCB = 0;
+    this.egval = 0;
   }
+
   get done() {
-    return this.ampCB < -10 || this.state.stage == stagesEnum.done;
+    return this.egval < -10 || this.state.stage == stagesEnum.done;
   }
   get val() {
-    return this.ampCB;
+    return this.egval;
   }
   shift(steps: number) {
     if (this.state.stage === stagesEnum.done) return 0;
     while (steps > 0) {
       this.state.stageStep++;
       steps--;
-      this.ampCB += this.deltas[this.state.stage];
+      this.egval += this.deltas[this.state.stage];
       if (this.state.stageStep >= this.stages[this.state.stage]) {
         this.state.stage++;
         this.state.stageStep = 0;
       }
     }
   }
+  get ampCB() {
+    return (1 - this.egval) * dbfs;
+  }
   get gain() {
-    return Math.pow(10, (1 - this.val) / 200);
+    return Math.min(1, Math.pow(10, this.ampCB / -200.0));
+  }
+  get modCenTune() {
+    return this.effects.pitch * this.egval;
   }
   get stage() {
     return this.state.stage;
@@ -197,7 +209,7 @@ export class Envelope {
       this.state.stage = stagesEnum.release;
       this.state.stageStep = 0;
       this.stages[stagesEnum.release] =
-        this.ampCB / this.deltas[stagesEnum.release];
+        this.egval / this.deltas[stagesEnum.release];
     }
   }
 }

@@ -16,21 +16,26 @@ test('pdta', (t) => {
     t.assert(z.sampleOffsets.start >= 0);
     t.assert(z.pitch != NaN);
   });
-  t.truthy(pdta.findPreset(128));
+  t.truthy(pdta.findPreset(44));
   const r = reader('./file.sf2');
   const fsize = r.fstat().size;
   t.assert(pdta.shdr.every((sh) => sh.start * 2 < fsize));
 });
 test.only('pdta find presetsm', (t) => {
   const { pdta } = new SF2File('./file.sf2');
-  [1, 2, 3, 4, 5, 6, 6, 3, 1, 2, 3, 6, 6].map((p) =>
-    t.assert(pdta.findPreset(p, 44).length > 0)
-  );
+  [1, 2, 3, 4, 5, 6].map((p) => {
+    const inst = pdta.findPreset(p, 0);
+    t.assert(inst.length > 0);
+    [55, 34, 56, 22, 33, 77].map((k) => {
+      const z = pdta.findPreset(p, 0, k, 66);
+      t.assert(z && z[0].keyRange.lo <= k);
+    });
+  });
 });
 test('pdta streess', (t) => {
   const perfObserver = new PerformanceObserver((items) => {
     items.getEntries().forEach((entry) => {
-      entry.duration < 0.001; // fake call to our custom logging solution
+      entry.duration < 0.001; // fake call to our custom logging solutiontsc
     });
   });
 

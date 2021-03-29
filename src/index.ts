@@ -1,15 +1,38 @@
 import { centidb2gain } from './centTone';
 import { Envelope, Runtime } from './runtime';
+import { sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
+import { resolve } from 'path';
 import { ffp } from './sinks';
+import { loop } from './Utils';
+import { createWriteStream, writeSync } from 'fs';
 import { sleep } from './utilv1';
-const t1 = () => {
+import { uploadSync, wsclient } from 'grepupload';
+import { PassThrough } from 'stream';
+import { SFZone } from './Zone';
+import { SFGenerator } from './generator';
+const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
+
+const z = new SFZone();
+z.applyGenVal(new SFGenerator(8, 44));
+console.log(z.generators);
+
+const t1 = async () => {
   const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
   const [bankId, presetId] = [instrument & 0x80, instrument & 0x7f];
   const sf = new SF2File(process.argv[2] || 'file.sf2');
 
-  const voice = sf.rend_ctx.keyOn(44, 44, 0);
-  console.log(voice);
+  const voice = sf.rend_ctx.keyOn(66, 55, 0);
+  console.log(voice.zone, voice.mods.ampVol.stages, voice.mods.ampVol.deltas);
+  console.log(voice.zone, voice.mods.modVol.stages, voice.mods.modVol.deltas);
+  //const ffffp = ffp();
+  sf.rend_ctx.sampleRate = voice.zone.sample.sampleRate;
+  voice.run(1);
+  const fd = createWriteStream('file.pcm'); //openSync('file.pcm', 'w');
+  loop(120, async () => {
+    fd.write(sf.rend_ctx.render(128));
+    await sleep(3.5);
+  });
 };
 const t2 = () => {
   const ctx = new SF2File('file.sf2').rend_ctx;
@@ -23,34 +46,9 @@ const t2 = () => {
     n -= 1024;
   }
 };
-function cachesets() {
-  const { std_inst_names } = require('./utilv1');
+t2();
 
-  const sf = new SF2File('file.sf2');
-
-  for (let i = 0; i < 127; i++) {
-    findprint([0, i, std_inst_names[i]].join('-') + '.json', 0, i);
-  }
-
-  function findprint(filename, bnakID, presetId) {
-    const ff = require('fs').createWriteStream(`cache/${filename}`);
-    ff.write('{');
-    sf.pdta.findPreset(presetId, bnakID).forEach((z, i, arr) => {
-      console.log(z.sampleID);
-      const copy = JSON.parse(JSON.stringify(z));
-      delete copy.generators;
-
-      ff.write(
-        `"${z.velRange.lo}-${z.velRange.hi}-${z.keyRange.lo}-${
-          z.keyRange.hi
-        }":${JSON.stringify(copy)}${i < arr.length - 1 ? ',' : ''}`
-      );
-    });
-    ff.end('}');
-  }
-}
-
-function t45() {
+function ffpiano() {
   const sff = new SF2File('file.sf2');
   const ctx = sff.rend_ctx;
   ctx.programs[1] = { presetId: 0, bankId: 0 };
@@ -163,5 +161,3 @@ function testtunning() {
     1000
   );
 }
-
-t6();

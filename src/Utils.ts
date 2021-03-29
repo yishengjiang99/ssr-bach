@@ -1,3 +1,5 @@
+import { PassThrough, Writable } from 'stream';
+
 export function printpz(pz) {
   process.stdout.write(
     JSON.stringify(
@@ -27,4 +29,14 @@ export function printpz(pz) {
       ' '
     )
   );
+}
+
+export function loop(n, cb) {
+  while (n--) cb(n);
+}
+export function pt(cb, one: Writable = process.stdout) {
+  const pt = new PassThrough();
+  pt.on('data', cb);
+  pt.pipe(one);
+  return pt;
 }

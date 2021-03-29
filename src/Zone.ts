@@ -80,7 +80,11 @@ export class SFZone {
       ...this.sampleOffsets,
     };
   }
-
+  mergeWith(zoneb: SFZone) {
+    for (const g of Object.values(zoneb.generators)) {
+      this.applyGenVal(g, -1);
+    }
+  }
   applyGenVal(gen: SFGenerator, from?: number): void {
     switch (gen.operator) {
       case startAddrsOffset:
@@ -258,16 +262,8 @@ would be 1200log2(.01) = -7973. */
 
         break;
       case velRange:
-        this.velRange.lo = Math.max(gen.range.lo, this.velRange.lo);
-        this.velRange.hi = Math.min(gen.range.hi, this.velRange.hi);
-        try {
-          assert(this.velRange.lo <= this.velRange.hi);
-        } catch (e) {
-          this.generators.map((g) =>
-            console.log(generatorNames[g.operator], g.range, g.from)
-          );
-          console.trace();
-        }
+        this.velRange = gen.range;
+
         break;
       case startloopAddrsCoarse:
         this.sampleOffsets.startLoop += 15 << gen.s16;
@@ -294,7 +290,7 @@ would be 1200log2(.01) = -7973. */
       case sampleID:
         //onsole.log('apply sample ' + gen.s16 + 'cur ');
         if (this.sampleID != -1) {
-          throw 'applying to existing sample id';
+          //throw 'applying to existing sample id';
         }
         this.sampleID = gen.s16;
         break;
@@ -317,7 +313,7 @@ would be 1200log2(.01) = -7973. */
         throw 'unexpected operator';
     }
     gen.from = from;
-    this.generators.push(gen);
+    if (from != -1) this.generators.push(gen);
   }
   static defaultEnv = {
     default: true,

@@ -1,13 +1,11 @@
 import { SF2File } from './sffile';
-import { resolve } from 'path';
-import { sleep } from './utilv1';
-import { PassThrough } from 'stream';
+
 import { RenderCtx } from './render-ctx';
 const grepupload_1 = require('grepupload');
 const express = require('express');
 const router = express(); // create express ap
 
-async function init() {
+export async function init() {
   const sffiles = await grepupload_1.listContainerFiles('sf2');
   const midis = await grepupload_1.listContainerFiles('midi');
   const file = new SF2File('file.sf2');
@@ -15,6 +13,13 @@ async function init() {
   console.log(file.rend_ctx.voices);
   const { phdr, iheaders, shdr } = file.pdta;
   const mfiles = midis.map((m) => m.name);
+  router.get('/presets/:pid', (req, res) => {
+    const psets = file.pdta.findPreset(
+      phdr[req.params.pid].presetId,
+      phdr[req.params.pid].bankId
+    );
+    res.json(psets);
+  });
   router.get('/sample/:key/:vel', async (req, res) => {
     res.write(`HTTP/1.1 200 OK \r\n`);
     const rendder = rend.render;
@@ -29,18 +34,16 @@ async function init() {
     res.end(`\r\n\r\n`);
   });
   router.use('/', express.static('public'));
-  router.get('/lists', (req, res) => {
-    res.json({ mfiles, pdta: { phdr, iheaders, shdr } });
+  router.get('/sf2', (req, res) => {
+    res.json(sffiles);
   });
-
-  router.get('/presets/:pid', (req, res) => {
-    const psets = file.pdta.findPreset(
-      phdr[req.params.pid].presetId,
-      phdr[req.params.pid].bankId
-    );
-    res.json(psets);
+  router.get('/lists', async (req, res) => {
+    res.json({ sffiles, midis, pdta: { phdr, iheaders, shdr } });
   });
-
+  router.get('/sdta', (req, res) => {
+    res.setHeader('content-type', 'application/octet-stream');
+    res.end(file.sdta.bit16s);
+  });
   require('http')
     .createServer(router)
     .listen(3000, () => {
