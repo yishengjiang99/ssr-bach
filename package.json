@@ -11,8 +11,8 @@
   },
   "scripts": {
     "postInstall": "chmod +x ffplay",
-    "dev": "nodemon src/server.ts",
-    "build": "nodemon src/app.ts",
+    "dev": "nodemon src/app.ts",
+    "build": "ts-node src/index.ts",
     "test": "npx ava src/*.test.ts"
   },
   "prettier": {
@@ -21,7 +21,14 @@
     "arrowParens": "always"
   },
   "devDependencies": {
-    "ava": "^3.15.0"
+    "@typescript-eslint/eslint-plugin": "^4.20.0",
+    "@typescript-eslint/parser": "^4.20.0",
+    "ava": "^3.15.0",
+    "eslint": "^7.22.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-react": "^7.23.1",
+    "install": "^0.13.0",
+    "npm": "^7.7.5"
   },
   "ava": {
     "extensions": [
@@ -41,8 +48,10 @@
     "express": "^4.17.1",
     "form-data": "^3.0.1",
     "grepupload": "^1.1.10",
+    "memfs": "^3.2.0",
     "midiread": "^1.0.0",
     "ts-node": "^9.1.1",
+    "typescript-eslint": "^0.0.1-alpha.0",
     "webassembly": "^0.11.0"
   }
 }
