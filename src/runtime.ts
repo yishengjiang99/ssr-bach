@@ -5,19 +5,14 @@ import {
   centidb2gain,
   centTone,
   dbfs,
-  ModEffects,
   stagesEnum,
 } from './runtime.types';
-import { Shdr } from './pdta';
-import assert from 'assert';
+import { Shdr } from './pdta.types';
 import { Note } from './runtime.types';
 import { RenderCtx } from './render-ctx';
-import { timecent2sec } from './centTone';
 import { LUT } from './LUT';
-type runFunction = (
-  steps: number
-) => { volume: number; pitch: number; filter: number };
-type ZoneDescriptor = any;
+import { Envelope } from './envAmplitue';
+import { LFO } from './LFO';
 
 export class Runtime {
   staticLevels: {
@@ -70,8 +65,13 @@ export class Runtime {
     );
     this.run = (steps: number) => {
       const arates = {
-        volume: centidb2gain(this.staticLevels.gainCB) * ampVol.gain,
-        pitch: timecent2sec(this.staticLevels.pitch + modVol.modCenTune),
+        volume: LUT.getAmp(
+          this.staticLevels.gainCB +
+            ampVol.ampCB +
+            modLFO.amount * modLFO.effects.volume
+        ),
+        pitch:
+          LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
         filter: cent2hz(
           this.staticLevels.filter +
             modVol.val * modVol.effects.filter +
@@ -88,128 +88,5 @@ export class Runtime {
   }
   get smpl() {
     return this.sample;
-  }
-}
-
-export class LFO {
-  sampleRate: number = 48000;
-  amount: number = 0;
-  delta: number;
-  delay: number;
-  cycles: number = 0;
-  effects: ModEffects;
-  constructor(
-    delay: number,
-    freq: centTone,
-    effects: ModEffects,
-    sampleRate: number = 48000
-  ) {
-    this.sampleRate = sampleRate;
-    this.delta = (4.0 * cent2hz(freq)) / sampleRate; //covering distance of 1/4 4 times per cycle..
-    this.delay = delay < -12000 ? 0 : Math.pow(2, delay / 1200) * sampleRate;
-    this.effects = effects;
-  }
-  static fromJSON(str: string) {
-    const obj = JSON.parse(str);
-    return new LFO(obj.delay, obj.freq, obj.effects);
-  }
-  shift(steps: number = 1) {
-    while (steps-- > 0) {
-      if (this.delay-- > 0) continue;
-      this.amount += this.delta;
-      if (this.amount >= 1 || this.amount <= -1) {
-        this.delta = -1 * this.delta;
-        this.cycles++;
-      }
-    }
-    return this.amount;
-  }
-  get val() {
-    return this.amount;
-  }
-}
-
-export class Envelope {
-  effects: ModEffects;
-  state: {
-    stage: number;
-    stageStep: number;
-  } = {
-    stage: 0,
-    stageStep: 0,
-  };
-  sr: number;
-  stages: number[] = [];
-  deltas: number[];
-  keyOff: boolean = false;
-  egval: number;
-  modifier: number;
-  constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
-    if (phases[4]) {
-      const [delay, attack, hold, decay, release] = phases;
-      return new Envelope(
-        { delay, attack, hold, decay, release },
-        sustainCB,
-        sampleRate
-      );
-    }
-    const { delay, attack, hold, decay, release } = phases;
-    this.stages = [delay, attack, hold, decay, release]
-      .map((centime) => Math.pow(2, centime / 1200) * sampleRate)
-      .map((t) => Math.max(1, t));
-    const normalizedSustain = (dbfs - sustainCB) / dbfs;
-    const amts = [0, 0, 1, 1, normalizedSustain, 0];
-    this.deltas = [
-      0,
-      1 / this.stages[1],
-      0,
-      (1 - normalizedSustain) / this.stages[3],
-      -1 / this.stages[4],
-      0,
-    ];
-    this.egval = 0;
-  }
-
-  get done() {
-    return this.egval < -10 || this.state.stage == stagesEnum.done;
-  }
-  get val() {
-    return this.egval;
-  }
-  shift(steps: number) {
-    if (this.state.stage === stagesEnum.done) return 0;
-    while (steps > 0) {
-      this.state.stageStep++;
-      steps--;
-      this.egval += this.deltas[this.state.stage];
-      if (this.state.stageStep >= this.stages[this.state.stage]) {
-        this.state.stage++;
-        this.state.stageStep = 0;
-      }
-    }
-  }
-  get ampCB() {
-    return (1 - this.egval) * dbfs;
-  }
-  get gain() {
-    return Math.min(1, Math.pow(10, this.ampCB / -200.0));
-  }
-  get modCenTune() {
-    return this.effects.pitch * this.egval;
-  }
-  get stage() {
-    return this.state.stage;
-  }
-  *iterator() {
-    if (this.done) return 0;
-    else yield this.val;
-  }
-  triggerRelease() {
-    if (this.state.stage < stagesEnum.release) {
-      this.state.stage = stagesEnum.release;
-      this.state.stageStep = 0;
-      this.stages[stagesEnum.release] =
-        this.egval / this.deltas[stagesEnum.release];
-    }
   }
 }

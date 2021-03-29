@@ -1,29 +1,7 @@
-import { cb } from 'ava';
-import { centibel, centime } from './centTone';
-/**
-ABSOLUTE CENTIBELS - An absolute measure of the attenuation of a signal, based on a reference of
-zero being no attenuation. A centibel is a tenth of a decibel, or a ratio in signal amplitude of the two
-hundredth root of 10, approximately 1.011579454.
-RELATIVE CENTIBELS - A relative measure of the attenua
- */
-
-export enum EnvelopeTarget {
-  VOLUME,
-  PITCH,
-  FILTER,
-}
-enum stages {
-  delay,
-  attack,
-  hold,
-  decay,
-  release,
-  done,
-}
-const dbfs = 1440;
-
+import { LUT } from './LUT';
+import { centibel, dbfs, ModEffects, stagesEnum } from './runtime.types';
 export class Envelope {
-  target: EnvelopeTarget;
+  effects: ModEffects;
   state: {
     stage: number;
     stageStep: number;
@@ -35,54 +13,74 @@ export class Envelope {
   stages: number[] = [];
   deltas: number[];
   keyOff: boolean = false;
-  ampCB: number;
+  egval: number;
   modifier: number;
-  constructor(
-    envelopePhases: centime[],
-    sustainCB: centibel,
-    sampleRate: number = 48000
-  ) {
-    this.stages = envelopePhases.map((centisec) =>
-      centisec <= -12000 ? 1 : Math.pow(2, centisec / 1200) * sampleRate
-    );
-    const amts = [0, 0, dbfs, dbfs, dbfs - sustainCB, 0];
-    const { delay, attack, hold, decay, release } = stages;
+  constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
+    if (phases[4]) {
+      const [delay, attack, hold, decay, release] = phases;
+      return new Envelope(
+        { delay, attack, hold, decay, release },
+        sustainCB,
+        sampleRate
+      );
+    }
+    const { delay, attack, hold, decay, release } = phases;
+    this.stages = [delay, attack, hold, decay, release]
+      .map((centime) => LUT.centtime2sec(centime) * sampleRate)
+      .map((t) => Math.max(1, t));
+    const normalizedSustain = (dbfs - sustainCB) / dbfs;
+    const amts = [0, 0, 1, 1, normalizedSustain, 0];
     this.deltas = [
       0,
-      amts[attack] - amts[delay],
-      amts[hold] - amts[attack],
-      amts[decay] - amts[hold],
-      amts[release] - amts[hold],
+      1 / this.stages[1],
       0,
-    ].map((change, idx) => change / this.stages[idx]);
-    this.ampCB = 0;
+      (1 - normalizedSustain) / this.stages[3],
+      -1 / this.stages[4],
+      0,
+    ];
+    this.egval = 0;
   }
-  modulate(fn) {
-    fn();
-  }
+
   get done() {
-    return this.ampCB < -10 || this.state.stage == stages.done;
+    return this.egval < -10 || this.state.stage == stagesEnum.done;
   }
   get val() {
-    this.ampCB += this.deltas[this.state.stage];
-    this.state.stageStep++;
-    if (this.state.stageStep >= this.stages[this.state.stage]) {
-      this.state.stage++;
-      this.state.stageStep = 0;
+    return this.egval;
+  }
+  shift(steps: number) {
+    if (this.state.stage === stagesEnum.done) return 0;
+    while (steps > 0) {
+      this.state.stageStep++;
+      steps--;
+      this.egval += this.deltas[this.state.stage];
+      if (this.state.stageStep >= this.stages[this.state.stage]) {
+        this.state.stage++;
+        this.state.stageStep = 0;
+      }
     }
-    return this.ampCB;
+  }
+  get ampCB() {
+    return (1 - this.egval) * dbfs;
   }
   get gain() {
-    return Math.pow(10, (1 - this.val) / 200);
+    return Math.min(1, LUT.getAmp(this.ampCB));
+  }
+  get modCenTune() {
+    return this.effects.pitch * this.egval;
   }
   get stage() {
     return this.state.stage;
   }
+  *iterator() {
+    if (this.done) return 0;
+    else yield this.val;
+  }
   triggerRelease() {
-    if (this.state.stage < stages.release) {
-      this.state.stage = stages.release;
+    if (this.state.stage < stagesEnum.release) {
+      this.state.stage = stagesEnum.release;
       this.state.stageStep = 0;
-      this.stages[stages.release] = this.ampCB / this.deltas[stages.release];
+      this.stages[stagesEnum.release] =
+        this.egval / this.deltas[stagesEnum.release];
     }
   }
 }

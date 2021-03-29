@@ -88,8 +88,6 @@ export class SF2File {
   }
   key(key, vel = 57) {
     this.rend_ctx.keyOn(key, vel, 0);
-
-    //this.rend_ctx.render(48000);
   }
 }
 async function test() {

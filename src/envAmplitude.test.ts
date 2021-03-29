@@ -1,9 +1,7 @@
-import { Envelope } from './runtime';
+import { Envelope } from './envAmplitue';
 import test from 'ava';
-import { readFileSync } from 'fs';
-import { assert } from 'console';
 import { SF2File } from './sffile';
-import { centidb2gain } from './centTone';
+import { dbfs } from './runtime.types';
 test('baisc', (t) => {
   const g = new Envelope([-12000, -12000, -12000, -4000, -333], 333, 48000);
   t.is(g.stages.length, 5);
@@ -36,4 +34,21 @@ test('piano', (t) => {
     //  console.log(v);
     //   console.log(centidb2gain(v));
   }
+});
+test('1 second ramp up, 1 second ramp down, sr 1000', (t) => {
+  const [delay, attack, hold, decay, release] = [
+    -12000,
+    1200,
+    -12000,
+    1200,
+    -12000,
+  ];
+  const env = new Envelope({ delay, attack, hold, decay, release }, 960, 1000);
+  t.is(env.egval, 0);
+  t.is(env.ampCB, dbfs);
+  t.is(env.gain, Math.pow(10, -dbfs / 200));
+  env.shift(15);
+  console.log(env.stages, env.ampCB);
+  t.is(env.stage, 1);
+  t.assert(env.ampCB - dbfs * 0.985 < 100);
 });

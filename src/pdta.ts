@@ -2,65 +2,7 @@ import * as sfTypes from './sf.types';
 import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
-
-export type Phdr = {
-  name: string;
-  presetId: number;
-  bankId: number;
-  pbagIndex: number;
-  pbags?: number[]; // & not *
-  defaultBag: number;
-  insts?: number[];
-  ibagSet?: Set<number>;
-};
-export type Pbag = {
-  pgen_id: number;
-  pmod_id: number;
-  pzone: SFZone;
-};
-export type IBag = {
-  igen_id: number;
-  imod_id: number;
-  izone: SFZone;
-};
-export type Mod = {
-  src: number;
-  dest: number;
-  amt: number;
-  amtSrc: number;
-  transpose: number;
-};
-export type InstrHeader = {
-  name: string;
-  iBagIndex: number;
-  ibags?: number[];
-  defaultIbag?: number;
-};
-export type Shdr = {
-  name: string;
-  start: number;
-  end: number;
-  startLoop: number;
-  endLoop: number;
-  sampleRate: number;
-  originalPitch: number;
-  pitchCorrection: number;
-  sampleLink: number;
-  sampleType: number;
-};
-
-export type GenSet = Record<number, SFGenerator>;
-const sampleId_gen = 53;
-
-const instrumentGenerator = 41;
-const ShdrLength = 46;
-const imodLength = 10;
-const phdrLength = 38;
-const pbagLength = 4;
-const pgenLength = 4,
-  igenLength = 4;
-const pmodLength = 10;
-const instLength = 22;
+import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -76,6 +18,14 @@ export class PDTA {
   constructor(r: Reader) {
     let n = 0;
     do {
+      const ShdrLength = 46;
+      const imodLength = 10;
+      const phdrLength = 38;
+      const pbagLength = 4;
+      const pgenLength = 4,
+        igenLength = 4;
+      const pmodLength = 10;
+      const instLength = 22;
       const sectionName = r.read32String();
       const sectionSize = r.get32();
       switch (sectionName) {
@@ -275,10 +225,6 @@ export class PDTA {
         (pbg) => pbg.pzone.instrumentID > -1 && instMap[pbg.pzone.instrumentID]
       )
       .map((pbg) => {
-        if (!pbg) {
-          console.log(phead.pbags);
-        }
-
         const output = instMap[pbg.pzone.instrumentID];
         if (defaultPbag) {
           output.mergeWith(defaultPbag);

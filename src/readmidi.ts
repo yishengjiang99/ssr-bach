@@ -150,7 +150,7 @@ export function readMidi(
             onMsg('icd,', fgetc());
             break;
           case 0xf6:
-            console.log('list tunes');
+            onMsg('list tunes');
             break;
           case 0xf7:
           case 0xf8:
@@ -166,8 +166,7 @@ export function readMidi(
             onMsg('stop');
             break;
           default:
-            console.log(msg);
-            console.log('wtf');
+            onMsg(msg);
             break;
         }
       } else {

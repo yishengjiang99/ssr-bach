@@ -1,19 +1,9 @@
-import * as sfTypes from './sf.types';
-import assert from 'assert';
-import { Shdr } from './pdta';
 import { SF2File } from './sffile';
 import { LUT } from './LUT';
-import { SFZone } from './Zone';
-import { centibel } from './centTone';
-import { Envelope, Runtime } from './runtime';
+import { Runtime } from './runtime';
 import { Writable } from 'node:stream';
 import { loop } from './Utils';
 
-type Program = {
-  bankId: number;
-  presetId: number;
-};
-const log2of48000 = 18660; //Math.log2(48000) * 1200;
 export class RenderCtx {
   sampleRate: number = 48000;
   voices: Runtime[] = [];
@@ -91,7 +81,7 @@ export class RenderCtx {
       let currentVal = outputArr.readFloatLE(outputByteOffset);
       if (isNaN(currentVal)) currentVal = 0.0;
       let newVal;
-      if (offset > 4) {
+      if (offset > 1) {
         const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
           input.readFloatLE((iterator + i) * 4)
         );
@@ -113,10 +103,10 @@ export class RenderCtx {
       if (process.env.debug) {
         console.log(
           offset,
-          volume,
+          `\n iter: ${iterator}`,
+          `\n modvols:v${volume}\np:${pitch}\n`,
           currentVal,
-          newVal,
-          input.readFloatLE(outputByteOffset)
+          newVal
         );
       }
       shift += pitch;
@@ -128,10 +118,6 @@ export class RenderCtx {
 
       if (iterator >= voice.sample.endLoop) {
         iterator -= looper;
-      }
-      if (iterator >= voice.sample.end) {
-        //  console.log('hit sample emd ,,,', channel.length);
-        // if (voice.length > 0) throw 'error with loop';
       }
     }
 

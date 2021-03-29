@@ -1,14 +1,12 @@
 import { centidb2gain } from './centTone';
-import { Envelope, Runtime } from './runtime';
+import { Runtime } from './runtime';
 import { sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
-import { resolve } from 'path';
 import { ffp } from './sinks';
 import { loop } from './Utils';
-import { createWriteStream, writeSync } from 'fs';
+import { createWriteStream } from 'fs';
 import { sleep } from './utilv1';
-import { uploadSync, wsclient } from 'grepupload';
-import { PassThrough } from 'stream';
+import { Envelope } from './envAmplitue';
 import { SFZone } from './Zone';
 import { SFGenerator } from './generator';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;

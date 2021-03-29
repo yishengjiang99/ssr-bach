@@ -1,23 +1,25 @@
 import { SFGenerator } from './generator';
+import { SFZone } from './Zone';
 
 export type Phdr = {
   name: string;
   presetId: number;
   bankId: number;
   pbagIndex: number;
-  pbags?: Pbag[];
+  pbags?: number[]; // & not *
+  defaultBag: number;
+  insts?: number[];
+  ibagSet?: Set<number>;
 };
-export type SFGen = SFGenerator;
 export type Pbag = {
   pgen_id: number;
   pmod_id: number;
-  pgens: Record<number, SFGenerator>;
+  pzone: SFZone;
 };
 export type IBag = {
   igen_id: number;
   imod_id: number;
-  igens: Record<number, SFGenerator>;
-  sample?: Shdr;
+  izone: SFZone;
 };
 export type Mod = {
   src: number;
@@ -26,7 +28,12 @@ export type Mod = {
   amtSrc: number;
   transpose: number;
 };
-export type InstrHeader = { name: string; iBagIndex: number; ibags?: IBag[] };
+export type InstrHeader = {
+  name: string;
+  iBagIndex: number;
+  ibags?: number[];
+  defaultIbag?: number;
+};
 export type Shdr = {
   name: string;
   start: number;
@@ -39,4 +46,3 @@ export type Shdr = {
   sampleLink: number;
   sampleType: number;
 };
-export type GenSet = Record<number, SFGenerator>;

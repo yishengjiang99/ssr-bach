@@ -1,8 +1,7 @@
 import { centibel, LOOPMODES } from './centTone';
 import { SFGenerator } from './generator';
-import { Shdr } from './pdta';
-import assert from 'assert';
-import { generatorNames, sf_gen_id } from './sf.types';
+import { Shdr } from './pdta.types';
+import { sf_gen_id } from './sf.types';
 type LFOParams = typeof SFZone.defaultLFO;
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };

@@ -1,14 +1,12 @@
 import test from 'ava';
-import { cent2hz, timecent2sec } from './centTone';
+import { cent2hz } from './centTone';
 import { cspawn } from './cspawn';
-import { RenderCtx } from './render-ctx';
-
-import { Envelope, LFO, Runtime } from './runtime';
+import { Runtime } from './Runtime';
+import { Envelope } from './envAmplitue';
+import { LFO } from './LFO';
 import { dbfs } from './runtime.types';
-import { generatorTypes, sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
-import { tc2ms } from './timecent2ms';
 import { loop, pt } from './Utils';
 import { SFZone } from './Zone';
 
@@ -63,23 +61,6 @@ test('runtime function', (t) => {
   t.truthy(rt.staticLevels.pitch);
 });
 
-test('1 second ramp up, 1 second ramp down, sr 1000', (t) => {
-  const [delay, attack, hold, decay, release] = [
-    -12000,
-    1200,
-    -12000,
-    1200,
-    -12000,
-  ];
-  const env = new Envelope({ delay, attack, hold, decay, release }, 960, 1000);
-  t.is(env.egval, 0);
-  t.is(env.ampCB, dbfs);
-  t.is(env.gain, Math.pow(10, -dbfs / 200));
-  env.shift(15);
-  console.log(env.stages, env.ampCB);
-  t.is(env.stage, 1);
-  t.assert(env.ampCB - dbfs * 0.985 < 100);
-});
 test.only('some real values', async (t) => {
   const ff = new SF2File('file.sf2');
   const ffplay = ffp();

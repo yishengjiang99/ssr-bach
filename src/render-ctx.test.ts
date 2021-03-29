@@ -18,7 +18,8 @@ test('renderctx', (t) => {
   );
 });
 test('mixing', (t) => {
-  const ctx = new RenderCtx(new SF2File('sm.sf2'));
+  const rff = new SF2File('file.sf2');
+  const ctx = rff.rend_ctx;
   ctx.keyOn(55, 77, 0);
   ctx.keyOn(67, 44, 1);
   const b = ctx.render(466);
