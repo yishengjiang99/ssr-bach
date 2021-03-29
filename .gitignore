@@ -1,3 +1,6 @@
+
+sf2
+public/build/*
 cache/*
 node_modules
 midisf/**/*pcm
