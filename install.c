@@ -11,7 +11,7 @@ static tml_message *g_MidiMessage;
 int main(int argc, char **argv)
 {
 
-	g_TinySoundFont = tsf_load_filename("./FluidR3_GM.sf2");
+	g_TinySoundFont = tsf_load_filename("./sf2/file.sf2");
 
 	if (argc < 2)
 	{
@@ -31,8 +31,8 @@ int main(int argc, char **argv)
 
 	int durationMS = strcmp(argv[2], "fast") == 0 ? 500 : 2000;
 	int velocity = strcmp(argv[2], "fast") == 9 ? 120 : strcmp(argv[2], "slow") == 0 ? 40
-													: strcmp(argv[2], "mid") == 0	 ? 75
-																					 : (int)argv[2];
+																									: strcmp(argv[2], "mid") == 0		 ? 75
+																																									 : (int)argv[2];
 	int n = durationMS * 48;
 	char filename[55];
 

@@ -5,11 +5,11 @@ import { PassThrough, Writable } from "stream";
 import { convertMidi } from "./load-sort-midi";
 import { NoteEvent, RemoteControl } from "./ssr-remote-control.types";
 import { sleep } from "./utils";
-import { get } from "https";
-import { execSync } from "child_process";
-import { resolveBuffer } from "./bytesPerNote";
-import { ffp, lowpassFilter } from "./sinks";
 
+import { devnull, ffp, lowpassFilter } from "./sinks";
+import { SF2File } from "./resolvesf/sffile";
+const sff = new SF2File("./sf2/file.sf2");
+const secondsPerFrame = 1 / 48000;
 const spriteBytePeSecond = 48000 * 2 * 4;
 class PulseTrackSource extends PulseSource {
   note: NoteEvent;
@@ -89,57 +89,53 @@ export class Player {
     autoStart: boolean = true,
     playbackRate: number = 1
   ): RemoteControl => {
-    const ctx = this.ctx;
+    const ctx = sff.rend_ctx;
+
     const controller = convertMidi(file);
     this.nowPlaying = controller;
-    this.tracks = new Array(controller.state.tracks.length);
+    controller.state.tracks.forEach((t, i) => {
+      ctx.programs[i] = {
+        bankId: t.percussion ? 128 : 0,
+        presetId: t.instrument,
+      };
+    });
     controller.setCallback(
       async (notes: NoteEvent[]): Promise<number> => {
         const startloop = process.uptime();
-
         notes.map((note, i) => {
-          const bytelength = spriteBytePeSecond * note.durationTime;
-
-          if (this.tracks[note.trackId]) {
-            this.tracks[note.trackId].buffer = Buffer.alloc(0);
-            this.tracks[note.trackId] = null;
-          }
-          this.tracks[note.trackId] = new PulseTrackSource(ctx, {
-            buffer: resolveBuffer(note, bytelength),
-            trackId: note.trackId,
-            note: note,
-            velocity: note.velocity,
-          });
+          ctx.keyOn(
+            note.midi,
+            note.velocity * 0x7f,
+            note.durationTime * 5,
+            note.start - controller.state.time + 0.4,
+            note.trackId
+          );
+          console.log(
+            note.start - controller.state.time,
+            note.start + note.durationTime - controller.state.time
+          );
+          // ctx.keyOff(
+          //   note.trackId,
+          //   note.start + note.durationTime - controller.state.time
+          // );
         });
         const elapsed = process.uptime() - startloop;
-        await sleep((ctx.secondsPerFrame * 1000) / playbackRate);
-        return ctx.secondsPerFrame;
+        await sleep(100 - elapsed);
+        //   console.log(ctx.voices.filter((v) => v && v.length > 0));
+        return 0.1;
       }
     );
     this.output = output;
 
     if (autoStart) controller.start();
 
+    let locked = 0;
     this.timer = setInterval(() => {
-      const summingbuffer = new DataView(Buffer.alloc(ctx.blockSize).buffer);
-      let inputViews: [Buffer, PulseTrackSource][] = this.tracks
-        .filter((t, i) => t && t.buffer && t.buffer.byteLength >= ctx.blockSize)
-        .map((t) => [t.read(), t]);
-
-      const n = inputViews.length;
-
-      for (let k = 0; k < ctx.blockSize; k += 4) {
-        let sum = 0;
-
-        for (let j = n - 1; j >= 0; j--) {
-          sum = sum + inputViews[j][0].readFloatLE(k) * inputViews[j][1].envelope.shift();
-        }
-
-        summingbuffer.setFloat32(k, sum, true);
-      }
-
-      if (!output.writableEnded) output.write(Buffer.from(summingbuffer.buffer));
-    }, (ctx.secondsPerFrame * 1000) / playbackRate);
+      if (locked == 1) return;
+      locked = 1;
+      output.write(ctx.render(128));
+      locked = 0;
+    }, (secondsPerFrame * 1000) / playbackRate);
 
     output.on("close", () => {
       controller.stop();
@@ -150,10 +146,4 @@ export class Player {
   timer: NodeJS.Timeout;
   tracks: PulseTrackSource[];
 }
-if (process.argv[2]) {
-  //  const pt = new PassThrough();
-  new Player().playTrack(
-    process.argv[2],
-    new PassThrough().pipe(lowpassFilter(3000).stdout.pipe(ffp()))
-  ); // lowpassFiler(4000).stdout.pipe(ffp()));
-}
+new Player().playTrack("midi/song.mid", ffp()); // lowpassFiler(4000).stdout.pipe(ffp()));

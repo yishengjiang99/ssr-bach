@@ -23,11 +23,9 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     time: 0,
     stop: false,
     tracks: tracks.map((t, i) => ({
-      trackId: i,
+      trackId: t.channel,
       percussion: t.instrument.percussion,
-      instrument: t.instrument.percussion
-        ? DrumKitByPatchID[t.instrument.number]
-        : std_inst_names[t.instrument.number],
+      instrument: t.instrument.number,
       mute: false,
     })),
     duration: durationTicks / header.ppq,
@@ -82,7 +80,9 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
     // const ticksPerSecond = (state.tempo.bpm / 60) * header.ppq;
     while (tracks.length > done) {
       const notesstarting: NoteEvent[] = [];
+      const tickWindow = header.secondsToTicks(state.time + 0.5);
       const currentTick = header.secondsToTicks(state.time);
+
       for (let i = 0; i < tracks.length; i++) {
         if (doneSet.has(i)) continue;
         if (!tracks[i].notes || tracks[i].notes.length === 0) {
@@ -90,28 +90,26 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
           done++;
           continue;
         }
-        if (tracks[i].notes[0] && tracks[i].notes[0].ticks <= currentTick) {
+        while (tracks[i].notes[0] && tracks[i].notes[0].ticks <= tickWindow) {
           const note = tracks[i].notes.shift();
-          if (currentTick - note.ticks < 500) {
-            const noteEvent = {
-              ...note,
-              name: note.name,
-              trackId: i,
-              channelId: tracks[i].channelId, //tracks[i].instrument.number,
-              start: header.ticksToSeconds(note.ticks),
-              durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
-              velocity: note.velocity,
-              instrumentNumber:
-                tracks[i].channelId === 9
-                  ? std_drums[tracks[i].instrument.number]
-                  : tracks[i].instrument.number,
-              instrument: std_inst_names[tracks[i].instrument.number],
-            };
-            notesstarting.push(noteEvent);
-            emitter.emit("note", noteEvent);
-          } else {
-            //discarding notes too far i the past.. which is valid case in ff playback
-          }
+          const noteEvent = {
+            ...note,
+            name: note.name,
+            trackId: tracks[i].channel,
+            channelId: tracks[i].channel, //tracks[i].instrument.number,
+            start: header.ticksToSeconds(note.ticks),
+            durationTime: secondsPerTick(state.tempo.bpm) * note.durationTicks,
+            velocity: note.velocity,
+            instrumentNumber:
+              tracks[i].channel === 9
+                ? std_drums[tracks[i].instrument.number]
+                : tracks[i].instrument.number,
+            instrument: std_inst_names[tracks[i].instrument.number],
+          };
+          notesstarting.push(noteEvent);
+          emitter.emit("note", noteEvent);
+
+          //console.log("adding ", noteEvent.channelId, noteEvent.start);
         }
         if (tempos[1] && currentTick >= tempos[1].ticks) {
           tempos.shift();
@@ -123,7 +121,6 @@ export function convertMidi(source: MidiFile, cb?: CallbackFunction): RemoteCont
       emitter.emit("notes", notesstarting);
 
       state.time += await callback(notesstarting);
-
       if (Math.floor(state.time) > intval) {
         emitter.emit("#time", { seconds: state.time });
       }
@@ -152,7 +149,7 @@ export function convertMidiRealTime(file): RemoteControl {
 
 export const convertMidiASAP = (file: MidiFile): RemoteControl => {
   const controller = convertMidi(file, async function () {
-    await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
+    // await sleep(0); //achieves real tiem by asking 'is it next beat yet every 10 ms
     return 0.1;
   });
   controller.start();

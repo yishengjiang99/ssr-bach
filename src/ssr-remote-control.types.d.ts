@@ -53,7 +53,7 @@ export type ControllerState = {
   stop: boolean;
   midifile: MidiFile;
   time: number;
-  tracks?: { trackId: number; instrument: string; mute: boolean }[];
+  tracks?: { percussion: boolean; trackId: number; instrument: number; mute: boolean }[];
   tempo: TempoEvent;
   duration: number;
   timeSignature: TimeSignatureEvent;

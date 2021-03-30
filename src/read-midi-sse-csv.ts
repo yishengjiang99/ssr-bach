@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
+import { createWriteStream } from "fs";
 import { Readable, Transform, Writable } from "stream";
-import { readConfigFile } from "typescript";
+
 import { convertMidi, convertMidiASAP, convertMidiRealTime } from "./load-sort-midi";
 export const readMidiSSE = ({
   request,
@@ -69,3 +70,5 @@ export function readAsCSV(midifile: string | EventEmitter): Readable {
 
   return readable;
 }
+const fp = createWriteStream("./cc.csv");
+readAsCSV("midi/song.mid").on("data", (d) => fp.write("m" + d.toString()));

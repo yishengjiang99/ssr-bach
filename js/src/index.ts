@@ -20,16 +20,22 @@ wschan.onmessage = ({ data: { stats, msg, event, info } }) => {
   }
   if (stats) onStats(stats);
 };
-const wswoker = new Worker("./js/build/ws-worker.js");
 
 let writer;
 
 const selector = document.querySelector("select");
-const buttons:NodeListOf<HTMLButtonElement> = document.querySelector("footer").querySelectorAll<'button'>("button");
-buttons.forEach(button=>button.addEventListener("click", ()=>{  
-  
-  fetch('/pcm',{method:"POST",body: button.getAttribute("msg")})
-},{once:true}));
+const buttons: NodeListOf<HTMLButtonElement> = document
+  .querySelector("footer")
+  .querySelectorAll<"button">("button");
+buttons.forEach((button) =>
+  button.addEventListener(
+    "click",
+    () => {
+      fetch("/pcm", { method: "POST", body: button.getAttribute("msg") });
+    },
+    { once: true }
+  )
+);
 
 selector.onchange = () => {
   start(selector.value);
