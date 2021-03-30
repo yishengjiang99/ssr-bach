@@ -36,7 +36,7 @@ const t2 = () => {
   const ctx = new SF2File('file.sf2').rend_ctx;
   ctx.keyOn(44, 45, 0);
   let n = 48000 * 2;
-  console.log(ctx.voices);
+  console.log(ctx.voices[0].mods.vibrLFO);
 
   while (n > 0) {
     const fl = ctx.render(1024);

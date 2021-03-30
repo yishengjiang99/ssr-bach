@@ -1,9 +1,8 @@
 import { SF2File } from './sffile';
 import test from 'ava';
 import { reader } from './reader';
-import { loadMidi, loadMidiaa } from './load-midi';
 import { Midi } from '@tonejs/midi';
-import { readFile, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 const { performance, PerformanceObserver } = require('perf_hooks');
 
 test('pdta', (t) => {

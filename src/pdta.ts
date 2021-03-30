@@ -3,6 +3,7 @@ import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
+import { match } from 'node:assert';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -192,7 +193,6 @@ export class PDTA {
    */
   findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
-
     const phead = phdr.filter(
       (p) => p.bankId == bank_id && p.presetId == pid
     )[0];
@@ -204,36 +204,39 @@ export class PDTA {
       ? pbag[phead?.defaultBag]?.pzone
       : null;
     const instMap = {};
-
     Array.from(phead.ibagSet.values())
       .map((ibagId) => ibag[ibagId])
       .filter((ibag) => this.keyVelInRange(ibag.izone, key, vel))
       .forEach((ibg) => {
+        if (!ibg.izone.sampleID || !shdr[ibg.izone.sampleID]) return;
+        const instId = ibg.izone.instrumentID;
+        instMap[instId] = instMap[instId] || [];
         const output = new SFZone();
         const defaultIbag = iheaders[ibg.izone.instrumentID].defaultIbag;
         if (defaultIbag && ibag[defaultIbag]?.izone) {
           output.mergeWith(ibag[defaultIbag].izone);
         }
         output.mergeWith(ibg.izone);
-        output.instrumentID = ibg.izone.instrumentID;
-        instMap[ibg.izone.instrumentID] = output;
+        instMap[instId].push(output);
       });
-    return phead.pbags
+
+    const matchedPbags = phead.pbags
       .map((pbagId) => pbag[pbagId])
       .filter((pbag) => this.keyVelInRange(pbag.pzone, key, vel))
       .filter(
         (pbg) => pbg.pzone.instrumentID > -1 && instMap[pbg.pzone.instrumentID]
-      )
-      .map((pbg) => {
-        const output = instMap[pbg.pzone.instrumentID];
-        if (defaultPbag) {
-          output.mergeWith(defaultPbag);
-        }
-        output.mergeWith(pbg.pzone);
+      );
+
+    const zones = [];
+    for (const pbag of matchedPbags) {
+      for (const output of instMap[pbag.pzone.instrumentID]) {
+        if (defaultPbag) output.mergeWith(defaultPbag);
+        output.mergeWith(pbag.pzone);
         output.sample = shdr[output.sampleID];
-        //        pbg.pzone.generators.forEach((g) => output.applyGenVal(g));
-        return output;
-      });
+        zones.push(output);
+      }
+    }
+    return zones;
   }
   keyVelInRange(zone, key, vel): boolean {
     return (

@@ -71,7 +71,15 @@ export class Runtime {
             modLFO.amount * modLFO.effects.volume
         ),
         pitch:
-          LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
+          LUT.relPC[
+            ~~(
+              this.staticLevels.pitch +
+              modVol.modCenTune +
+              vibrLFO.amount * vibrLFO.effects.pitch +
+              modLFO.amount * vibrLFO.effects.pitch +
+              1200
+            )
+          ],
         filter: cent2hz(
           this.staticLevels.filter +
             modVol.val * modVol.effects.filter +

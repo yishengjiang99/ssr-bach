@@ -15,6 +15,7 @@ export class SF2File {
   pdta: PDTA;
   sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
+  path: string;
   static fromURL(url: string, cb) {
     fetch(url)
       .then((res) => res.arrayBuffer())
@@ -23,12 +24,8 @@ export class SF2File {
       });
   }
   constructor(path: string = '') {
-    if (path) {
-      const r = reader(path);
-      this.read(r);
-    }
-  }
-  read(r) {
+    const r = reader(path);
+    this.path = path;
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
     assert(r.read32String(), 'sfbk');
@@ -63,11 +60,11 @@ export class SF2File {
     this.rend_ctx = new RenderCtx(this);
   }
 
-  findPreset = (props: sfTypes.FindPresetProps): SFZone[] => {
+  findPreset(props: sfTypes.FindPresetProps): SFZone[] {
     const { bankId, presetId, key, vel } = props;
     const zones = this.pdta.findPreset(presetId, bankId, key, vel);
     return zones;
-  };
+  }
   stdout() {
     this.rend_ctx.output = cspawn(
       'ffplay -f f32le -i pipe:0 -ac 2 -ar 48000'
@@ -90,16 +87,5 @@ export class SF2File {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
-async function test() {
-  const ff = new SF2File('file.sf2');
-  ff.rend_ctx.output = process.stdout; //();
-
-  ff.play('piano', 55, 55);
-  ff.rend_ctx.render(48000);
-  ff.play('trumpet', 56, 66);
-  ff.rend_ctx.render(48000);
-
-  ff.play('french', 55, 44);
-  ff.rend_ctx.render(48000);
-  ff.rend_ctx.output.end();
-}
+// const f = new SF2File('sf2/file.sf2');
+// console.log(f.rend_ctx);

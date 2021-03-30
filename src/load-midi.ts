@@ -3,17 +3,6 @@ import { readFileSync } from 'fs';
 import { Writable } from 'stream';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
-import * as Comlink from 'comlink/dist/esm/comlink';
-import nodeEndpoint from 'comlink/dist/esm/node-adapter';
-
-async function init(sffile, midfile) {
-  const worker = new Worker('./worker.mjs');
-  //@ts-ignore
-  const api = Comlink.wrap(nodeEndpoint(worker));
-  //@ts-ignore
-  console.log(api.loadSF2(sffile));
-}
-init('file.sf2', 'song.mid');
 const midi_chan_vol_cc = 11;
 const midi_mast_vol_cc = 7;
 interface loadMidiProps {

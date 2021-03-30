@@ -1,10 +1,8 @@
 import test from 'ava';
-import { cent2hz } from './centTone';
 import { cspawn } from './cspawn';
 import { Runtime } from './Runtime';
-import { Envelope } from './envAmplitue';
 import { LFO } from './LFO';
-import { dbfs } from './runtime.types';
+import { cent2hz } from './runtime.types';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
 import { loop, pt } from './Utils';
@@ -61,7 +59,7 @@ test('runtime function', (t) => {
   t.truthy(rt.staticLevels.pitch);
 });
 
-test.only('some real values', async (t) => {
+test('some real values', async (t) => {
   const ff = new SF2File('file.sf2');
   const ffplay = ffp();
   const odf = cspawn('od -f');

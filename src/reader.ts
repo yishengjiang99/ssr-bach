@@ -17,6 +17,7 @@ export type Reader = {
   varLenInt: () => number;
   getUint16: () => number;
   seekToString: (str: string) => number | false;
+  fd: number;
 };
 export const LE = 0x00;
 export const BE = 0x01;
@@ -127,5 +128,6 @@ export function reader(path: string, opts: number = 0): Reader {
     readN,
     readNString,
     varLenInt,
+    fd,
   };
 }
