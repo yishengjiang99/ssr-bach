@@ -3,7 +3,6 @@ import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
-import { match } from 'node:assert';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -16,6 +15,7 @@ export class PDTA {
   ibag: IBag[] = [];
   shdr: Shdr[] = [];
   igen_sets: any[];
+  ibagSets: Set<number>[] = [];
   constructor(r: Reader) {
     let n = 0;
     do {
@@ -40,6 +40,7 @@ export class PDTA {
               misc: [r.get32(), r.get32(), r.get32()],
               pbags: [],
               insts: [],
+              ibagSet: new Set<number>(),
               defaultBag: -1,
             };
             this.phdr.push(phdrItem);
@@ -53,6 +54,7 @@ export class PDTA {
               pzone: new SFZone(),
             });
           }
+          this.pbag.push({ pgen_id: -1, pmod_id: 0, pzone: new SFZone() });
           break;
         case 'pgen':
           let pgenId = 0,
@@ -192,6 +194,7 @@ export class PDTA {
    * was done to ensure correctness
    */
   findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
+    console.log(pid, bank_id, key, vel);
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
     const phead = phdr.filter(
       (p) => p.bankId == bank_id && p.presetId == pid

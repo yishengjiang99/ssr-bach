@@ -6,9 +6,35 @@ import { loop } from './Utils';
 
 export class RenderCtx {
   sampleRate: number = 48000;
+  fps: 350 = 350;
   voices: Runtime[] = [];
   outputCard: Buffer = Buffer.alloc(1024);
   programs: { presetId: number; bankId: number }[];
+  staging = {
+    queue: new Array(this.fps * 10).fill([]),
+    index: 0,
+  };
+  get productionNow() {
+    return this.staging.queue[this.staging.index];
+  }
+  pushToProduction() {
+    while (this.productionNow.length) {
+      const { channelId, rt, keyoff } = this.productionNow.shift();
+      if (keyoff == 1 && this.voices[channelId]) {
+        this.voices[channelId]?.mods.ampVol.triggerRelease();
+        this.voices[channelId].length = this.voices[
+          channelId
+        ]?.mods.ampVol.stages[4];
+        console.log('v off', channelId);
+      }
+      if (rt) {
+        this.voices[channelId] = rt;
+        console.log('v on', channelId);
+      }
+    }
+    this.staging.index++;
+    if (this.staging.index >= this.fps * 10) this.staging.index = 0;
+  }
   constructor(private sff: SF2File) {
     LUT.init();
     this.programs = [
@@ -44,16 +70,20 @@ export class RenderCtx {
     this._chanVols = value;
   }
 
-  keyOn(key, vel, channelId = 0) {
+  keyOn(key, vel, delay = 0, channelId = 0) {
+    //if (channelId > 6) return;
     const { presetId, bankId } = this.programs[channelId];
+
     const zones = this.sff.findPreset({
       bankId,
       presetId,
       key,
       vel,
     });
+
     if (!zones || !zones.length) return;
-    this.voices[channelId] = new Runtime(
+
+    const rt = new Runtime(
       zones[0],
       {
         key: key,
@@ -62,19 +92,34 @@ export class RenderCtx {
       },
       this
     );
-
-    return this.voices[channelId];
+    if (delay == 0) {
+      this.voices[channelId] = rt;
+    } else {
+      this.staging.queue[this.staging.index + delay * this.fps + 1].push({
+        channelId,
+        rt,
+      });
+    }
+    return rt;
   }
 
-  keyOff(channelId) {
-    this.voices[channelId]?.mods.ampVol.triggerRelease();
+  keyOff(channelId, delay) {
+    let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
+
+    if (scheduledIndex >= this.fps * 10)
+      scheduledIndex = scheduledIndex - this.fps * 10;
+    this.staging.queue[scheduledIndex].push({
+      channelId,
+      keyoff: 1,
+    });
+    console.log('sechded off idx', scheduledIndex, channelId);
   }
-  _render(voice: Runtime, outputArr: Buffer, blockLength) {
+  _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
     const input: Buffer = this.sff.sdta.data;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;
-
+    // const pitch = LUT.relPC[~~voice.staticLevels.pitch];
     const { volume, pitch, filter } = voice.run(blockLength);
     for (let offset = 0; offset < blockLength; offset++) {
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
@@ -100,15 +145,7 @@ export class RenderCtx {
         sum * voice.staticLevels.pan.right,
         outputByteOffset + 4
       );
-      if (process.env.debug) {
-        console.log(
-          offset,
-          `\n iter: ${iterator}`,
-          `\n modvols:v${volume}\np:${pitch}\n`,
-          currentVal,
-          newVal
-        );
-      }
+
       shift += pitch;
 
       while (shift >= 1) {
@@ -125,19 +162,20 @@ export class RenderCtx {
     voice.iterator = iterator;
   }
   output: Writable;
-  render = (blockSize) => {
+  render(blockSize) {
+    this.pushToProduction();
     const ob = Buffer.alloc(blockSize * Float32Array.BYTES_PER_ELEMENT * 2);
     loop(blockSize * 2, (n) =>
       ob.writeFloatLE(0, n * Float32Array.BYTES_PER_ELEMENT)
     );
-    this.voices
-      .filter((v) => v.length && v.length > 0)
-      .map((voice) => {
-        this._render(voice, ob, blockSize);
-      });
+    const activev = this.voices.filter((v) => v.length && v.length > 0);
+    activev.forEach((voice) => {
+      //  console.log(voice.sample.originalPitch, voice.zone.instrumentID);
+      this._render(voice, ob, blockSize, activev.length);
+    });
     if (this.output) this.output.write(ob);
     else return ob;
-  };
+  }
 }
 export function hermite4(frac_pos, xm1, x0, x1, x2) {
   const c = (x1 - xm1) * 0.5;

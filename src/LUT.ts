@@ -1,3 +1,4 @@
+import { dbfs } from './runtime.types';
 import { DecibelCent } from './sf.types';
 
 export class LUT {
@@ -14,14 +15,14 @@ export class LUT {
       LUT.absTC[n] = Math.pow(2.0, (n - 12000.0) / 1200.0);
 
     LUT.cent2amp = [];
-    for (let i = 0; i <= 960; i++) {
+    for (let i = 0; i <= dbfs; i++) {
       LUT.cent2amp[i] = Math.pow(10, i / -200.0);
     }
     LUT.velCB = new Array(128);
     LUT.velCB[0] = 0.0;
     LUT.velCB[127] = 1.0;
     for (let i = 1; i < 127; i++) {
-      LUT.velCB[i] = (-200.0 / 960) * Math.log((i * i) / (127 * 127));
+      LUT.velCB[i] = (-200.0 / dbfs) * Math.log((i * i) / (127 * 127));
     }
     for (let n = 0; n < 2400; n++) {
       LUT.relPC[n] = Math.pow(2.0, (n - 1200.0) / 1200.0);
@@ -50,7 +51,7 @@ export class LUT {
   static getAmp(cb) {
     cb = ~~cb;
     if (cb <= 0) return 0;
-    if (cb >= 960) cb = 960;
+    if (cb >= dbfs) cb = dbfs;
     return LUT.cent2amp[cb];
   }
 }

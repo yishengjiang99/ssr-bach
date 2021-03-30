@@ -28,13 +28,13 @@ export class Envelope {
     this.stages = [delay, attack, hold, decay, release]
       .map((centime) => LUT.centtime2sec(centime) * sampleRate)
       .map((t) => Math.max(1, t));
-    const normalizedSustain = (dbfs - sustainCB) / dbfs;
+    const normalizedSustain = -sustainCB / dbfs;
     const amts = [0, 0, 1, 1, normalizedSustain, 0];
     this.deltas = [
       0,
       1 / this.stages[1],
       0,
-      (1 - normalizedSustain) / this.stages[3],
+      normalizedSustain / this.stages[3],
       -1 / this.stages[4],
       0,
     ];
@@ -52,7 +52,7 @@ export class Envelope {
     while (steps > 0) {
       this.state.stageStep++;
       steps--;
-      this.egval += this.deltas[this.state.stage];
+      this.egval = this.egval + this.deltas[this.state.stage];
       if (this.state.stageStep >= this.stages[this.state.stage]) {
         this.state.stage++;
         this.state.stageStep = 0;
@@ -63,7 +63,7 @@ export class Envelope {
     return (1 - this.egval) * dbfs;
   }
   get gain() {
-    return Math.min(1, LUT.getAmp(this.ampCB));
+    return Math.pow(10, this.ampCB / -200.0);
   }
   get modCenTune() {
     return this.effects.pitch * this.egval;

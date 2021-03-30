@@ -31,8 +31,7 @@ export class Runtime {
   constructor(zone: SFZone, note: Note, ctx: RenderCtx) {
     this.zone = zone;
     this.staticLevels = {
-      gainCB:
-        zone.attenuate + LUT.midiCB[note.velocity] * LUT.midiCB[note.velocity],
+      gainCB: zone.attenuate,
 
       pitch:
         note.key * 100 -
@@ -46,6 +45,7 @@ export class Runtime {
         right: 0.5 + zone.pan / 1000,
       },
     };
+
     this.iterator = zone.sampleOffsets.start;
     const ampVol = new Envelope(zone.volEnv.phases, zone.volEnv.sustain);
     const modVol = new Envelope(zone.modEnv.phases, zone.modEnv.sustain);
@@ -64,32 +64,27 @@ export class Runtime {
       zone.modLFO.effects
     );
     this.run = (steps: number) => {
+      modVol.shift(steps);
+      ampVol.shift(steps);
+      // console.log(
+      //   ampVol.stage,
+      //   ampVol.gain,
+      //   this.staticLevels.gainCB + ampVol.ampCB,
+      //   ampVol.ampCB,
+      //   ampVol.egval
+      // );
       const arates = {
-        volume: LUT.getAmp(
-          this.staticLevels.gainCB +
-            ampVol.ampCB +
-            modLFO.amount * modLFO.effects.volume
-        ),
+        volume: Math.pow(10, (this.staticLevels.gainCB + ampVol.ampCB) / 200),
+
         pitch:
-          LUT.relPC[
-            ~~(
-              this.staticLevels.pitch +
-              modVol.modCenTune +
-              vibrLFO.amount * vibrLFO.effects.pitch +
-              modLFO.amount * vibrLFO.effects.pitch +
-              1200
-            )
-          ],
+          LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
         filter: cent2hz(
           this.staticLevels.filter +
             modVol.val * modVol.effects.filter +
             modLFO.val * modLFO.effects.filter
         ),
       };
-      modLFO.shift(steps);
-      modVol.shift(steps);
-      vibrLFO.shift(steps);
-      ampVol.shift(steps);
+
       return arates;
     };
     this.mods = { ampVol, modVol, modLFO, vibrLFO };

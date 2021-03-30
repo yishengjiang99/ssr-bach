@@ -5,7 +5,7 @@ import { createWriteStream, WriteStream } from 'fs';
 
 export const lowpassFilter = (cutoff) => {
   const { stdin, stdout } = cspawn(
-    `ffmpeg -i pipe:0 -filter:a lowpass=f=${cutoff} -`
+    `ffmpeg -nodisp --loglevel=panic -i pipe:0 -filter:a lowpass=f=${cutoff} -`
   );
   return { stdin, stdout };
 };
@@ -18,6 +18,9 @@ export type FfpProps = {
 export const ffp = (props?: FfpProps) => {
   const { ar, ac, format, arg2 } = props || {};
   const { stdin, stderr, stdout } = spawn('ffplay', [
+    '-nodisp',
+    '-loglevel',
+    'panic',
     '-i',
     'pipe:0',
     '-ac',

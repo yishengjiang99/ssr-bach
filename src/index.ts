@@ -9,11 +9,8 @@ import { sleep } from './utilv1';
 import { Envelope } from './envAmplitue';
 import { SFZone } from './Zone';
 import { SFGenerator } from './generator';
+import { frequencyToMidi, keyboardToFreq } from './sound-keys';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
-
-const z = new SFZone();
-z.applyGenVal(new SFGenerator(8, 44));
-console.log(z.generators);
 
 const t1 = async () => {
   const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
@@ -36,6 +33,7 @@ const t2 = () => {
   const ctx = new SF2File('file.sf2').rend_ctx;
   ctx.keyOn(44, 45, 0);
   let n = 48000 * 2;
+  ctx.render(0);
   console.log(ctx.voices[0].mods.vibrLFO);
 
   while (n > 0) {
@@ -44,22 +42,8 @@ const t2 = () => {
     n -= 1024;
   }
 };
-t2();
 
-function ffpiano() {
-  const sff = new SF2File('file.sf2');
-  const ctx = sff.rend_ctx;
-  ctx.programs[1] = { presetId: 0, bankId: 0 };
-  const voice = ctx.keyOn(44, 88, 1);
-
-  const proc = require('./cspawn').cspawn(
-    'ffplay -i pipe:0 -ac 2 -ar 12000 -f s16le'
-  );
-  proc.stdin.write(
-    sff.sdta.bit16s.slice(voice.smpl.start * 2, voice.smpl.end * 2)
-  );
-  proc.stdin.end();
-}
+function ffpiano() {}
 //t3();
 function t5() {
   const sff = new SF2File('file.sf2');
@@ -159,3 +143,28 @@ function testtunning() {
     1000
   );
 }
+const readline = require('readline');
+readline.emitKeypressEvents(process.stdin);
+process.stdin.setRawMode(true);
+const sff = new SF2File('file.sf2');
+const keys = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'q'];
+let ch = 0;
+let ff;
+process.stdin.on('keypress', (str, key) => {
+  const dd = key.name;
+  if (dd == 'q') process.exit(); //exit;
+  console.log(dd);
+  const k = keys.indexOf(dd);
+
+  if (k > -1) {
+    if (!ff) {
+      ff = ffp();
+      setInterval(() => ff.write(sff.rend_ctx.render(256)), 7);
+    }
+    ch++;
+    // sff.rend_ctx.keyOff(ch, 0);
+    sff.rend_ctx.keyOn(k + 60, 66, 0, ch % 12);
+  }
+  console.log(k, dd);
+});
+process.on('SIGILL', () => process.exit);
