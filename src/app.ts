@@ -10,18 +10,6 @@ createServer((req, res) => {
   const [_, cmd, a1, a2, a3] = req.url.split('/');
   switch (cmd) {
     case '':
-      replyhtml(res);
-      res.write('<body><ul>');
-      f.pdta.phdr.map((pheader) => {
-        res.write(
-          `<li>${pheader.presetId}--${pheader.name} '
-					<a href='/pid/${pheader.presetId}'>li</a></li>`
-        );
-      });
-      res.write('</ul></body></html>');
-
-      res.end();
-      break;
     case 'pgen':
       res.writeHead(200, { 'content-type': 'text/html' });
       res.write('<!doctype html><html><body>');

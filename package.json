@@ -11,7 +11,7 @@
   },
   "scripts": {
     "postInstall": "chmod +x ffplay",
-    "dev": "nodemon src/app.ts",
+    "dev": "nodemon -w src -e ts-node src/app.ts",
     "build": "ts-node src/index.ts",
     "test": "npx ava src/*.test.ts"
   },
@@ -42,12 +42,15 @@
   "license": "ISC",
   "dependencies": {
     "@tonejs/midi": "^2.0.27",
+    "@types/node": "^14.14.36",
     "body-parser": "^1.19.0",
     "chrome-launcher": "^0.13.4",
     "comlink": "^4.3.0",
     "express": "^4.17.1",
     "form-data": "^3.0.1",
     "grepupload": "^1.1.10",
+    "iohook": "^0.7.2",
+    "key-events": "^0.1.1",
     "memfs": "^3.2.0",
     "midiread": "^1.0.0",
     "ts-node": "^9.1.1",

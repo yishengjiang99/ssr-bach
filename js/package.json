@@ -16,7 +16,7 @@
     "@types/material-ui": "^0.21.8",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
-    "x-data-spreadsheet": "^1.1.8"
+    "x-data-spreadsheet": "^1.0.27"
   },
   "devDependencies": {
     "@babel/preset-react": "^7.13.13",

@@ -1,3 +1,4 @@
+import * as React from 'react';
 function ZoneUI({ zone, setPane2Txt }) {
   const [details, setDetails] = React.useState('');
   return (
