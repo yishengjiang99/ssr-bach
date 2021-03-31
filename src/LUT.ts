@@ -33,7 +33,7 @@ export class LUT {
     LUT.midiCB[0] = 0;
     LUT.midiCB[127] = 1.0;
     for (let n = 1; n < 128; n++) {
-      LUT.midiCB[n] = -200.0 * Math.log((n / 127) * (n / 127));
+      LUT.midiCB[n] = 200.0 * Math.log(n / 127);
     }
   }
 
@@ -50,8 +50,8 @@ export class LUT {
   }
   static getAmp(cb) {
     cb = ~~cb;
-    if (cb <= 0) return 0;
-    if (cb >= dbfs) cb = dbfs;
+    if (cb <= 0) return 1;
+    if (cb >= dbfs) return 0;
     return LUT.cent2amp[cb];
   }
 }

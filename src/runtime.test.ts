@@ -5,7 +5,7 @@ import { LFO } from './LFO';
 import { cent2hz } from './runtime.types';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
-import { loop, pt } from './Utils';
+import { loop, pt, range } from './Utils';
 import { SFZone } from './Zone';
 
 test('LFO Instantiates and has expected parameters', (t) => {
@@ -59,15 +59,26 @@ test('runtime function', (t) => {
   t.truthy(rt.staticLevels.pitch);
 });
 
-test('some real values', async (t) => {
+test.only('some real values', async (t) => {
   const ff = new SF2File('file.sf2');
-  const ffplay = ffp();
-  const odf = cspawn('od -f');
-  ff.rend_ctx.output = pt((data: Buffer) => {
-    loop(data.byteLength / 4, (n) => {
-      t.assert(data.readFloatLE(n * 4) < 1.0);
+  for (let i = 0; i < 128; i++) {
+    ff.rend_ctx.programs[0] = { presetId: i, bankId: 0 };
+    range(55).map((m) => {
+      const z = ff.rend_ctx.keyOn(m + 30, m + 34);
+      if (!z) {
+        console.log(i, m);
+        return;
+      }
+
+      loop(1555, (it) => {
+        const st = z && z.run(12);
+
+        t.try('st vol ' + [i, m, it].join('-'), () =>
+          t.assert(st.volume < 1.1)
+        );
+      });
     });
-  }, odf.stdin);
-  ff.play('piano', 55, 55);
-  loop(55, () => ff.rend_ctx.render(128));
+    break;
+  }
+  t.pass();
 });

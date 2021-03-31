@@ -3,6 +3,7 @@ import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
+import { SF2File } from './sffile';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -67,7 +68,7 @@ export class PDTA {
             const pg = new SFGenerator(opid, v);
             this.pgen.push(pg);
             if (pg.operator == 60) break;
-            this.pbag[pbagId].pzone.applyGenVal(pg);
+            this.pbag[pbagId].pzone.applyGenVal(pg, pgenId);
             if (
               this.pbag[pbagId + 1] &&
               pgenId >= this.pbag[pbagId + 1].pgen_id - 1
@@ -194,7 +195,6 @@ export class PDTA {
    * was done to ensure correctness
    */
   findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
-    console.log(pid, bank_id, key, vel);
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
     const phead = phdr.filter(
       (p) => p.bankId == bank_id && p.presetId == pid
@@ -214,13 +214,11 @@ export class PDTA {
         if (!ibg.izone.sampleID || !shdr[ibg.izone.sampleID]) return;
         const instId = ibg.izone.instrumentID;
         instMap[instId] = instMap[instId] || [];
-        const output = new SFZone();
         const defaultIbag = iheaders[ibg.izone.instrumentID].defaultIbag;
         if (defaultIbag && ibag[defaultIbag]?.izone) {
-          output.mergeWith(ibag[defaultIbag].izone);
+          ibg.izone.mergeWith(ibag[defaultIbag].izone, 0);
         }
-        output.mergeWith(ibg.izone);
-        instMap[instId].push(output);
+        instMap[instId].push(ibg.izone);
       });
 
     const matchedPbags = phead.pbags
@@ -232,9 +230,13 @@ export class PDTA {
 
     const zones = [];
     for (const pbag of matchedPbags) {
-      for (const output of instMap[pbag.pzone.instrumentID]) {
-        if (defaultPbag) output.mergeWith(defaultPbag);
-        output.mergeWith(pbag.pzone);
+      for (const izone of instMap[pbag.pzone.instrumentID]) {
+        const output = new SFZone();
+        if (defaultPbag) output.mergeWith(defaultPbag, 1);
+        output.mergeWith(izone, 1);
+
+        output.mergeWith(pbag.pzone, 3);
+
         output.sample = shdr[output.sampleID];
         zones.push(output);
       }
@@ -251,3 +253,13 @@ export class PDTA {
     return this.findPreset(pid, bank_id);
   }
 }
+// }
+// const { pdta } = new SF2File('file.sf2');
+// const { phdr, pbag, pgen, iheaders, findPreset } = pdta;
+// const trumpetdefault = phdr[5].defaultBag;
+// const defaultzone = pbag[trumpetdefault].pzone;
+// console.log(pbag[trumpetdefault].pzone.reverbSend);
+// console.log(sfTypes.generatorNames[defaultzone.generators[0].operator]);
+// const p = pdta.findPreset(5, 0, 55, 55);
+  // console.log(p);
+// console.log(p.map((g) => g.reverbSend));

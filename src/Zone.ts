@@ -79,9 +79,9 @@ export class SFZone {
       ...this.sampleOffsets,
     };
   }
-  mergeWith(zoneb: SFZone) {
+  mergeWith(zoneb: SFZone, from) {
     for (const g of Object.values(zoneb.generators)) {
-      this.applyGenVal(g, -1);
+      this.applyGenVal(g, from);
     }
   }
   applyGenVal(gen: SFGenerator, from?: number): void {

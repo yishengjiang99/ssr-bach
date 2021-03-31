@@ -22,21 +22,12 @@
         reader.read().then(function process(result) {
           if (result.done) return;
           let value: Uint8Array = result.value;
-          // if (leftover) {
-          //   let arr = new Uint8Array(chunk);
-          //   arr.set(leftover, 0);
-          //   arr.set(
-          //     value.slice(0, chunk - leftover.byteLength),
-          //     leftover.byteLength
-          //   );
-          //   that.buffers.push(arr);
-          // }
           while (value.byteLength >= chunk) {
             that.buffers.push(value.slice(0, chunk));
             value = value.slice(chunk);
             if (!that.started && that.buffers.length > 1) {
               that.started = true;
-              that.port.postMessage({ ready: 1 });
+              that.port.postMessage({ ready: 1, dl: that.buffers.length });
             }
           }
           that.port.postMessage({ bufferLength: that.buffers.length });

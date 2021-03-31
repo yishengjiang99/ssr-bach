@@ -112,7 +112,6 @@ export class RenderCtx {
       channelId,
       keyoff: 1,
     });
-    console.log('sechded off idx', scheduledIndex, channelId);
   }
   _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
     const input: Buffer = this.sff.sdta.data;
@@ -120,8 +119,9 @@ export class RenderCtx {
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;
     // const pitch = LUT.relPC[~~voice.staticLevels.pitch];
-    const { volume, pitch, filter } = voice.run(blockLength);
+
     for (let offset = 0; offset < blockLength; offset++) {
+      const { volume, pitch, filter } = voice.run(1);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       let currentVal = outputArr.readFloatLE(outputByteOffset);
       if (isNaN(currentVal)) currentVal = 0.0;
@@ -170,11 +170,22 @@ export class RenderCtx {
     );
     const activev = this.voices.filter((v) => v.length && v.length > 0);
     activev.forEach((voice) => {
-      //  console.log(voice.sample.originalPitch, voice.zone.instrumentID);
       this._render(voice, ob, blockSize, activev.length);
     });
-    if (this.output) this.output.write(ob);
-    else return ob;
+    return ob;
+  }
+  start() {
+    let n = 0;
+    let that = this;
+    function loopr() {
+      that.output.write(that.render(128));
+      n += 128;
+      if (n < 48000) setTimeout(loopr, 3.5);
+      else {
+        that.output.end();
+      }
+    }
+    loopr();
   }
 }
 export function hermite4(frac_pos, xm1, x0, x1, x2) {

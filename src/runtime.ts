@@ -31,7 +31,7 @@ export class Runtime {
   constructor(zone: SFZone, note: Note, ctx: RenderCtx) {
     this.zone = zone;
     this.staticLevels = {
-      gainCB: zone.attenuate,
+      gainCB: zone.attenuate + LUT.midi2cb(note.velocity),
 
       pitch:
         note.key * 100 -
@@ -66,23 +66,16 @@ export class Runtime {
     this.run = (steps: number) => {
       modVol.shift(steps);
       ampVol.shift(steps);
-      // console.log(
-      //   ampVol.stage,
-      //   ampVol.gain,
-      //   this.staticLevels.gainCB + ampVol.ampCB,
-      //   ampVol.ampCB,
-      //   ampVol.egval
-      // );
       const arates = {
-        volume: Math.pow(10, (this.staticLevels.gainCB + ampVol.ampCB) / 200),
+        volume: LUT.getAmp(
+          this.staticLevels.gainCB +
+            ampVol.ampCB +
+            modVol.egval * modVol.effects.volume
+        ),
 
         pitch:
           LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
-        filter: cent2hz(
-          this.staticLevels.filter +
-            modVol.val * modVol.effects.filter +
-            modLFO.val * modLFO.effects.filter
-        ),
+        filter: 1,
       };
 
       return arates;
