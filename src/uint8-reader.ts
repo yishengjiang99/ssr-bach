@@ -3,7 +3,7 @@ export function readAB(arb) {
   var offset = 0;
   const getChar = () => u8b[offset++];
   const getStr = (n) => {
-    let str = "";
+    let str = '';
     let nullterm = 0;
     for (let i = 0; i < n; i++) {
       let c = getChar();
@@ -20,6 +20,7 @@ export function readAB(arb) {
     if (u16 & 0x8000) return -0x10000 + u16;
     else return u16;
   };
+
   return {
     ftell: () => offset,
     skip: function (n) {

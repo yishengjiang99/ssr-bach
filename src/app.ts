@@ -9,6 +9,8 @@ const f = new SF2File('file.sf2');
 createServer((req, res) => {
   const [_, cmd, a1, a2, a3] = req.url.split('/');
   switch (cmd) {
+    case 'sequence':
+
     case '':
     case 'pgen':
       res.writeHead(200, { 'content-type': 'text/html' });
@@ -112,21 +114,29 @@ createServer((req, res) => {
       res.end();
       break;
     case 'runzone':
+      replypcm(res, 48000 * 2 * 4);
+
       const zz = (f.rend_ctx.programs[0] = {
         presetId: parseInt(a1),
         bankId: 0,
       });
-      f.rend_ctx.keyOn(parseInt(a2), a3, 1, 0, 0);
-      replypcm(res, 48000 * 2 * 4);
-
-      loop(350, () => res.write(f.rend_ctx.render(128)));
+      f.rend_ctx.keyOn(parseInt(a2), a3, 4, 0);
+      let c = 0;
+      async function loop() {
+        res.write(f.rend_ctx.render(1280));
+        c += 1280;
+        if (c < 48000) setTimeout(loop, 24);
+      }
+      loop();
       res.end();
+
+      //loop(350, async () => res.write(f.rend_ctx.render(128)));
       break;
     case 'sample':
       const shr = f.pdta.shdr[parseInt(a1)];
 
       replypcm(res, shr.end * 4 - shr.start * 4);
-      res.end(f.sdta.data.slice(shr.start * 4, shr.end * 4));
+      res.end(f.sdta.bit16s.slice(shr.start * 2, shr.end * 2));
       break;
     case 'inst':
       retj(res, f.pdta.iheaders);
@@ -148,7 +158,6 @@ createServer((req, res) => {
         );
         res.write('<table border=1>');
         res.write(`<tr><td colspan=3></td><td rowspan=9>vol run:`);
-        loop(10, () => res.write(`<li>${rt.run(1283).volume}`));
         res.write('</td></tr>');
 
         for (const k in z) {
@@ -186,7 +195,7 @@ createServer((req, res) => {
       res.end('');
       break;
   }
-}).listen(3000);
+}).listen(3444);
 function replypcm(res: ServerResponse, length: number) {
   res.writeHead(200, {
     'content-disposition': 'inline',

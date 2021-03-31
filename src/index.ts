@@ -11,6 +11,10 @@ import { SFZone } from './Zone';
 import { SFGenerator } from './generator';
 import { frequencyToMidi, keyboardToFreq } from './sound-keys';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
+SF2File.fromURL(
+  'http://localhost/ssr-bach/sf2/GeneralUserGS.sf2'
+  //https://grep32bit.blob.core.windows.net/sf2/Acoustic Guitar.sf2'
+).then((sf) => console.log(sf.pdta));
 
 const t1 = async () => {
   const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;

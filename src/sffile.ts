@@ -1,31 +1,34 @@
 import { PDTA } from './pdta';
-import { reader } from './reader';
+import { Reader, reader } from './reader';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
-import { bufferReader } from './readmidi';
+import fetch from 'node-fetch';
 import { sleep, std_inst_names } from './utilv1';
 import { ffp } from './sinks';
 import { loop } from './Utils';
 import { cspawn } from './cspawn';
 import { createWriteStream } from 'fs';
+import { fetchSoundFont } from './readsf';
+import { readAB } from './aba';
 
 export class SF2File {
   pdta: PDTA;
-  sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
+  sdta: { nsamples: number; data: Buffer; bit16s: Uint8Array };
   rend_ctx: RenderCtx;
   path: string;
-  static fromURL(url: string, cb) {
-    fetch(url)
-      .then((res) => res.arrayBuffer())
-      .then((ab) => {
-        const [riff, size, sfbk, list, skip, info] = new Uint32Array(ab, 0, 24);
-      });
+  static async fromURL(url: string) {
+    return await fetchSoundFont(url);
   }
-  constructor(path: string = '') {
-    const r = reader(path);
-    this.path = path;
+  constructor(ab: string | Buffer | Uint8Array) {
+    let r: Reader;
+    if (typeof ab == 'string') {
+      r = reader(ab);
+      this.path = 'path';
+    } else {
+      r = readAB(ab);
+    }
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
     assert(r.read32String(), 'sfbk');
@@ -44,8 +47,9 @@ export class SF2File {
         const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);
         const s16tof32 = (i16) => i16 / 0xffff;
-        for (let i = 0; i < nsamples; i++) {
-          const n = bit16s.readInt16LE(i * 2);
+        const dv = new DataView(bit16s.buffer);
+        for (let i = 0; i < nsamples - 1; i++) {
+          const n = bit16s[i * 2] | bit16s[i * 2 + 1];
           ob.writeFloatLE(s16tof32(n), i * 4);
         }
         this.sdta = {
@@ -87,5 +91,3 @@ export class SF2File {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
-// const f = new SF2File('sf2/file.sf2');
-// console.log(f.rend_ctx);
