@@ -116,6 +116,8 @@ createServer((req, res) => {
 
       res.end();
       break;
+    case 'grid':
+      break;
     case 'runzone':
       ctx.programs[0] = {
         presetId: parseInt(a1),

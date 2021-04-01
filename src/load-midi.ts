@@ -1,4 +1,5 @@
 import { readMidi } from "./readmidi";
+import Midi from 'tone'
 import { readFileSync } from "fs";
 import { Writable } from "stream";
 import { SF2File } from "./sffile";

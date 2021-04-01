@@ -43,7 +43,7 @@
       const fl = new DataView(ob.buffer);
       for (let i = 0; i < 128; i++) {
         outputs[0][0][i] = fl.getFloat32(8 * i, true);
-        outputs[0][1][i] = fl.getFloat32(8 * i, true);
+        outputs[0][1][i] = fl.getFloat32(8 * i + 4, true);
       }
       return true;
     }

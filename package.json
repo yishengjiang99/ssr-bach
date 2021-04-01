@@ -4,6 +4,7 @@
   "description": "",
   "main": "dist/app.js",
   "bin": {
+    "pitchshift": "bin/pitchshift",
     "bachd": "bin/bashd.js"
   },
   "repository": {
