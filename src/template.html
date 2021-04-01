@@ -15,6 +15,7 @@
       pre {
         position: fixed;
         top: 1px;
+        right: 10;
       }
       main {
         margin-top: 100px;
@@ -30,6 +31,8 @@
       <canvas></canvas>
     </main>
     <script>
+      const form = document.querySelector('form');
+      const ff3 = document.querySelector('#ff3');
       const ff1 = document.querySelector('#ff1');
       const ff2 = document.querySelector('#ff2');
       ff1.onmouseup = (e) => {

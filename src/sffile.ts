@@ -10,20 +10,13 @@ import { ffp } from './sinks';
 import { loop } from './Utils';
 import { cspawn } from './cspawn';
 import { createWriteStream } from 'fs';
+import { readAB } from './aba';
 
 export class SF2File {
   pdta: PDTA;
   sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
   path: string;
-  static async fromURL(url: string) {
-    const { pdta, sdta } = await fetchSoundFont(url);
-    return {
-      rend_ctx: new RenderCtx({ pdta, sdta: { data: sdta.data } }),
-      pdta,
-      sdta,
-    };
-  }
   constructor(path: string = '') {
     const r = reader(path);
     this.path = path;
@@ -42,7 +35,7 @@ export class SF2File {
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
-        const bit16s = r.readN(sectionSize - 4);
+        const bit16s = r.readN(sectionSize - 4) as Buffer;
         const ob: Buffer = Buffer.alloc(nsamples * 4);
         const s16tof32 = (i16) => i16 / 0xffff;
         for (let i = 0; i < nsamples; i++) {
@@ -88,11 +81,3 @@ export class SF2File {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
-
-function fetchSoundFont(
-  url: string
-): { pdta: any; sdta: any } | PromiseLike<{ pdta: any; sdta: any }> {
-  throw new Error('Function not implemented.');
-}
-// const f = new SF2File('sf2/file.sf2');
-// console.log(f.rend_ctx);

@@ -8,16 +8,15 @@ export type Reader = {
 
   read32String: () => string;
   get32: () => number;
-  fstat: () => Stats;
   skip: (n: number) => void;
   getOffset: () => number;
   setOffset: (n: number) => void;
-  readN: (n: number) => Buffer;
+  readN: (n: number) => Buffer | Uint8Array;
   readNString: (n: number) => string;
   varLenInt: () => number;
   getUint16: () => number;
-  seekToString: (str: string) => number | false;
-  fd: number;
+  seekToString?: (str: string) => number | false;
+  fd?: number;
 };
 export const LE = 0x00;
 export const BE = 0x01;
@@ -33,8 +32,10 @@ export function reader(path: string, opts: number = 0): Reader {
       const c = getc();
       if (c == str.charCodeAt(m)) {
         m++;
-        if (m == str.length) return offset;
-        else {
+        if (m == str.length) {
+          offset -= str.length;
+          return offset;
+        } else {
           console.log(m);
         }
       }
@@ -120,7 +121,6 @@ export function reader(path: string, opts: number = 0): Reader {
     get16,
     read32String,
     get32,
-    fstat,
     skip,
     getOffset,
     setOffset,

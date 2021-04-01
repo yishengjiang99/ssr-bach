@@ -72,10 +72,7 @@ test.only('some real values', async (t) => {
 
       loop(1555, (it) => {
         const st = z && z.run(12);
-
-        t.try('st vol ' + [i, m, it].join('-'), () =>
-          t.assert(st.volume < 1.1)
-        );
+        t.assert(st.volume < 1.1);
       });
     });
     break;

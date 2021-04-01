@@ -28,7 +28,7 @@ createServer((req, res) => {
   switch (cmd) {
     case '':
       res.write(ff0);
-      res.write("<form><select oninput=submit() name='pid'>");
+      res.write("<form><select name='pid'>");
       f.pdta.phdr.map((p) =>
         res.write(`<option value=${p.presetId}>${p.name}</option>`)
       );
@@ -127,6 +127,7 @@ createServer((req, res) => {
         'content-disposition': 'inline',
         'content-type': 'application/stream-octet',
         'content-length': `${48000 * 2 * 8} bytes`,
+        metalog: `${JSON.stringify(ctx.voices[0].mods)}`,
       });
       ctx.output = res;
       ctx.start();
@@ -142,6 +143,7 @@ createServer((req, res) => {
           header: f.pdta.iheaders[a1],
           ibags: f.pdta.iheaders[a1].ibags.map((ib, idex) => ({
             id: ib,
+
             ...f.pdta.ibag[ib].izone,
           })), // f.pdta.ibag[]
         });
@@ -156,8 +158,9 @@ createServer((req, res) => {
       } else {
         retj(
           res,
-          f.pdta.iheaders.map(({ name, defaultIbag }) => ({
+          f.pdta.iheaders.map(({ name, defaultIbag }, idex) => ({
             name,
+            index: idex,
             ib: f.pdta.ibag[defaultIbag],
             defaultBag: defaultIbag && f.pdta.ibag[defaultIbag]?.izone,
           }))
@@ -168,12 +171,22 @@ createServer((req, res) => {
     case 'phdr':
       if (parseInt(a1) !== NaN) {
         retj(res, f.pdta.phdr[a1]);
+      } else if (paras.has('instId')) {
+        return retj(
+          res,
+          f.pdta.phdr.filter((p) => {
+            p.insts.indexOf(parseInt(paras.get('instId'))) > -1;
+          })
+        );
       } else {
         retj(
           res,
-          f.pdta.phdr.filter((p) => {
-            p.insts.includes(paras['instId']);
-          })
+          f.pdta.phdr.map(({ name, defaultBag }, idex) => ({
+            name,
+            index: idex,
+            ib: f.pdta.pbag[defaultBag],
+            defaultBag: defaultBag && f.pdta.pbag[defaultBag]?.pzone,
+          }))
         );
       }
 

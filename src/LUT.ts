@@ -33,7 +33,7 @@ export class LUT {
     LUT.midiCB[0] = 0;
     LUT.midiCB[127] = 1.0;
     for (let n = 1; n < 128; n++) {
-      LUT.midiCB[n] = 200.0 * Math.log(n / 127);
+      LUT.midiCB[n] = -200.0 * Math.log(n / 127);
     }
   }
 

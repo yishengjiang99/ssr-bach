@@ -36,9 +36,7 @@ export class RenderCtx {
     this.staging.index++;
     if (this.staging.index >= this.fps * 10) this.staging.index = 0;
   }
-  constructor(
-    private sff: { pdta: PDTA; sdta: { data: Buffer | Uint8Array } }
-  ) {
+  constructor(private sff: SF2File) {
     LUT.init();
     this.programs = [
       { presetId: 0, bankId: 0 },
@@ -111,7 +109,7 @@ export class RenderCtx {
     });
   }
   _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
-    const input = new DataView(this.sff.sdta.data);
+    const input = this.sff.sdta.data;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;
@@ -125,14 +123,14 @@ export class RenderCtx {
       let newVal;
       if (offset > 1) {
         const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-          input.getFloat32((iterator + i) * 4, true)
+          input.readFloatLE((iterator + i) * 4)
         );
         newVal = hermite4(shift, vm1, v0, v1, v2);
       } else {
-        newVal = input.getFloat32(iterator * 4, true);
+        newVal = input.readFloatLE(iterator * 4);
       }
 
-      let sum = currentVal + newVal; // * volume;
+      let sum = currentVal + newVal * volume;
 
       outputArr.writeFloatLE(
         sum * voice.staticLevels.pan.left,
