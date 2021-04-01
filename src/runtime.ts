@@ -74,7 +74,15 @@ export class Runtime {
         ),
 
         pitch:
-          LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
+          LUT.relPC[
+            ~~(
+              this.staticLevels.pitch +
+              modVol.modCenTune +
+              modLFO.pitchCent +
+              vibrLFO.pitchCent +
+              1200
+            )
+          ],
         filter: 1,
       };
 

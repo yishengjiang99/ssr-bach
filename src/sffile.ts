@@ -16,12 +16,13 @@ export class SF2File {
   sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
   path: string;
-  static fromURL(url: string, cb) {
-    fetch(url)
-      .then((res) => res.arrayBuffer())
-      .then((ab) => {
-        const [riff, size, sfbk, list, skip, info] = new Uint32Array(ab, 0, 24);
-      });
+  static async fromURL(url: string) {
+    const { pdta, sdta } = await fetchSoundFont(url);
+    return {
+      rend_ctx: new RenderCtx({ pdta, sdta: { data: sdta.data } }),
+      pdta,
+      sdta,
+    };
   }
   constructor(path: string = '') {
     const r = reader(path);
@@ -86,6 +87,12 @@ export class SF2File {
   key(key, vel = 57) {
     this.rend_ctx.keyOn(key, vel, 0);
   }
+}
+
+function fetchSoundFont(
+  url: string
+): { pdta: any; sdta: any } | PromiseLike<{ pdta: any; sdta: any }> {
+  throw new Error('Function not implemented.');
 }
 // const f = new SF2File('sf2/file.sf2');
 // console.log(f.rend_ctx);

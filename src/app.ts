@@ -5,7 +5,7 @@ import { loop } from './Utils';
 import { generatorNames, keys88, sf_gen_id } from './sf.types';
 import * as fs from 'fs';
 import { RenderCtx } from './render-ctx';
-import { sleep } from './utilv1';
+import { resjson, sleep } from './utilv1';
 
 const f = new SF2File('./file.sf2');
 createServer((req, res) => {
@@ -49,8 +49,8 @@ createServer((req, res) => {
           pbagIdx++;
 
           if (
-            pbagIdx < f.pdta.pbag.length &&
-            f.pdta.pbag[pbagIdx + 1].pgen_id <= i
+            phdrId < f.pdta.phdr.length - 1 &&
+            f.pdta.phdr[phdrId + 1].pbagIndex <= pbagIdx
           ) {
             phdrId++;
             hdr += '<br>--' + f.pdta.phdr[phdrId].name + ' ' + phdrId + '<br>';
@@ -59,7 +59,6 @@ createServer((req, res) => {
               if (i % 12 == 0) {
                 hdr += '<br>';
               }
-              hdr += '<br>';
             }
             hdr += '<br>';
             hdr += `<button class='ff2' href='/igen/${
@@ -90,57 +89,14 @@ createServer((req, res) => {
         ) {
           ibagIdx++;
 
-        f.pdta.igen.map((p, i) => {
-          let hdr = '';
           if (
-            ibagIdx < f.pdta.ibag.length &&
-            f.pdta.ibag[ibagIdx + 1].igen_id <= i
+            instId < f.pdta.iheaders.length - 1 &&
+            f.pdta.iheaders[instId + 1].iBagIndex <= ibagIdx
           ) {
-            ibagIdx++;
-
-            if (
-              instId < f.pdta.iheaders.length - 1 &&
-              f.pdta.iheaders[instId + 1].iBagIndex <= ibagIdx
-            ) {
-              instId++;
-              hdr += '<br>--' + f.pdta.iheaders[instId].name + ' ' + instId;
-            }
-            hdr += '<br>';
+            instId++;
+            hdr += '<br>--' + f.pdta.iheaders[instId].name + ' ' + instId;
           }
-          if (a1 && parseInt(a1) != instId) return;
-
-          res.write(hdr + ibagIdx + '-' + generatorNames[p.operator]);
-          res.write(
-            `: ${
-              p.operator == 44 || p.operator == 43
-                ? p.range.lo + '-' + p.range.hi
-                : p.operator == sf_gen_id.sampleID
-                ? `<a class='pcm' href='#sample/${p.s16}' target='ff3'>${
-                    f.pdta.shdr[p.s16].name
-                  }</a>`
-                : p.s16
-            } ${i}<br>`
-          );
-        });
-        res.write('</main><iframe name="ff3"></iframe>');
-        res.write('<script src="js/build/playpcm.js"></script>');
-        res.write('</body></html>');
-
-        res.end();
-        break;
-      case 'runzone':
-        replypcm(res, 48000 * 2 * 4);
-
-        const zz = (f.rend_ctx.programs[0] = {
-          presetId: parseInt(a1),
-          bankId: 0,
-        });
-        f.rend_ctx.keyOn(parseInt(a2), a3, 4, 0);
-        let c = 0;
-        async function loop() {
-          res.write(f.rend_ctx.render(1280));
-          c += 1280;
-          if (c < 48000) setTimeout(loop, 24);
+          hdr += '<br>';
         }
         if (a1 && parseInt(a1) != instId) return;
 
@@ -181,18 +137,55 @@ createServer((req, res) => {
       res.end(f.sdta.data.slice(shr.start * 4, shr.end * 4));
       break;
     case 'inst':
-      retj(res, f.pdta.iheaders);
+      if (a1) {
+        retj(res, {
+          header: f.pdta.iheaders[a1],
+          ibags: f.pdta.iheaders[a1].ibags.map((ib, idex) => ({
+            id: ib,
+            ...f.pdta.ibag[ib].izone,
+          })), // f.pdta.ibag[]
+        });
+      } else if (paras.has('name')) {
+        const matches = f.pdta.iheaders.filter((ih) =>
+          ih.name.includes(paras.get('name'))
+        );
+        if (!matches.length) return res.writeHead(404);
+        retj(res, {
+          header: matches,
+        });
+      } else {
+        retj(
+          res,
+          f.pdta.iheaders.map(({ name, defaultIbag }) => ({
+            name,
+            ib: f.pdta.ibag[defaultIbag],
+            defaultBag: defaultIbag && f.pdta.ibag[defaultIbag]?.izone,
+          }))
+        );
+      }
+      break;
+    case 'pheader':
+    case 'phdr':
+      if (parseInt(a1) !== NaN) {
+        retj(res, f.pdta.phdr[a1]);
+      } else {
+        retj(
+          res,
+          f.pdta.phdr.filter((p) => {
+            p.insts.includes(paras['instId']);
+          })
+        );
+      }
+
       break;
     case 'pid':
       replyhtml(res);
-
       const presets = f.pdta.findPreset(
         a1,
         0,
         (a2 && parseInt(a2)) || -1,
         (a3 && parseInt(a3)) || -1
       );
-      console.log(presets);
       presets.map((z) => {
         const rt = new Runtime(
           z,
@@ -210,13 +203,17 @@ createServer((req, res) => {
               if (typeof z[k][kk] == 'object') {
                 for (const kkl in z[k][kk]) {
                   res.write(
-                    `<tr><td>${k}</td><td>${kk}</td><td>${z[k][kk]}</td></tr>`
+                    `<tr><td>${k}</td><td>${kk}-${kkl}</td><td>${z[k][kk][kkl]}</td></tr>`
                   );
                 }
+              } else {
+                res.write(
+                  `<tr><td>${k}</td><td>${kk}</td><td>${z[k][kk]}</td></tr>`
+                );
               }
-            } else {
-              res.write(`<tr><td colspan=2>${k}</td><td>${z[k]}</td></tr>`);
             }
+          } else {
+            res.write(`<tr><td colspan=2>${k}</td><td>${z[k]}</td></tr>`);
           }
         }
         res.write('</table>');

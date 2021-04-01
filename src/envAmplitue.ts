@@ -31,7 +31,6 @@ export class Envelope {
       .map((t) => Math.max(1, t));
     const normalizedSustain = 1 - sustainCB / 1000;
     this.amts = [0, 0, 1, 1, normalizedSustain, 0];
-    console.log(this.amts);
     this.deltas = [
       0,
       1 / this.stages[1],

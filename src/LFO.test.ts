@@ -5,6 +5,7 @@ import { RenderCtx } from './render-ctx';
 import { Runtime } from './runtime';
 import { SF2File } from './sffile';
 import { loop } from './Utils';
+import { std_drums, std_inst_names } from './utilv1';
 import { SFZone } from './Zone';
 const ctx = new RenderCtx(new SF2File('file.sf2'));
 test('lfo', (t) => {
@@ -17,4 +18,5 @@ test('lfo', (t) => {
   console.log(lf, cent2hz(1200));
   t.assert(lf.cycles == Math.floor(cent2hz(1200) * 4));
   loop(4000, () => console.log(lf.shift()));
+  std_inst_names.filter((f) => f.includes('tuba'));
 });

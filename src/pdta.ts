@@ -64,6 +64,7 @@ export class PDTA {
           for (; pgenId < sectionSize / pgenLength; pgenId++) {
             const opid = r.get8();
             r.get8();
+
             const v = r.getS16();
             const pg = new SFGenerator(opid, v);
             this.pgen.push(pg);
@@ -261,5 +262,5 @@ export class PDTA {
 // console.log(pbag[trumpetdefault].pzone.reverbSend);
 // console.log(sfTypes.generatorNames[defaultzone.generators[0].operator]);
 // const p = pdta.findPreset(5, 0, 55, 55);
-  // console.log(p);
+// console.log(p);
 // console.log(p.map((g) => g.reverbSend));
