@@ -17,8 +17,6 @@ test('pdta', (t) => {
   });
   t.truthy(pdta.findPreset(44));
   const r = reader('./file.sf2');
-  const fsize = r.fstat().size;
-  t.assert(pdta.shdr.every((sh) => sh.start * 2 < fsize));
 });
 test.only('pdta find presetsm', (t) => {
   const { pdta } = new SF2File('./file.sf2');
