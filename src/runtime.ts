@@ -66,7 +66,7 @@ export class Runtime {
           LUT.relPC[
             ~~(
               this.staticLevels.pitch +
-              modLFO.pitchCent +
+              modVol.modCenTune -
               vibrLFO.pitchCent +
               1200
             )
