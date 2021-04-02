@@ -80,7 +80,7 @@ export class RenderCtx {
     const rt = new Runtime(zones[0], {
       key: key,
       velocity: vel,
-    });
+      });
     if (delay == 0) {
       this.voices[channelId] = rt;
     } else {

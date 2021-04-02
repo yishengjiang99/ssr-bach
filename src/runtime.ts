@@ -21,7 +21,8 @@ export class Runtime {
   zone: SFZone;
   sampleData?: Uint8Array;
 
-  constructor(zone: SFZone, note: { key; velocity }, sr: number = 48000) {
+  constructor(zone: SFZone, note: { key; velocity; channel?: number }, gg = 1) {
+    const sr = 48000;
     this.zone = zone;
     this.staticLevels = {
       gainCB: zone.attenuate + LUT.velCB[note.velocity],

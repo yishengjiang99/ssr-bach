@@ -20,7 +20,7 @@ test('pdta', (t) => {
   t.truthy(pdta.findPreset(44));
   const r = reader('./file.sf2');
 });
-test.only('pdta find presetsm', (t) => {
+test('pdta find presetsm', (t) => {
   const { pdta } = new SF2File('./file.sf2');
   [1, 2, 3, 4, 5, 6].map((p) => {
     const inst = pdta.findPreset(p, 0);
@@ -61,11 +61,16 @@ test('pdta streess', (t) => {
   t.pass();
 });
 
-test('fetchwith url', async (t) => {
+test.only('fetchwith url', async (t) => {
+  SFfromUrl(
+    'https://grep32bit.blob.core.windows.net/sf2/SoundBlasterOld.sf2'
+  ).then(({ pdta, sdta: { data }, runtime }) => {
+    console.log(runtime(0, 54, 22, 0));
+    t.truthy(runtime(0, 54, 22, 0));
+  });
   SFfromUrl('https://dsp.grepawk.com/ssr-bach/Chaos.sf2')
     .then((res) => {
       t.truthy(res.runtime(83, 44, 33).sampleData);
-      ffp().write(res.runtime(83, 44, 88).sampleData);
     })
     .catch((e) => {
       console.error(e);

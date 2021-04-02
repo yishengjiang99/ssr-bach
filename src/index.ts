@@ -6,8 +6,9 @@ import { createWriteStream } from 'fs';
 import { sleep } from './utilv1';
 import { Envelope } from './envAmplitue';
 import { sf_gen_id } from './sf.types';
+import { SFF2ffile, SFfromUrl } from './pdta';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
-SF2File.fromURL(
+SFfromUrl(
   'http://localhost/ssr-bach/sf2/GeneralUserGS.sf2'
   //https://grep32bit.blob.core.windows.net/sf2/Acoustic Guitar.sf2'
 ).then((sf) => console.log(sf.pdta));
@@ -111,11 +112,7 @@ function testEnvelopeTriggerRelease() {
 function testtunning() {
   const sff = new SF2File('file.sf2');
   const vol = sff.findPreset({ bankId: 0, presetId: 0, key: 33, vel: 44 });
-  const r = new Runtime(
-    vol[0],
-    { key: 86, velocity: 44, channel: 0 },
-    sff.rend_ctx
-  );
+  const r = new Runtime(vol[0], { key: 86, velocity: 44, channel: 0 }, 1);
   console.log(vol[0], r.mods);
 
   console.log(r.run(128));

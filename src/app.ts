@@ -126,8 +126,7 @@ SFfromUrl(
         break;
       case 'runzone':
         const ob: Buffer = Buffer.alloc(1024);
-        ctx._render(runtime(a1, 0, parseInt(a3), 66), ob, 12000, 4);
-
+        runtime(parseInt(a1), parseInt(a2), parseInt(a3), parseInt(a4));
         res.writeHead(200, {
           'content-disposition': 'inline',
           'content-type': 'application/stream-octet',
