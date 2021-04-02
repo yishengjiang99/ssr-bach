@@ -5,10 +5,10 @@ import { loop } from './Utils';
 import { generatorNames, keys88, sf_gen_id } from './sf.types';
 import * as fs from 'fs';
 import { RenderCtx } from './render-ctx';
-import { PDTA } from './pdta';
+import { PDTA, SFfromUrl } from './pdta';
 const f = new SF2File('file.sf2');
-PDTA.fromUrl('https://grep32bit.blob.core.windows.net/sf2/Chaos.sf2').then(
-  (pdta) => {
+SFfromUrl('https://grep32bit.blob.core.windows.net/sf2/Chaos.sf2').then(
+  ({ pdta }) => {
     createServer((req, res) => {
       const ctx = new RenderCtx(f);
       ctx.output = res;

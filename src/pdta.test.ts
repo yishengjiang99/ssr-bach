@@ -4,7 +4,8 @@ import { reader } from './reader';
 import { Midi } from '@tonejs/midi';
 import { readFileSync } from 'fs';
 import { performance, PerformanceObserver } from 'perf_hooks';
-import { PDTA } from './pdta';
+import { PDTA, SFfromUrl } from './pdta';
+import { ffp } from './sinks';
 
 test('pdta', (t) => {
   const { pdta } = new SF2File('./file.sf2');
@@ -60,13 +61,13 @@ test('pdta streess', (t) => {
   t.pass();
 });
 
-test.only('fetchwith url', async (t) => {
-  const pt = await PDTA.fromUrl(
-    'https://grep32bit.blob.core.windows.net/sf2/Chaos.sf2'
-  );
-  pt.findPreset(44, 0, 44, 22);
-  console.log(pt.phdr);
-  t.assert(pt.phdr.length > 0
-    );
-  t.truthy(pt);
+test('fetchwith url', async (t) => {
+  SFfromUrl('https://dsp.grepawk.com/ssr-bach/Chaos.sf2')
+    .then((res) => {
+      t.truthy(res.runtime(83, 44, 33).sampleData);
+      ffp().write(res.runtime(83, 44, 88).sampleData);
+    })
+    .catch((e) => {
+      console.error(e);
+    });
 });

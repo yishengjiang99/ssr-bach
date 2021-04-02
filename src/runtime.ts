@@ -19,7 +19,7 @@ export class Runtime {
   sample: Shdr;
   iterator: number;
   zone: SFZone;
-  x?: Float32Array;
+  sampleData?: Uint8Array;
 
   constructor(zone: SFZone, note: { key; velocity }, sr: number = 48000) {
     this.zone = zone;

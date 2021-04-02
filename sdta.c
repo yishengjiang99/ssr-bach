@@ -1,4 +1,13 @@
-#define DEBsUG 1
+/**
+ * 
+ * sdta stands for sample data.
+ *
+ * takes n chars and stores it in n/4 floats
+ * load(n, void* data, float*floats);
+ * 
+ *  
+ */
+#define DEaBUG 1
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,7 +64,7 @@ int render(float *output, int position, int startLoop, int endLoop, float ratio,
 
   for (int i = 0; i < 128; i++)
   {
-    *(output + i) = *(output + i) + *(floats + position);
+    *(output + i) = *(output + i) + multiplier * *(floats + position);
 
     shift += ratio;
 

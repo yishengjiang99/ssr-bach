@@ -77,15 +77,10 @@ export class RenderCtx {
     const zones = this.sff.pdta.findPreset(presetId, bankId, key, vel);
     if (!zones || !zones.length) return;
 
-    const rt = new Runtime(
-      zones[0],
-      {
-        key: key,
-        velocity: vel,
-        channel: channelId,
-      },
-      this
-    );
+    const rt = new Runtime(zones[0], {
+      key: key,
+      velocity: vel,
+    });
     if (delay == 0) {
       this.voices[channelId] = rt;
     } else {
@@ -112,7 +107,7 @@ export class RenderCtx {
     ]?.mods.ampVol.stages[4];
   }
   _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
-    const input = voice.sampleData;
+    const input = this.sff.sdta.data;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;

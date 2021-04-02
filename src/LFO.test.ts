@@ -14,7 +14,7 @@ test('lfo', (t) => {
   const lf = new LFO(-12000, 1200, { pitch: 3 }, 4000);
   const zone = new SFZone();
   zone.modLFO = lf;
-  const rt = new Runtime(zone, { key: 45, velocity: 127, channel: 0 }, ctx);
+  const rt = new Runtime(zone, { key: 45, velocity: 127 });
   t.assert(lf.effects.pitch == 3);
   lf.shift(4001);
   console.log(lf, cent2hz(1200));
@@ -24,7 +24,7 @@ test('lfo', (t) => {
 test('tuba', (t) => {
   const tubaz = sff.pdta.findPreset(58, 0, 55, 33)[0];
   t.truthy(tubaz);
-  const rt = new Runtime(tubaz, { key: 55, velocity: 33, channel: 1 }, ctx);
+  const rt = new Runtime(tubaz, { key: 55, velocity: 33 });
   loop(50, () => {
     console.log(rt.run(1).pitch);
 

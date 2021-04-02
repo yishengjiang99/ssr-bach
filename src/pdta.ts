@@ -5,6 +5,8 @@ import { readAB } from './aba';
 
 import fetch from 'node-fetch';
 import { initSDTA } from './sdta';
+import { Runtime } from './runtime';
+import { SF2File } from './sffile';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -18,6 +20,7 @@ export class PDTA {
   shdr: Shdr[] = [];
   igen_sets: any[];
   ibagSets: Set<number>[] = [];
+
   static fromUrl: (url: string) => Promise<PDTA>;
   constructor(r: any) {
     let n = 0;
@@ -262,26 +265,21 @@ export class PDTA {
             } else if (defaultPbag && defaultPbag.generators[i]) {
               output.increOrSet(defaultPbag.generators[i]);
             }
-
-            zs.push(output);
           }
+          zs.push(output);
         }
       }
     }
     return zs;
   }
 }
-const fetchWithRange = (url, range) => {
-  return fetch(url, {
-    headers: {
-      Range: 'bytes=' + range,
-    },
-  });
-};
 
-PDTA.fromUrl = async (url) => {
+export const SFfromUrl = async (url) => {
   const res = await fetch(url);
   const arb = await res.arrayBuffer();
+  return SFF2ffile(arb);
+};
+export async function SFF2ffile(arb: ArrayBuffer) {
   const r = readAB(arb);
   const { readNString, get32, skip } = r;
 
@@ -293,16 +291,33 @@ PDTA.fromUrl = async (url) => {
     get32(),
   ];
   r.skip(infosize);
+  console.log(readNString(4)); //smpl;
+
   const sdtaByteLength = get32();
-  console.log(readNString(4));
+  console.log(riff, filesize, sfbk, list);
   const smplStartByte = r.offset;
   console.log(readNString(4)); //smpl;
   skip(sdtaByteLength);
   const sdta = await initSDTA(
-    new Uint8Array(arb.slice(r.offset, sdtaByteLength))
+    new Uint8Array(arb.slice(smplStartByte, sdtaByteLength))
   );
-  console.log(sdta.bit16s);
-  console.log(readNString(4)); //list;
-  console.log(r.offset);
-  return new PDTA(r);
-};
+  const pdta = new PDTA(r);
+
+  return {
+    sdta,
+    pdta,
+    runtime: function (presetId, key, vel = 70, bankId = 0) {
+      const zone = pdta.findPreset(presetId, bankId, key, vel)[0];
+      if (!zone) return;
+
+      const rt = new Runtime(zone, {
+        key,
+        velocity: vel,
+      });
+      rt.sampleData = new Uint8Array(
+        sdta.data.slice(rt.sample.start * 4, rt.sample.end * 4)
+      );
+      return rt;
+    },
+  };
+}
