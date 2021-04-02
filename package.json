@@ -4,6 +4,7 @@
   "description": "",
   "main": "dist/app.js",
   "bin": {
+    "pitchshift": "bin/pitchshift",
     "bachd": "bin/bashd.js"
   },
   "repository": {
@@ -21,6 +22,7 @@
     "arrowParens": "always"
   },
   "devDependencies": {
+    "@babel/preset-typescript": "^7.13.0",
     "@typescript-eslint/eslint-plugin": "^4.20.0",
     "@typescript-eslint/parser": "^4.20.0",
     "ava": "^3.15.0",
@@ -41,8 +43,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.13.12",
+    "@babel/preset-react": "^7.13.13",
     "@tonejs/midi": "^2.0.27",
     "@types/node": "^14.14.36",
+    "babel-preset-react-app": "^10.0.0",
     "body-parser": "^1.19.0",
     "chrome-launcher": "^0.13.4",
     "comlink": "^4.3.0",
@@ -53,8 +58,11 @@
     "key-events": "^0.1.1",
     "memfs": "^3.2.0",
     "midiread": "^1.0.0",
+    "node-fetch": "^2.6.1",
+    "styled-components": "^5.2.2",
     "ts-node": "^9.1.1",
     "typescript-eslint": "^0.0.1-alpha.0",
-    "webassembly": "^0.11.0"
+    "webassembly": "^0.11.0",
+    "whatwg-fetch": "^3.6.2"
   }
 }

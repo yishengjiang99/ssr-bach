@@ -1,5 +1,12 @@
 import { PassThrough, Writable } from 'stream';
-
+export function range(x) {
+  function* g(r) {
+    let i = 0;
+    while (i < r) yield i++;
+    return 0;
+  }
+  return Array.from(g(x));
+}
 export function printpz(pz) {
   process.stdout.write(
     JSON.stringify(

@@ -1,8 +1,34 @@
-import { centibel, LOOPMODES } from './centTone';
 import { SFGenerator } from './generator';
 import { Shdr } from './pdta.types';
 import { sf_gen_id } from './sf.types';
 type LFOParams = typeof SFZone.defaultLFO;
+export enum mergeTypes {
+  SET_INST_DEFAULT,
+  SET_INST,
+  SET_PBAG,
+  SET_PBAGDEFAULT,
+}
+export type centTone = number;
+export type TimeCent = number;
+export type centibel = number;
+export type centime = number;
+
+export enum LOOPMODES {
+  NO_LOOP,
+  CONTINUOUS_LOOP,
+  NO_LOOP_EQ,
+  LOOP_DURATION_PRESS,
+}
+export function cent2hz(centiHz) {
+  return 8.176 * Math.pow(2, centiHz / 1200.0);
+}
+export function timecent2sec(timecent) {
+  return Math.pow(2, timecent / 1200.0);
+}
+export function centidb2gain(centibel) {
+  return Math.pow(10, centibel / 200);
+}
+
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
   velRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
@@ -79,8 +105,20 @@ export class SFZone {
       ...this.sampleOffsets,
     };
   }
-  mergeWith(zoneb: SFZone) {
+  mergeWith(zoneb: SFZone, from) {
     for (const g of Object.values(zoneb.generators)) {
+      this.applyGenVal(g, from);
+    }
+  }
+  setVal(gen: SFGenerator) {
+    this.generators[gen.operator] = gen;
+  }
+  increOrSet(gen: SFGenerator) {
+    if (!this.generators[gen.operator]) this.generators[gen.operator] = gen;
+    else this.generators[gen.operator].s16 += gen.s16;
+  }
+  applyGenVals() {
+    for (const g of this.generators) {
       this.applyGenVal(g, -1);
     }
   }

@@ -1,15 +1,7 @@
 import { SFZone } from './Zone';
-import {
-  cent2hz,
-  centibel,
-  centidb2gain,
-  centTone,
-  dbfs,
-  stagesEnum,
-} from './runtime.types';
+import { centibel, centTone } from './runtime.types';
 import { Shdr } from './pdta.types';
 import { Note } from './runtime.types';
-import { RenderCtx } from './render-ctx';
 import { LUT } from './LUT';
 import { Envelope } from './envAmplitue';
 import { LFO } from './LFO';
@@ -27,18 +19,19 @@ export class Runtime {
   sample: Shdr;
   iterator: number;
   zone: SFZone;
+  sampleData?: Uint8Array;
 
-  constructor(zone: SFZone, note: Note, ctx: RenderCtx) {
+  constructor(zone: SFZone, note: { key; velocity }, sr: number = 48000) {
     this.zone = zone;
     this.staticLevels = {
-      gainCB: zone.attenuate,
+      gainCB: zone.attenuate + LUT.velCB[note.velocity],
 
       pitch:
         note.key * 100 -
         zone.tuning -
         (zone.rootkey > -1 ? zone.rootkey : zone.sample.originalPitch) * 100 +
         Math.log2(zone.sample.sampleRate) * 1200 -
-        Math.log2(ctx.sampleRate) * 1200,
+        Math.log2(sr) * 1200,
       filter: zone.lpf.cutoff,
       pan: {
         left: 0.5 - zone.pan / 1000,
@@ -66,23 +59,19 @@ export class Runtime {
     this.run = (steps: number) => {
       modVol.shift(steps);
       ampVol.shift(steps);
-      // console.log(
-      //   ampVol.stage,
-      //   ampVol.gain,
-      //   this.staticLevels.gainCB + ampVol.ampCB,
-      //   ampVol.ampCB,
-      //   ampVol.egval
-      // );
       const arates = {
-        volume: Math.pow(10, (this.staticLevels.gainCB + ampVol.ampCB) / 200),
+        volume: LUT.getAmp(this.staticLevels.gainCB + ampVol.ampCB),
 
         pitch:
-          LUT.relPC[~~(this.staticLevels.pitch + modVol.modCenTune + 1200)],
-        filter: cent2hz(
-          this.staticLevels.filter +
-            modVol.val * modVol.effects.filter +
-            modLFO.val * modLFO.effects.filter
-        ),
+          LUT.relPC[
+            ~~(
+              this.staticLevels.pitch +
+              modVol.modCenTune -
+              vibrLFO.pitchCent +
+              1200
+            )
+          ],
+        filter: 1,
       };
 
       return arates;

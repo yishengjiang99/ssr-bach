@@ -1,15 +1,11 @@
-import { centidb2gain } from './centTone';
 import { Runtime } from './runtime';
-import { sf_gen_id } from './sf.types';
 import { SF2File } from './sffile';
 import { ffp } from './sinks';
 import { loop } from './Utils';
 import { createWriteStream } from 'fs';
 import { sleep } from './utilv1';
 import { Envelope } from './envAmplitue';
-import { SFZone } from './Zone';
-import { SFGenerator } from './generator';
-import { frequencyToMidi, keyboardToFreq } from './sound-keys';
+import { sf_gen_id } from './sf.types';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
 SF2File.fromURL(
   'http://localhost/ssr-bach/sf2/GeneralUserGS.sf2'
@@ -147,28 +143,14 @@ function testtunning() {
     1000
   );
 }
-const readline = require('readline');
-readline.emitKeypressEvents(process.stdin);
-process.stdin.setRawMode(true);
-const sff = new SF2File('file.sf2');
-const keys = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'q'];
-let ch = 0;
-let ff;
-process.stdin.on('keypress', (str, key) => {
-  const dd = key.name;
-  if (dd == 'q') process.exit(); //exit;
-  console.log(dd);
-  const k = keys.indexOf(dd);
 
-  if (k > -1) {
-    if (!ff) {
-      ff = ffp();
-      setInterval(() => ff.write(sff.rend_ctx.render(256)), 7);
-    }
-    ch++;
-    // sff.rend_ctx.keyOff(ch, 0);
-    sff.rend_ctx.keyOn(k + 60, 66, 0, ch % 12);
-  }
-  console.log(k, dd);
-});
-process.on('SIGILL', () => process.exit);
+export function pitchshift() {
+  const sf = new SF2File(process.argv[2] || 'file.sf2');
+  sf.pdta.pgen
+    .filter((g) => g.operator == sf_gen_id.vibLfoToPitch)
+    .map((g) => console.log(g));
+  console.log(
+    sf.pdta.pbag.filter((pb) => pb.pgen_id == 5377) // 5380 && pb.pgen_id > 5100)
+  );
+}
+pitchshift();

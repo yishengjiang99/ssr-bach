@@ -15,6 +15,7 @@ export class Envelope {
   keyOff: boolean = false;
   egval: number;
   modifier: number;
+  amts: number[];
   constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
     if (phases[4]) {
       const [delay, attack, hold, decay, release] = phases;
@@ -28,8 +29,8 @@ export class Envelope {
     this.stages = [delay, attack, hold, decay, release]
       .map((centime) => LUT.centtime2sec(centime) * sampleRate)
       .map((t) => Math.max(1, t));
-    const normalizedSustain = -sustainCB / dbfs;
-    const amts = [0, 0, 1, 1, normalizedSustain, 0];
+    const normalizedSustain = 1 - sustainCB / 1000;
+    this.amts = [0, 0, 1, 1, normalizedSustain, 0];
     this.deltas = [
       0,
       1 / this.stages[1],
@@ -48,15 +49,18 @@ export class Envelope {
     return this.egval;
   }
   shift(steps: number) {
-    if (this.state.stage === stagesEnum.done) return 0;
-    while (steps > 0) {
-      this.state.stageStep++;
-      steps--;
-      this.egval = this.egval + this.deltas[this.state.stage];
-      if (this.state.stageStep >= this.stages[this.state.stage]) {
-        this.state.stage++;
-        this.state.stageStep = 0;
-      }
+    const { stage, stageStep } = this.state;
+    if (stage === stagesEnum.done) return 0;
+    const stepsremining = this.stages[stage] - stageStep - steps;
+    if (stepsremining < 0) {
+      this.state.stage++;
+      this.state.stageStep = -1 * stepsremining;
+      this.egval =
+        this.amts[this.state.stage] +
+        this.deltas[this.state.stage] * this.state.stageStep;
+    } else {
+      this.state.stageStep += steps;
+      this.egval += steps * this.deltas[this.state.stage];
     }
   }
   get ampCB() {

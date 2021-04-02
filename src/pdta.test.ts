@@ -3,7 +3,9 @@ import test from 'ava';
 import { reader } from './reader';
 import { Midi } from '@tonejs/midi';
 import { readFileSync } from 'fs';
-const { performance, PerformanceObserver } = require('perf_hooks');
+import { performance, PerformanceObserver } from 'perf_hooks';
+import { PDTA, SFfromUrl } from './pdta';
+import { ffp } from './sinks';
 
 test('pdta', (t) => {
   const { pdta } = new SF2File('./file.sf2');
@@ -17,8 +19,6 @@ test('pdta', (t) => {
   });
   t.truthy(pdta.findPreset(44));
   const r = reader('./file.sf2');
-  const fsize = r.fstat().size;
-  t.assert(pdta.shdr.every((sh) => sh.start * 2 < fsize));
 });
 test.only('pdta find presetsm', (t) => {
   const { pdta } = new SF2File('./file.sf2');
@@ -35,10 +35,11 @@ test('pdta streess', (t) => {
   const perfObserver = new PerformanceObserver((items) => {
     items.getEntries().forEach((entry) => {
       entry.duration < 0.001; // fake call to our custom logging solutiontsc
+      console.log(entry);
     });
   });
 
-  perfObserver.observe({ entryTypes: ['measure'], buffer: true });
+  perfObserver.observe({ entryTypes: ['measure'], buffered: true });
   performance.mark('read-start');
   const { pdta } = new SF2File('./file.sf2');
   performance.mark('read-end');
@@ -58,4 +59,15 @@ test('pdta streess', (t) => {
     });
   });
   t.pass();
+});
+
+test('fetchwith url', async (t) => {
+  SFfromUrl('https://dsp.grepawk.com/ssr-bach/Chaos.sf2')
+    .then((res) => {
+      t.truthy(res.runtime(83, 44, 33).sampleData);
+      ffp().write(res.runtime(83, 44, 88).sampleData);
+    })
+    .catch((e) => {
+      console.error(e);
+    });
 });

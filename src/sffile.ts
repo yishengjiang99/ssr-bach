@@ -1,34 +1,25 @@
 import { PDTA } from './pdta';
-import { Reader, reader } from './reader';
+import { reader } from './reader';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
-import fetch from 'node-fetch';
+import { bufferReader } from './readmidi';
 import { sleep, std_inst_names } from './utilv1';
 import { ffp } from './sinks';
 import { loop } from './Utils';
 import { cspawn } from './cspawn';
 import { createWriteStream } from 'fs';
-import { fetchSoundFont } from './readsf';
 import { readAB } from './aba';
 
 export class SF2File {
   pdta: PDTA;
-  sdta: { nsamples: number; data: Buffer; bit16s: Uint8Array };
+  sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
   path: string;
-  static async fromURL(url: string) {
-    return await fetchSoundFont(url);
-  }
-  constructor(ab: string | Buffer | Uint8Array) {
-    let r: Reader;
-    if (typeof ab == 'string') {
-      r = reader(ab);
-      this.path = 'path';
-    } else {
-      r = readAB(ab);
-    }
+  constructor(path: string = '') {
+    const r = reader(path);
+    this.path = path;
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
     assert(r.read32String(), 'sfbk');
@@ -47,9 +38,8 @@ export class SF2File {
         const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);
         const s16tof32 = (i16) => i16 / 0xffff;
-        const dv = new DataView(bit16s.buffer);
-        for (let i = 0; i < nsamples - 1; i++) {
-          const n = bit16s[i * 2] | bit16s[i * 2 + 1];
+        for (let i = 0; i < nsamples; i++) {
+          const n = bit16s.readInt16LE(i * 2);
           ob.writeFloatLE(s16tof32(n), i * 4);
         }
         this.sdta = {

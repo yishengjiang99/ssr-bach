@@ -22,24 +22,14 @@
         reader.read().then(function process(result) {
           if (result.done) return;
           let value: Uint8Array = result.value;
-          // if (leftover) {
-          //   let arr = new Uint8Array(chunk);
-          //   arr.set(leftover, 0);
-          //   arr.set(
-          //     value.slice(0, chunk - leftover.byteLength),
-          //     leftover.byteLength
-          //   );
-          //   that.buffers.push(arr);
-          // }
           while (value.byteLength >= chunk) {
             that.buffers.push(value.slice(0, chunk));
             value = value.slice(chunk);
-            if (!that.started && that.buffers.length > 1) {
+            if (!that.started && that.buffers.length > 12) {
               that.started = true;
-              that.port.postMessage({ ready: 1 });
+              that.port.postMessage({ ready: 1, dl: that.buffers.length });
             }
           }
-          that.port.postMessage({ bufferLength: that.buffers.length });
 
           reader.read().then(process);
         });
@@ -52,8 +42,9 @@
       const fl = new DataView(ob.buffer);
       for (let i = 0; i < 128; i++) {
         outputs[0][0][i] = fl.getFloat32(8 * i, true);
-        outputs[0][1][i] = fl.getFloat32(8 * i, true);
+        outputs[0][1][i] = fl.getFloat32(8 * i + 4, true);
       }
+
       return true;
     }
   }

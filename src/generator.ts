@@ -19,4 +19,7 @@ export class SFGenerator {
   get s16() {
     return this.int16;
   }
+  set s16(val) {
+    this.int16 += val;
+  }
 }

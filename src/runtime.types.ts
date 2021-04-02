@@ -89,4 +89,4 @@ export enum stagesEnum {
   release,
   done,
 }
-export const dbfs = 1440;
+export const dbfs = 960;

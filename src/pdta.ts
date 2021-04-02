@@ -1,8 +1,12 @@
-import * as sfTypes from './sf.types';
-import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
+import { readAB } from './aba';
+
+import fetch from 'node-fetch';
+import { initSDTA } from './sdta';
+import { Runtime } from './runtime';
+import { SF2File } from './sffile';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -16,7 +20,9 @@ export class PDTA {
   shdr: Shdr[] = [];
   igen_sets: any[];
   ibagSets: Set<number>[] = [];
-  constructor(r: Reader) {
+
+  static fromUrl: (url: string) => Promise<PDTA>;
+  constructor(r: any) {
     let n = 0;
     do {
       const ShdrLength = 46;
@@ -41,7 +47,17 @@ export class PDTA {
               pbags: [],
               insts: [],
               ibagSet: new Set<number>(),
-              defaultBag: -1,
+              _defaultBag: -1,
+              get defaultBag() {
+                return this._defaultBag > 0
+                  ? this._defaultBag
+                  : this.pbags.length > 0
+                  ? this.pbags[0]
+                  : null;
+              },
+              set defaultBag(value) {
+                this._defaultBag = value;
+              },
             };
             this.phdr.push(phdrItem);
           }
@@ -63,11 +79,12 @@ export class PDTA {
           for (; pgenId < sectionSize / pgenLength; pgenId++) {
             const opid = r.get8();
             r.get8();
+
             const v = r.getS16();
             const pg = new SFGenerator(opid, v);
             this.pgen.push(pg);
             if (pg.operator == 60) break;
-            this.pbag[pbagId].pzone.applyGenVal(pg);
+            this.pbag[pbagId].pzone.applyGenVal(pg, pgenId);
             if (
               this.pbag[pbagId + 1] &&
               pgenId >= this.pbag[pbagId + 1].pgen_id - 1
@@ -189,65 +206,118 @@ export class PDTA {
       });
     });
   }
+  getIbagZone(ibagId) {
+    return this.ibag[ibagId].izone;
+  }
+  getInstBags(instId) {
+    return this.iheaders[instId].ibags.map((ibgId) => this.ibag[ibgId]);
+  }
+  getPbags(phdrIdx) {
+    return this.phdr[phdrIdx].pbags.map((pbagId) => this.pbag[pbagId]);
+  }
+  getProgram(presetId, bankId) {
+    return this.phdr.filter(
+      (pd) => pd.bankId == bankId && pd.presetId == presetId
+    )[0];
+  }
   /**
    * any preceived verbosity in the following lines of code
    * was done to ensure correctness
    */
   findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
-    console.log(pid, bank_id, key, vel);
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
-    const phead = phdr.filter(
-      (p) => p.bankId == bank_id && p.presetId == pid
-    )[0];
-    if (!phead) {
-      return [];
-    }
-
-    const defaultPbag = phead?.defaultBag
-      ? pbag[phead?.defaultBag]?.pzone
-      : null;
-    const instMap = {};
-    Array.from(phead.ibagSet.values())
-      .map((ibagId) => ibag[ibagId])
-      .filter((ibag) => this.keyVelInRange(ibag.izone, key, vel))
-      .forEach((ibg) => {
-        if (!ibg.izone.sampleID || !shdr[ibg.izone.sampleID]) return;
-        const instId = ibg.izone.instrumentID;
-        instMap[instId] = instMap[instId] || [];
-        const output = new SFZone();
-        const defaultIbag = iheaders[ibg.izone.instrumentID].defaultIbag;
-        if (defaultIbag && ibag[defaultIbag]?.izone) {
-          output.mergeWith(ibag[defaultIbag].izone);
-        }
-        output.mergeWith(ibg.izone);
-        instMap[instId].push(output);
-      });
-
-    const matchedPbags = phead.pbags
-      .map((pbagId) => pbag[pbagId])
-      .filter((pbag) => this.keyVelInRange(pbag.pzone, key, vel))
-      .filter(
-        (pbg) => pbg.pzone.instrumentID > -1 && instMap[pbg.pzone.instrumentID]
+    function keyVelInRange(zone, key, vel): boolean {
+      return (
+        (key < 0 || (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
+        (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
       );
+    }
+    let phIdx;
+    for (phIdx = 0; phIdx < phdr.length; phIdx++) {
+      if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) break;
+    }
+    if (!phdr[phIdx]) return [];
 
-    const zones = [];
-    for (const pbag of matchedPbags) {
-      for (const output of instMap[pbag.pzone.instrumentID]) {
-        if (defaultPbag) output.mergeWith(defaultPbag);
-        output.mergeWith(pbag.pzone);
-        output.sample = shdr[output.sampleID];
-        zones.push(output);
+    const phead = phdr[phIdx];
+    const defaultPbag = pbag[phdr[phIdx].defaultBag].pzone;
+    const filteredPbags = this.getPbags(phIdx).filter((pbag) =>
+      keyVelInRange(pbag.pzone, key, vel)
+    );
+    const insts = Array.from(new Set(phead.insts).values());
+    let zs = [];
+    for (const instId of insts) {
+      const instDefault = this.getIbagZone(iheaders[instId].defaultIbag);
+      const filteredIbags = this.getInstBags(instId).filter((ibg) =>
+        keyVelInRange(ibg.izone, key, vel)
+      );
+      for (const ibg of filteredIbags) {
+        for (const pbg of filteredPbags) {
+          if (pbg.pzone.instrumentID != instId) continue;
+          const output = new SFZone();
+          for (let i = 0; i < 60; i++) {
+            if (ibg.izone.generators[i]) {
+              output.setVal(ibg.izone.generators[i]);
+            } else if (instDefault && instDefault.generators[i]) {
+              output.setVal(instDefault.generators[i]);
+            }
+            if (pbg.pzone.generators[i]) {
+              output.increOrSet(pbg.pzone.generators[i]);
+            } else if (defaultPbag && defaultPbag.generators[i]) {
+              output.increOrSet(defaultPbag.generators[i]);
+            }
+          }
+          zs.push(output);
+        }
       }
     }
-    return zones;
+    return zs;
   }
-  keyVelInRange(zone, key, vel): boolean {
-    return (
-      (key < 0 || (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
-      (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
-    );
-  }
-  getZone(pid, bank_id = 0): SFZone[] {
-    return this.findPreset(pid, bank_id);
-  }
+}
+
+export const SFfromUrl = async (url) => {
+  const res = await fetch(url);
+  const arb = await res.arrayBuffer();
+  return SFF2ffile(arb);
+};
+export async function SFF2ffile(arb: ArrayBuffer) {
+  const r = readAB(arb);
+  const { readNString, get32, skip } = r;
+
+  const [riff, filesize, sfbk, list, infosize] = [
+    readNString(4),
+    get32(),
+    readNString(4),
+    readNString(4),
+    get32(),
+  ];
+  r.skip(infosize);
+  console.log(readNString(4)); //smpl;
+
+  const sdtaByteLength = get32();
+  console.log(riff, filesize, sfbk, list);
+  const smplStartByte = r.offset;
+  console.log(readNString(4)); //smpl;
+  skip(sdtaByteLength);
+  const sdta = await initSDTA(
+    new Uint8Array(arb.slice(smplStartByte, sdtaByteLength))
+  );
+  const pdta = new PDTA(r);
+
+  return {
+    sdta,
+    pdta,
+    runtime: function (presetId, key, vel = 70, bankId = 0) {
+      const zone = pdta.findPreset(presetId, bankId, key, vel)[0];
+      if (!zone) return;
+
+      const rt = new Runtime(zone, {
+        key,
+        velocity: vel,
+      });
+      rt.sampleData = new Uint8Array(
+        sdta.data.slice(rt.sample.start * 4, rt.sample.end * 4)
+      );
+      return rt;
+    },
+  };
 }

@@ -3,12 +3,12 @@ import { LUT } from './LUT';
 import { Runtime } from './runtime';
 import { Writable } from 'node:stream';
 import { loop } from './Utils';
+import { PDTA } from './pdta';
 
 export class RenderCtx {
   sampleRate: number = 48000;
   fps: 350 = 350;
   voices: Runtime[] = [];
-  outputCard: Buffer = Buffer.alloc(1024);
   programs: { presetId: number; bankId: number }[];
   staging = {
     queue: new Array(this.fps * 10).fill([]),
@@ -74,24 +74,13 @@ export class RenderCtx {
     //if (channelId > 6) return;
     const { presetId, bankId } = this.programs[channelId];
 
-    const zones = this.sff.findPreset({
-      bankId,
-      presetId,
-      key,
-      vel,
-    });
-
+    const zones = this.sff.pdta.findPreset(presetId, bankId, key, vel);
     if (!zones || !zones.length) return;
 
-    const rt = new Runtime(
-      zones[0],
-      {
-        key: key,
-        velocity: vel,
-        channel: channelId,
-      },
-      this
-    );
+    const rt = new Runtime(zones[0], {
+      key: key,
+      velocity: vel,
+    });
     if (delay == 0) {
       this.voices[channelId] = rt;
     } else {
@@ -104,24 +93,28 @@ export class RenderCtx {
   }
 
   keyOff(channelId, delay) {
-    let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
+    // let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
 
-    if (scheduledIndex >= this.fps * 10)
-      scheduledIndex = scheduledIndex - this.fps * 10;
-    this.staging.queue[scheduledIndex].push({
-      channelId,
-      keyoff: 1,
-    });
-    console.log('sechded off idx', scheduledIndex, channelId);
+    // if (scheduledIndex >= this.fps * 10)
+    //   scheduledIndex = scheduledIndex - this.fps * 10;
+    // this.staging.queue[scheduledIndex].push({
+    //   channelId,
+    //   keyoff: 1,
+    // });
+    this.voices[channelId]?.mods.ampVol.triggerRelease();
+    this.voices[channelId].length = this.voices[
+      channelId
+    ]?.mods.ampVol.stages[4];
   }
   _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
-    const input: Buffer = this.sff.sdta.data;
+    const input = this.sff.sdta.data;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;
     // const pitch = LUT.relPC[~~voice.staticLevels.pitch];
-    const { volume, pitch, filter } = voice.run(blockLength);
+
     for (let offset = 0; offset < blockLength; offset++) {
+      const { volume, pitch, filter } = voice.run(1);
       const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
       let currentVal = outputArr.readFloatLE(outputByteOffset);
       if (isNaN(currentVal)) currentVal = 0.0;
@@ -170,11 +163,22 @@ export class RenderCtx {
     );
     const activev = this.voices.filter((v) => v.length && v.length > 0);
     activev.forEach((voice) => {
-      //  console.log(voice.sample.originalPitch, voice.zone.instrumentID);
       this._render(voice, ob, blockSize, activev.length);
     });
-    if (this.output) this.output.write(ob);
-    else return ob;
+    return ob;
+  }
+  start() {
+    let n = 0;
+    let that = this;
+    function loopr() {
+      that.output.write(that.render(128));
+      n += 128;
+      if (n < 48000) setTimeout(loopr, 3.5);
+      else {
+        that.output.end();
+      }
+    }
+    loopr();
   }
 }
 export function hermite4(frac_pos, xm1, x0, x1, x2) {

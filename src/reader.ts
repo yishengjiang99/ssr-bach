@@ -32,8 +32,10 @@ export function reader(path: string, opts: number = 0): Reader {
       const c = getc();
       if (c == str.charCodeAt(m)) {
         m++;
-        if (m == str.length) return offset;
-        else {
+        if (m == str.length) {
+          offset -= str.length;
+          return offset;
+        } else {
           console.log(m);
         }
       }
