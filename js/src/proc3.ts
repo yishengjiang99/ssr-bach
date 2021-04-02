@@ -25,12 +25,11 @@
           while (value.byteLength >= chunk) {
             that.buffers.push(value.slice(0, chunk));
             value = value.slice(chunk);
-            if (!that.started && that.buffers.length > 1) {
+            if (!that.started && that.buffers.length > 12) {
               that.started = true;
               that.port.postMessage({ ready: 1, dl: that.buffers.length });
             }
           }
-          that.port.postMessage({ bufferLength: that.buffers.length });
 
           reader.read().then(process);
         });
@@ -45,6 +44,7 @@
         outputs[0][0][i] = fl.getFloat32(8 * i, true);
         outputs[0][1][i] = fl.getFloat32(8 * i + 4, true);
       }
+
       return true;
     }
   }

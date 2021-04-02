@@ -9,7 +9,6 @@ export class RenderCtx {
   sampleRate: number = 48000;
   fps: 350 = 350;
   voices: Runtime[] = [];
-  outputCard: Buffer = Buffer.alloc(1024);
   programs: { presetId: number; bankId: number }[];
   staging = {
     queue: new Array(this.fps * 10).fill([]),
@@ -99,17 +98,21 @@ export class RenderCtx {
   }
 
   keyOff(channelId, delay) {
-    let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
+    // let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
 
-    if (scheduledIndex >= this.fps * 10)
-      scheduledIndex = scheduledIndex - this.fps * 10;
-    this.staging.queue[scheduledIndex].push({
-      channelId,
-      keyoff: 1,
-    });
+    // if (scheduledIndex >= this.fps * 10)
+    //   scheduledIndex = scheduledIndex - this.fps * 10;
+    // this.staging.queue[scheduledIndex].push({
+    //   channelId,
+    //   keyoff: 1,
+    // });
+    this.voices[channelId]?.mods.ampVol.triggerRelease();
+    this.voices[channelId].length = this.voices[
+      channelId
+    ]?.mods.ampVol.stages[4];
   }
   _render(voice: Runtime, outputArr: Buffer, blockLength, n) {
-    const input = this.sff.sdta.data;
+    const input = voice.sampleData;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;

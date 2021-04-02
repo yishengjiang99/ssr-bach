@@ -10,12 +10,23 @@ async function initCtx(pcmUrl) {
   proc = new AudioWorkletNode(ctx, 'playback-processor', {
     outputChannelCount: [2],
   });
+  await ctx.suspend();
+
   worker.postMessage({ url: pcmUrl, port: proc.port }, [proc.port]);
-  
-  proc.connect(ctx.destination);
+  await new Promise((resolve) => {
+    worker.addEventListener(
+      'message',
+      ({ data: { ready } }) => {
+        resolve(1);
+      },
+      { once: true }
+    );
+  });
   worker.onmessage = ({ data }) => {
-    debug.innerHTML = JSON.stringify(data);
+    debug.innerHTML += JSON.stringify(data);
   };
+  proc.connect(ctx.destination);
+  proc.resume();
 }
 
 function start(pcmUrl) {

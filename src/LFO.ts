@@ -36,10 +36,10 @@ export class LFO {
   get val() {
     return this.amount;
   }
-  get volCB(){
-    return this.effects.volume*this.amount
+  get volCB() {
+    return (this.effects.volume * this.amount) / 10;
   }
-  get pitchCent(){
-    return this.effects.volume*this.amount
+  get pitchCent() {
+    return (this.effects.volume * this.amount) / 10;
   }
 }

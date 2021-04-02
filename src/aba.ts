@@ -1,24 +1,8 @@
 import { Reader } from './reader';
-export function readAB(arb): Reader {
-  /*  getc: () => number;
-  get8: () => number;
-  getS16: () => number;
-  get16: () => number;
-
-  read32String: () => string;
-  get32: () => number;
-  skip: (n: number) => void;
-  getOffset: () => number;
-  setOffset: (n: number) => void;
-  readN: (n: number) => Buffer;
-  readNString: (n: number) => string;
-  varLenInt: () => number;
-  getUint16: () => number;
-  seekToString: (str: string) => number | false;
-  fd: number;*/
+export function readAB(arb) {
   const u8b = new Uint8Array(arb);
-  var offset = 0;
-  const getChar = () => u8b[offset++];
+  let _offset = 0;
+  const getChar = () => u8b[_offset++];
   const getStr = (n) => {
     let str = '';
     let nullterm = 0;
@@ -38,17 +22,22 @@ export function readAB(arb): Reader {
     else return u16;
   };
   return {
+    get offset() {
+      return this._offset;
+    },
+    set offset(n) {
+      this.offset = n;
+    },
     skip: function (n) {
-      offset = offset + n;
+      _offset = _offset + n;
     },
     get8: getChar,
     get16: getU16,
     getS16,
     getc: getChar,
-    getOffset: () => offset,
     readN: (n) => {
-      const ret = u8b.slice(offset, n);
-      offset += n;
+      const ret = u8b.slice(_offset, n);
+      _offset += n;
       return ret;
     },
     read32String: () => getStr(4),
@@ -63,9 +52,7 @@ export function readAB(arb): Reader {
       return n;
     },
     get32: getUint32,
-    setOffset: (n) => {
-      offset = n;
-    },
+
     readNString: (n) => getStr(n),
     getUint16: getU16,
   };

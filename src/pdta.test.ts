@@ -3,7 +3,8 @@ import test from 'ava';
 import { reader } from './reader';
 import { Midi } from '@tonejs/midi';
 import { readFileSync } from 'fs';
-const { performance, PerformanceObserver } = require('perf_hooks');
+import { performance, PerformanceObserver } from 'perf_hooks';
+import { PDTA } from './pdta';
 
 test('pdta', (t) => {
   const { pdta } = new SF2File('./file.sf2');
@@ -33,10 +34,11 @@ test('pdta streess', (t) => {
   const perfObserver = new PerformanceObserver((items) => {
     items.getEntries().forEach((entry) => {
       entry.duration < 0.001; // fake call to our custom logging solutiontsc
+      console.log(entry);
     });
   });
 
-  perfObserver.observe({ entryTypes: ['measure'], buffer: true });
+  perfObserver.observe({ entryTypes: ['measure'], buffered: true });
   performance.mark('read-start');
   const { pdta } = new SF2File('./file.sf2');
   performance.mark('read-end');
@@ -56,4 +58,15 @@ test('pdta streess', (t) => {
     });
   });
   t.pass();
+});
+
+test.only('fetchwith url', async (t) => {
+  const pt = await PDTA.fromUrl(
+    'https://grep32bit.blob.core.windows.net/sf2/Chaos.sf2'
+  );
+  pt.findPreset(44, 0, 44, 22);
+  console.log(pt.phdr);
+  t.assert(pt.phdr.length > 0
+    );
+  t.truthy(pt);
 });

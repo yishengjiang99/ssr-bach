@@ -58,9 +58,9 @@ test('runtime function', (t) => {
   );
   t.truthy(rt.staticLevels.pitch);
 });
+const ff = new SF2File('file.sf2');
 
 test.only('some real values', async (t) => {
-  const ff = new SF2File('file.sf2');
   for (let i = 0; i < 128; i++) {
     ff.rend_ctx.programs[0] = { presetId: i, bankId: 0 };
     range(55).map((m) => {
@@ -78,4 +78,21 @@ test.only('some real values', async (t) => {
     break;
   }
   t.pass();
+});
+test.only('strings trem', (t) => {
+  const zs = ff.pdta.findPreset(44, 0, 40, 45);
+  console.log(zs);
+  ff.rend_ctx.programs[0] = { presetId: 44, bankId: 0 };
+  const rt = ff.rend_ctx.keyOn(40, 45);
+  console.log(Object.values(rt.mods).map((m) => m.effects));
+  t.assert(rt != null);
+  const o = ffp();
+  loop(550, (n) => {
+    o.write(ff.rend_ctx.render(128));
+    t.assert(true);
+    if (n == 0) {
+      o.end();
+      t.pass();
+    }
+  });
 });

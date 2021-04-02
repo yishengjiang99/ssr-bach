@@ -20,7 +20,7 @@ export const ffp = (props?: FfpProps) => {
   const { stdin, stderr, stdout } = spawn('ffplay', [
     '-nodisp',
     '-loglevel',
-    'panic',
+    'debug',
     '-i',
     'pipe:0',
     '-ac',

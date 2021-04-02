@@ -1,6 +1,6 @@
 import test from 'ava';
 import { assert } from 'node:console';
-import { cent2hz } from './centTone';
+import { cent2hz } from './Zone';
 import { LFO } from './LFO';
 import { RenderCtx } from './render-ctx';
 import { Runtime } from './runtime';

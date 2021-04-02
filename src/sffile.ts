@@ -35,7 +35,7 @@ export class SF2File {
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
-        const bit16s = r.readN(sectionSize - 4) as Buffer;
+        const bit16s = r.readN(sectionSize - 4);
         const ob: Buffer = Buffer.alloc(nsamples * 4);
         const s16tof32 = (i16) => i16 / 0xffff;
         for (let i = 0; i < nsamples; i++) {
