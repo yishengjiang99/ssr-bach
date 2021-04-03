@@ -1,11 +1,9 @@
 import { SF2File } from './sffile';
 import test from 'ava';
 import { reader } from './reader';
-import { Midi } from '@tonejs/midi';
 import { readFileSync } from 'fs';
 import { performance, PerformanceObserver } from 'perf_hooks';
-import { PDTA, SFfromUrl } from './pdta';
-import { ffp } from './sinks';
+import { SFfromUrl } from './SFBK';
 
 test('pdta', (t) => {
   const { pdta } = new SF2File('./file.sf2');
@@ -49,15 +47,15 @@ test('pdta streess', (t) => {
   performance.mark('readmid-end');
   performance.measure('readmid', 'readmid-start', 'readmid-end');
 
-  new Midi(buf).tracks.map((t) => {
-    const instt = t.instrument.number;
-    t.notes.map((n) => {
-      performance.mark('load-start');
-      const p = pdta.findPreset(instt, 0, n.midi, n.velocity * 0x7f);
-      performance.mark('load-end');
-      performance.measure('load' + n.ticks, 'load-start', 'load-end');
-    });
-  });
+  // new Midi(buf).tracks.map((t) => {
+  //   const instt = t.instrument.number;
+  //   t.notes.map((n) => {
+  //     performance.mark('load-start');
+  //     const p = pdta.findPreset(instt, 0, n.midi, n.velocity * 0x7f);
+  //     performance.mark('load-end');
+  //     performance.measure('load' + n.ticks, 'load-start', 'load-end');
+  //   });
+  // });
   t.pass();
 });
 

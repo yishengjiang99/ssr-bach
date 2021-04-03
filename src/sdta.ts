@@ -1,14 +1,15 @@
 import { readFile, readFileSync } from 'fs';
+import { gheap } from './gheap';
 import { Runtime } from './runtime';
 
-export async function initSDTA(
-  data: Uint8Array
-): Promise<{
+export type SDTA = {
   nsamples: number;
   data: Float32Array;
   bit16s: Uint8Array;
   renderc: (voices: Runtime[], blockLength: number, output) => void;
-}> {
+};
+
+export async function initSDTA(data: Uint8Array) {
   const nsamples = data.byteLength / 2;
   var { heap, malloc, mem, allocStack } = gheap(nsamples * 4 + 1024 * 1024);
 
@@ -81,35 +82,4 @@ export async function initSDTA(
     data: new Float32Array(mem.buffer, floffset, nsamples),
     renderc,
   };
-}
-function gheap(
-  length
-): {
-  allocStack: (n, cb) => void;
-  heap: Uint8Array;
-  malloc: (number) => number;
-  mem: WebAssembly.Memory;
-} {
-  const wasm_page_size = 1024 * 56;
-  const mem = new WebAssembly.Memory({
-    initial: (length / wasm_page_size) * 5,
-    maximum: (length / wasm_page_size) * 5,
-  });
-
-  const heap = new Uint8Array(mem.buffer);
-  let offset = 0;
-  const malloc = (n: number) => {
-    while (offset % 8) offset++; // malign with 8 instead of 4 bc we gorilla 2step
-    const ptr = offset;
-    offset += n;
-    return ptr;
-  };
-  let stackTop = heap.byteLength - 4;
-  const allocStack = (n, cb) => {
-    stackTop -= n;
-    cb(stackTop);
-    stackTop += n;
-    return stackTop;
-  };
-  return { heap, malloc, mem, allocStack };
 }

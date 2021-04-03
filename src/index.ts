@@ -3,10 +3,10 @@ import { SF2File } from './sffile';
 import { ffp } from './sinks';
 import { loop } from './Utils';
 import { createWriteStream } from 'fs';
-import { sleep } from './utilv1';
+import { change_ext, sleep } from './utilv1';
 import { Envelope } from './envAmplitue';
 import { sf_gen_id } from './sf.types';
-import { SFfromUrl, uint8sf2 } from './pdta';
+import { SFfromUrl, uint8sf2 } from './SFBK';
 import { initSDTA } from './sdta';
 import { readFileSync } from 'fs';
 import { cspawn } from './cspawn';
@@ -16,7 +16,6 @@ uint8sf2(new Uint8Array(readFileSync('./SoundBlasterOld.sf2'))).then((sf) => {
   const v = sf.runtime(sf.pdta.phdr[0].presetId, 33, 53, 0);
   //console.log(v);
   if (!v) return false;
-  sf.render(v, 1200, process.stdout);
 });
 
 const t1 = async () => {

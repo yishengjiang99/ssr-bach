@@ -1,4 +1,4 @@
-import { load } from 'webassembly';
+import { load } from './gheap';
 let emulog2;
 export async function init() {
   const module = await load('./log2.wasm');

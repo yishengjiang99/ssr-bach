@@ -9,14 +9,15 @@ export type Reader = {
   read32String: () => string;
   get32: () => number;
   skip: (n: number) => void;
-  getOffset: () => number;
-  setOffset: (n: number) => void;
-  readN: (n: number) => Buffer;
+  getOffset?: () => number;
+  setOffset?: (n: number) => void;
+  readN: (n: number) => Uint8Array | Buffer;
   readNString: (n: number) => string;
   varLenInt: () => number;
   getUint16: () => number;
   seekToString?: (str: string) => number | false;
   fd?: number;
+  offset?: number;
 };
 export const LE = 0x00;
 export const BE = 0x01;

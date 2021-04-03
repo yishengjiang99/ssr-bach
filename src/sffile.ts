@@ -4,13 +4,8 @@ import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
-import { bufferReader } from './readmidi';
-import { sleep, std_inst_names } from './utilv1';
-import { ffp } from './sinks';
-import { loop } from './Utils';
+import { std_inst_names } from './utilv1';
 import { cspawn } from './cspawn';
-import { createWriteStream } from 'fs';
-import { readAB } from './aba';
 
 export class SF2File {
   pdta: PDTA;
@@ -35,9 +30,9 @@ export class SF2File {
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
-        const bit16s = r.readN(sectionSize - 4);
+        const bit16s = r.readN(sectionSize - 4) as Buffer;
         const ob: Buffer = Buffer.alloc(nsamples * 4);
-        const s16tof32 = (i16) => i16 / 0xffff;
+        const s16tof32 = (i16: number) => i16 / 0xffff;
         for (let i = 0; i < nsamples; i++) {
           const n = bit16s.readInt16LE(i * 2);
           ob.writeFloatLE(s16tof32(n), i * 4);
@@ -77,7 +72,20 @@ export class SF2File {
     }
     this.rend_ctx.keyOn(key, vel, 0);
   }
-  key(key, vel = 57) {
+  key(key: any, vel = 57) {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
+const g = new SF2File('./file.sf2');
+const ctx = g.rend_ctx;
+ctx.keyOn(33, 55);
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));
+console.log(ctx.render(132));

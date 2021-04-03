@@ -1,4 +1,3 @@
-import { load } from 'webassembly';
 import { performance, PerformanceObserver } from 'perf_hooks';
 
 const logtb = [];
@@ -38,15 +37,17 @@ const test = () => {
   performance.mark('log2-end');
   performance.measure('a', 'log2-start', 'log2-end');
 
-  load('./log2.wasm').then((module) => {
-    const logccc = module.exports.logshort2;
+  require('./gheap')
+    .load('./log2.wasm')
+    .then((module) => {
+      const logccc = module.exports.logshort2;
 
-    performance.mark('log2-start');
-    for (let i = 1; i < 3333; i++) {
-      logccc(i);
-    }
-    performance.mark('log2-end');
-    performance.measure('c', 'log2-start', 'log2-end');
-  });
+      performance.mark('log2-start');
+      for (let i = 1; i < 3333; i++) {
+        logccc(i);
+      }
+      performance.mark('log2-end');
+      performance.measure('c', 'log2-start', 'log2-end');
+    });
 };
 test();

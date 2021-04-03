@@ -1,11 +1,6 @@
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
-import { readAB } from './aba';
-
-import fetch from 'node-fetch';
-import { initSDTA } from './sdta';
-import { Runtime } from './runtime';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -272,52 +267,4 @@ export class PDTA {
     }
     return zs;
   }
-}
-
-export const SFfromUrl = async (url) => {
-  const ab = await (await fetch(url)).arrayBuffer();
-  return uint8sf2(new Uint8Array(ab));
-};
-
-export async function uint8sf2(ab: Uint8Array) {
-  const r = readAB(ab);
-  const { readNString, get32, skip } = r;
-
-  const [riff, filesize, sfbk, list, infosize] = [
-    readNString(4),
-    get32(),
-    readNString(4),
-    readNString(4),
-    get32(),
-  ];
-  r.skip(infosize);
-  console.log(readNString(4)); //smpl;
-
-  const sdtaByteLength = get32();
-  console.log(riff, filesize, sfbk, list);
-  const smplStartByte = r.offset;
-  console.log(readNString(4)); //smpl;
-  skip(sdtaByteLength);
-  const sdta = await initSDTA(
-    new Uint8Array(ab.slice(smplStartByte, sdtaByteLength))
-  );
-  const pdta = new PDTA(r);
-
-  return {
-    sdta,
-    pdta,
-    runtime: function (presetId, key, vel = 70, bankId = 0) {
-      const zones = pdta.findPreset(presetId, bankId, key, vel);
-      if (!zones || zones.length == 0) return false;
-      return pdta.findPreset(presetId, bankId, key, vel).map((zone) => {
-        const rt = new Runtime(zone, {
-          key,
-          velocity: vel,
-        });
-        rt.sampleData = sdta.data.slice(rt.sample.start, rt.sample.end);
-        return rt;
-      });
-    },
-    render: sdta.renderc,
-  };
 }

@@ -1,6 +1,6 @@
 import test from 'ava';
 import { assert } from 'console';
-import { SFfromUrl } from './pdta';
+import { SFfromUrl } from "./SFBK";
 import { RenderCtx } from './render-ctx';
 import { SF2File } from './sffile';
 
@@ -41,6 +41,7 @@ test.only('fetchwith url', async (t) => {
     'https://grep32bit.blob.core.windows.net/sf2/SoundBlasterOld.sf2'
   ).then(({ pdta, sdta: { data }, runtime }) => {
     //console.log(runtime(0, 54, 22, 0));
+
     t.truthy(runtime(0, 54, 22, 0));
   });
   SFfromUrl('https://dsp.grepawk.com/ssr-bach/Chaos.sf2')

@@ -1,5 +1,5 @@
 import { Reader } from './reader';
-export function readAB(arb) {
+export function readAB(arb): Reader {
   const u8b = new Uint8Array(arb);
   let _offset = 0;
   const getChar = () => u8b[_offset++];
@@ -38,7 +38,7 @@ export function readAB(arb) {
     readN: (n) => {
       const ret = u8b.slice(_offset, n);
       _offset += n;
-      return ret;
+      return ret as Uint8Array;
     },
     read32String: () => getStr(4),
     varLenInt: () => {
