@@ -11,7 +11,7 @@ let ff;
 process.stdin.on('keypress', (str, key) => {
   const dd = key.name;
   if (dd == 'q') process.exit(); //exit;
-  console.log(dd);
+  //console.log(dd);
   const k = keys.indexOf(dd);
 
   if (k > -1) {
@@ -23,6 +23,6 @@ process.stdin.on('keypress', (str, key) => {
     // sff.rend_ctx.keyOff(ch, 0);
     sff.rend_ctx.keyOn(k + 60, 66, 0, ch % 12);
   }
-  console.log(k, dd);
+  //console.log(k, dd);
 });
 process.on('SIGILL', () => process.exit);

@@ -63,4 +63,4 @@ export const mp3c = (): [Writable, Readable, Readable] => {
 
   return [stdin, stdout, stderr];
 };
-export const odf = () => cspawn('od -f', [0, process.stdout, 0]).stdin;
+export const odf = () => cspawn('od -f').stdin;

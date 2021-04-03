@@ -6,7 +6,6 @@ import { readAB } from './aba';
 import fetch from 'node-fetch';
 import { initSDTA } from './sdta';
 import { Runtime } from './runtime';
-import { SF2File } from './sffile';
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -247,8 +246,8 @@ export class PDTA {
     let zs = [];
     for (const instId of insts) {
       const instDefault = this.getIbagZone(iheaders[instId].defaultIbag);
-      const filteredIbags = this.getInstBags(instId).filter((ibg) =>
-        keyVelInRange(ibg.izone, key, vel)
+      const filteredIbags = this.getInstBags(instId).filter(
+        (ibg) => keyVelInRange(ibg.izone, key, vel) && ibg.izone.sampleID > -1
       );
       for (const ibg of filteredIbags) {
         for (const pbg of filteredPbags) {
@@ -266,6 +265,7 @@ export class PDTA {
               output.increOrSet(defaultPbag.generators[i]);
             }
           }
+          output.sample = shdr[ibg.izone.sampleID];
           zs.push(output);
         }
       }
@@ -275,12 +275,12 @@ export class PDTA {
 }
 
 export const SFfromUrl = async (url) => {
-  const res = await fetch(url);
-  const arb = await res.arrayBuffer();
-  return SFF2ffile(arb);
+  const ab = await (await fetch(url)).arrayBuffer();
+  return uint8sf2(new Uint8Array(ab));
 };
-export async function SFF2ffile(arb: ArrayBuffer) {
-  const r = readAB(arb);
+
+export async function uint8sf2(ab: Uint8Array) {
+  const r = readAB(ab);
   const { readNString, get32, skip } = r;
 
   const [riff, filesize, sfbk, list, infosize] = [
@@ -299,7 +299,7 @@ export async function SFF2ffile(arb: ArrayBuffer) {
   console.log(readNString(4)); //smpl;
   skip(sdtaByteLength);
   const sdta = await initSDTA(
-    new Uint8Array(arb.slice(smplStartByte, sdtaByteLength))
+    new Uint8Array(ab.slice(smplStartByte, sdtaByteLength))
   );
   const pdta = new PDTA(r);
 
@@ -307,17 +307,17 @@ export async function SFF2ffile(arb: ArrayBuffer) {
     sdta,
     pdta,
     runtime: function (presetId, key, vel = 70, bankId = 0) {
-      const zone = pdta.findPreset(presetId, bankId, key, vel)[0];
-      if (!zone) return;
-
-      const rt = new Runtime(zone, {
-        key,
-        velocity: vel,
+      const zones = pdta.findPreset(presetId, bankId, key, vel);
+      if (!zones || zones.length == 0) return false;
+      return pdta.findPreset(presetId, bankId, key, vel).map((zone) => {
+        const rt = new Runtime(zone, {
+          key,
+          velocity: vel,
+        });
+        rt.sampleData = sdta.data.slice(rt.sample.start, rt.sample.end);
+        return rt;
       });
-      rt.sampleData = new Uint8Array(
-        sdta.data.slice(rt.sample.start * 4, rt.sample.end * 4)
-      );
-      return rt;
     },
+    render: sdta.renderc,
   };
 }

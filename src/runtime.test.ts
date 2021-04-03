@@ -62,7 +62,7 @@ test.only('some real values', async (t) => {
     range(55).map((m) => {
       const z = ff.rend_ctx.keyOn(m + 30, m + 34);
       if (!z) {
-        console.log(i, m);
+        //console.log(i, m);
         return;
       }
 
@@ -77,10 +77,10 @@ test.only('some real values', async (t) => {
 });
 test.only('strings trem', (t) => {
   const zs = ff.pdta.findPreset(44, 0, 40, 45);
-  console.log(zs);
+  //console.log(zs);
   ff.rend_ctx.programs[0] = { presetId: 44, bankId: 0 };
   const rt = ff.rend_ctx.keyOn(40, 45);
-  console.log(Object.values(rt.mods).map((m) => m.effects));
+  //console.log(Object.values(rt.mods).map((m) => m.effects));
   t.assert(rt != null);
   const o = ffp();
   loop(550, (n) => {

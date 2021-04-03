@@ -11,6 +11,6 @@ export const log2 = (n) => {
 };
 init().then((t) => {
   for (let i = 0; i < 0x8000; i++) {
-    console.log(log2(1 + i / 0x7fff));
+    //console.log(log2(1 + i / 0x7fff));
   }
 });

@@ -25,11 +25,11 @@ export class RenderCtx {
         this.voices[channelId].length = this.voices[
           channelId
         ]?.mods.ampVol.stages[4];
-        console.log('v off', channelId);
+        //console.log('v off', channelId);
       }
       if (rt) {
         this.voices[channelId] = rt;
-        console.log('v on', channelId);
+        //console.log('v on', channelId);
       }
     }
     this.staging.index++;
@@ -80,7 +80,7 @@ export class RenderCtx {
     const rt = new Runtime(zones[0], {
       key: key,
       velocity: vel,
-      });
+    });
     if (delay == 0) {
       this.voices[channelId] = rt;
     } else {

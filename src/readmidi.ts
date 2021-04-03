@@ -47,7 +47,7 @@ export function readMidi(
 
   function readAt(g_time: number) {
     for (const track of tracks) {
-      // console.log(track.time, g_time, reader.offset);
+      // //console.log(track.time, g_time, reader.offset);
       reader.offset = track.offset;
       while (track.time - 555 <= g_time && reader.offset < track.endofTrack) {
         const deltaT = readVarLength();
@@ -141,7 +141,7 @@ export function readMidi(
                 info.push({ 'type:': meta, info: fgets(len) });
                 break;
             }
-            // console.log("meta ", msg, cmd, info);
+            // //console.log("meta ", msg, cmd, info);
             break;
           case 0xf2:
             onMsg('Song Position Pointer', read16());

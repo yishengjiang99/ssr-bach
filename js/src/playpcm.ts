@@ -36,7 +36,7 @@ function start(pcmUrl) {
       worker.postMessage({ url: pcmUrl });
     }
   } catch (e) {
-    console.log("<font color='red'>" + e.message + '</font>');
+    //console.log("<font color='red'>" + e.message + '</font>');
     throw e;
   }
 }

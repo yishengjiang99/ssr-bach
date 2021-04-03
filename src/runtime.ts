@@ -19,7 +19,7 @@ export class Runtime {
   sample: Shdr;
   iterator: number;
   zone: SFZone;
-  sampleData?: Uint8Array;
+  sampleData?: Float32Array;
 
   constructor(zone: SFZone, note: { key; velocity; channel?: number }, gg = 1) {
     const sr = 48000;
@@ -64,14 +64,7 @@ export class Runtime {
         volume: LUT.getAmp(this.staticLevels.gainCB + ampVol.ampCB),
 
         pitch:
-          LUT.relPC[
-            ~~(
-              this.staticLevels.pitch +
-              modVol.modCenTune -
-              vibrLFO.pitchCent +
-              1200
-            )
-          ],
+          LUT.relPC[~~(this.staticLevels.pitch - vibrLFO.pitchCent + 1200)],
         filter: 1,
       };
 

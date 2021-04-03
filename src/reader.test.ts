@@ -6,6 +6,6 @@ test('reader.seekToString', (t) => {
   const r = reader('./test111.txt');
   t.truthy(r);
   r.seekToString('def');
-  console.log(r.getOffset());
+  //console.log(r.getOffset());
   t.assert(r.getOffset() == 3);
 });

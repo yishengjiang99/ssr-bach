@@ -66,13 +66,13 @@
             buffers[0][s + 5] +
             buffers[0][s + 50] +
             buffers[0][s + 43];
-          console.log(s2);
+          //console.log(s2);
           const abs = new AudioBufferSourceNode(ctx, { buffer: audb });
           abs.connect(gainNode);
 
           abs.start();
         } catch (e) {
-          console.log("<font color='red'>" + e.message + '</font>');
+          //console.log("<font color='red'>" + e.message + '</font>');
           throw e;
         }
       }

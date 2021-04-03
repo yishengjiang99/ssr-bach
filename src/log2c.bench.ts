@@ -20,7 +20,7 @@ function log2(amount) {
 const test = () => {
   const perfObserver = new PerformanceObserver((items) => {
     items.getEntries().forEach((entry) => {
-      console.log(entry);
+      //console.log(entry);
     });
   });
   perfObserver.observe({ entryTypes: ['measure'] });

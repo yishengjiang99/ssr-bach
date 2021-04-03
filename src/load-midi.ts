@@ -72,7 +72,7 @@ export function loadMidi({
       while (t.notes.length && t.notes[0].time <= nowt) {
         const note = t.notes.shift();
         notesPlayed.push(registerNote(t, note));
-        console.log(note);
+        //console.log(note);
       }
     }
     await sleep(50);

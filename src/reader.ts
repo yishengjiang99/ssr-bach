@@ -11,7 +11,7 @@ export type Reader = {
   skip: (n: number) => void;
   getOffset: () => number;
   setOffset: (n: number) => void;
-  readN: (n: number) => Buffer ;
+  readN: (n: number) => Buffer;
   readNString: (n: number) => string;
   varLenInt: () => number;
   getUint16: () => number;
@@ -36,7 +36,7 @@ export function reader(path: string, opts: number = 0): Reader {
           offset -= str.length;
           return offset;
         } else {
-          console.log(m);
+          //console.log(m);
         }
       }
     }

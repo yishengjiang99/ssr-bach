@@ -15,12 +15,13 @@ async function initProc(ctx, url) {
       if (ready == 1) resolve();
     };
   });
-  worker.onmessage = ({ data }) => console.log(data);
-  proc.connect(analyzer).connect(ctx.destination);
+  worker.onmessage = (
+    { data } //console.log(data);
+  ) => proc.connect(analyzer).connect(ctx.destination);
 }
 async function startPCM(url: string) {
   try {
-    console.log(url);
+    //console.log(url);
     if (!ctx) await initCtx();
 
     if (ctx.state != 'running') await ctx.resume();
@@ -33,7 +34,7 @@ async function startPCM(url: string) {
       start();
     }, 500);
   } catch (e) {
-    console.log(e.message);
+    //console.log(e.message);
     throw e;
   }
 }

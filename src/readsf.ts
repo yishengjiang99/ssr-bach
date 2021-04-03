@@ -10,9 +10,9 @@
 //       memoryBase: 0,
 //       tableBase: 0,
 //       table: new WebAssembly.Table({ initial: 0, element: 'anyfunc' }),
-//       _abort: () => console.log('abort?'),
+//       _abort: () => //console.log('abort?'),
 //       _grow: () => {
-//         console.log('grow?');
+//         //console.log('grow?');
 //       },
 //     },
 //   };

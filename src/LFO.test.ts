@@ -17,7 +17,7 @@ test('lfo', (t) => {
   const rt = new Runtime(zone, { key: 45, velocity: 127 });
   t.assert(lf.effects.pitch == 3);
   lf.shift(4001);
-  console.log(lf, cent2hz(1200));
+  //console.log(lf, cent2hz(1200));
   t.assert(lf.cycles == Math.floor(cent2hz(1200)) * 2);
   loop(4000, () => t.assert(lf.shift() < 1.1));
 });
@@ -26,7 +26,7 @@ test('tuba', (t) => {
   t.truthy(tubaz);
   const rt = new Runtime(tubaz, { key: 55, velocity: 33 });
   loop(50, () => {
-    console.log(rt.run(1).pitch);
+    //console.log(rt.run(1).pitch);
 
     t.assert(
       Math.abs(
@@ -35,5 +35,5 @@ test('tuba', (t) => {
     );
   });
 
-  console.log(rt.run(128).pitch, rt.mods.vibrLFO);
+  //console.log(rt.run(128).pitch, rt.mods.vibrLFO);
 });
