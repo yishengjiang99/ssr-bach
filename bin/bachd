@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
 require('ts-node').register();
-require('../bachd.js').run();
+require('../src/app').run();

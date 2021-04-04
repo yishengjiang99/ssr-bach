@@ -51,7 +51,7 @@ test('runtime function', (t) => {
   })[0];
   t.truthy(zone);
   sffile.rend_ctx.sampleRate = zone.sample.sampleRate;
-  const rt = new Runtime(zone, { velocity: 33, key: 50 });
+  const rt = new Runtime(zone, { velocity: 33, key: 50 }, 38000);
   t.truthy(rt.staticLevels.pitch);
 });
 const ff = new SF2File('file.sf2');

@@ -65,6 +65,7 @@ export class PDTA {
             });
           }
           this.pbag.push({ pgen_id: -1, pmod_id: 0, pzone: new SFZone() });
+
           break;
         case 'pgen':
           let pgenId = 0,
@@ -128,12 +129,15 @@ export class PDTA {
               izone: new SFZone(),
             });
           }
+          this.ibag.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
+
           break;
         case 'igen':
           let ibagId = 0;
           let instId = 0;
           for (let igenId = 0; igenId < sectionSize / igenLength; igenId++) {
             const opid = r.get8() | (r.get8() << 8);
+            if (opid == -1) break;
             const v = r.getS16();
             const gen = new SFGenerator(opid, v);
             this.igen.push(gen);
@@ -201,7 +205,7 @@ export class PDTA {
     });
   }
   getIbagZone(ibagId) {
-    return this.ibag[ibagId].izone;
+    return this.ibag[ibagId] && this.ibag[ibagId].izone;
   }
   getInstBags(instId) {
     return this.iheaders[instId].ibags.map((ibgId) => this.ibag[ibgId]);
@@ -227,10 +231,19 @@ export class PDTA {
       );
     }
     let phIdx;
+    let samegroup;
     for (phIdx = 0; phIdx < phdr.length; phIdx++) {
       if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) break;
+      if (
+        phdr[phIdx].bankId == bank_id &&
+        ~~(phdr[phIdx].presetId / 0x0f) == ~~(pid & 0x0f)
+      ) {
+        samegroup = phIdx;
+      }
+      break;
     }
-    if (!phdr[phIdx]) return [];
+    if (!phdr[phIdx] && !samegroup) return [];
+    if (!phdr[phIdx]) phIdx = samegroup;
 
     const phead = phdr[phIdx];
     const defaultPbag = pbag[phdr[phIdx].defaultBag].pzone;

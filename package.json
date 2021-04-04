@@ -1,11 +1,12 @@
 {
   "name": "bachd",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "",
   "repository": {
     "url": "https://github.com/yishengjiang99/ssr-bach"
   },
-  "main": "dist/app.js",
+  "types": "dist/sffile.types.d.ts",
+  "main": "dist/sffile.js",
   "scripts": {
     "postInstall": "tsc",
     "dev": "nodemon -w src -e ts-node src/app.ts",
@@ -18,7 +19,8 @@
     "arrowParens": "always"
   },
   "devDependencies": {
-    "ava": "^3.15.0"
+    "ava": "^3.15.0",
+    "ts-node": "^9.1.1"
   },
   "ava": {
     "extensions": [

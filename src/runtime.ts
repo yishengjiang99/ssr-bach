@@ -5,6 +5,7 @@ import { Note } from './runtime.types';
 import { LUT } from './LUT';
 import { Envelope } from './envAmplitue';
 import { LFO } from './LFO';
+import { RenderCtx } from './render-ctx';
 
 export class Runtime {
   staticLevels: {
@@ -21,8 +22,13 @@ export class Runtime {
   zone: SFZone;
   sampleData?: Float32Array;
 
-  constructor(zone: SFZone, note: { key; velocity; channel?: number }, gg = 1) {
-    const sr = 48000;
+  constructor(
+    zone: SFZone,
+    note: { key; velocity; channel?: number },
+    sampleRate: RenderCtx | number
+  ) {
+    const sr =
+      typeof sampleRate == 'number' ? sampleRate : sampleRate.sampleRate; //48000;
     this.zone = zone;
     this.staticLevels = {
       gainCB: zone.attenuate + LUT.velCB[note.velocity],

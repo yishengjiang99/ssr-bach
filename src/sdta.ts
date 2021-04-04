@@ -9,6 +9,8 @@ export type SDTA = {
   renderc: (voices: Runtime[], blockLength: number, output) => void;
 };
 
+const fs_1 = require('fs');
+
 export async function initSDTA(data: Uint8Array) {
   const nsamples = data.byteLength / 2;
   var { heap, malloc, mem, allocStack } = gheap(nsamples * 4 + 1024 * 1024);

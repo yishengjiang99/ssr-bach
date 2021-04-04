@@ -76,16 +76,18 @@ export class SF2File {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
-const g = new SF2File('./file.sf2');
-const ctx = g.rend_ctx;
-ctx.keyOn(33, 55);
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
-console.log(ctx.render(132));
+function test() {
+  const g = new SF2File('./file.sf2');
+  const ctx = g.rend_ctx;
+  ctx.keyOn(33, 55);
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+  console.log(ctx.render(132));
+}

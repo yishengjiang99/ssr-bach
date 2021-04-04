@@ -176,7 +176,7 @@ function handl(req, res, { pdta, sdta, runtime }) {
         (a3 && parseInt(a3)) || -1
       );
       presets.map((z) => {
-        const rt = new Runtime(z, { key: 55, velocity: 44 });
+        const rt = new Runtime(z, { key: 55, velocity: 44 }, 48000);
         res.write('<table border=1>');
         res.write(`<tr><td colspan=3></td><td rowspan=9>vol run:`);
         loop(32, () => res.write(`<li>${rt.run(125).pitch}</li>`));

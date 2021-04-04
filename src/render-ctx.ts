@@ -77,10 +77,14 @@ export class RenderCtx {
     const zones = this.sff.pdta.findPreset(presetId, bankId, key, vel);
     if (!zones || !zones.length) return;
 
-    const rt = new Runtime(zones[0], {
-      key: key,
-      velocity: vel,
-    });
+    const rt = new Runtime(
+      zones[0],
+      {
+        key: key,
+        velocity: vel,
+      },
+      48000
+    );
     if (delay == 0) {
       this.voices[channelId] = rt;
     } else {

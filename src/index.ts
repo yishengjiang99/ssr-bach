@@ -12,7 +12,7 @@ import { readFileSync } from 'fs';
 import { cspawn } from './cspawn';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
 
-uint8sf2(new Uint8Array(readFileSync('./SoundBlasterOld.sf2'))).then((sf) => {
+uint8sf2(new Uint8Array(readFileSync('./file.sf2'))).then((sf) => {
   const v = sf.runtime(sf.pdta.phdr[0].presetId, 33, 53, 0);
   //console.log(v);
   if (!v) return false;
@@ -159,3 +159,5 @@ export function pitchshift() {
     );
 }
 pitchshift();
+const sf = new SF2File('./file.sf2');
+console.log(sf.pdta.phdr);
