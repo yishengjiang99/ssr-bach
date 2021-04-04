@@ -3,7 +3,7 @@ import { SF2File } from './sffile';
 import { ffp } from './sinks';
 import { loop } from './Utils';
 import { createWriteStream } from 'fs';
-import { change_ext, sleep } from './utilv1';
+import { change_ext, sleep, std_inst_names } from './utilv1';
 import { Envelope } from './envAmplitue';
 import { sf_gen_id } from './sf.types';
 import { SFfromUrl, uint8sf2 } from './SFBK';
@@ -11,12 +11,31 @@ import { initSDTA } from './sdta';
 import { readFileSync } from 'fs';
 import { cspawn } from './cspawn';
 const hrdiff = (h1, h2) => h2[0] - h1[0] + (h2[1] - h1[1]) * 1e-9;
+const sff = new SF2File('file.sf2');
+function loadInstrument(instname) {
+  sff
+    .findPreset({
+      bankId: 0,
+      presetId: std_inst_names.indexOf(instname),
+      key: -1,
+      vel: -1,
+    })
+    .map((zone) => {
+      sff.sdta.data.slice(zone.sample.start * 4, zone.sample.end);
+      console.log(
+        zone.sample.start * 4,
+        zone.sample.end,
+        zone.sample.name,
+        zone.velRange,
+        zone.keyRange,
+        zone.instrumentID,
+        zone.sample,
+        zone.generators
+      );
+    });
+}
 
-uint8sf2(new Uint8Array(readFileSync('./file.sf2'))).then((sf) => {
-  const v = sf.runtime(sf.pdta.phdr[0].presetId, 33, 53, 0);
-  //console.log(v);
-  if (!v) return false;
-});
+loadInstrument('oboe');
 
 const t1 = async () => {
   const instrument = (process.argv[2] && parseInt(process.argv[2])) || 0;
@@ -158,6 +177,3 @@ export function pitchshift() {
         sf.pdta.pbag.filter((pb) => pb.pgen_id == 5377) // 5380 && pb.pgen_id > 5100)
     );
 }
-pitchshift();
-const sf = new SF2File('./file.sf2');
-console.log(sf.pdta.phdr);

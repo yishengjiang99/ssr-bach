@@ -230,34 +230,37 @@ export class PDTA {
         (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
       );
     }
-    let phIdx;
+    let phIdx,
+      mphid = -1;
     let samegroup;
     for (phIdx = 0; phIdx < phdr.length; phIdx++) {
-      if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) break;
-      if (
-        phdr[phIdx].bankId == bank_id &&
-        ~~(phdr[phIdx].presetId / 0x0f) == ~~(pid & 0x0f)
-      ) {
-        samegroup = phIdx;
+      if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) {
+        mphid = phIdx;
+        break;
       }
-      break;
     }
-    if (!phdr[phIdx] && !samegroup) return [];
-    if (!phdr[phIdx]) phIdx = samegroup;
+    if (mphid < 0 && !samegroup) return [];
+    if (mphid < 0) mphid = samegroup;
 
-    const phead = phdr[phIdx];
-    const defaultPbag = pbag[phdr[phIdx].defaultBag].pzone;
-    const filteredPbags = this.getPbags(phIdx).filter((pbag) =>
+    const phead = phdr[mphid];
+    const defaultPbag = pbag[phdr[mphid].defaultBag].pzone;
+    const filteredPbags = this.getPbags(mphid).filter((pbag) =>
       keyVelInRange(pbag.pzone, key, vel)
     );
     const insts = Array.from(new Set(phead.insts).values());
     let zs = [];
+    let visited = new Set();
     for (const instId of insts) {
+      console.log(iheaders[instId].name);
       const instDefault = this.getIbagZone(iheaders[instId].defaultIbag);
       const filteredIbags = this.getInstBags(instId).filter(
         (ibg) => keyVelInRange(ibg.izone, key, vel) && ibg.izone.sampleID > -1
       );
+
       for (const ibg of filteredIbags) {
+        //b
+        if (visited.has(ibg)) continue;
+        visited.add(ibg);
         for (const pbg of filteredPbags) {
           if (pbg.pzone.instrumentID != instId) continue;
           const output = new SFZone();
