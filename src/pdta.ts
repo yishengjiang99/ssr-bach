@@ -12,8 +12,6 @@ export class PDTA {
   imod: Mod[] = [];
   ibag: IBag[] = [];
   shdr: Shdr[] = [];
-  igen_sets: any[];
-  ibagSets: Set<number>[] = [];
 
   static fromUrl: (url: string) => Promise<PDTA>;
   constructor(r: any) {
@@ -29,6 +27,7 @@ export class PDTA {
       const instLength = 22;
       const sectionName = r.read32String();
       const sectionSize = r.get32();
+      console.log(sectionName, sectionSize);
       switch (sectionName) {
         case 'phdr':
           for (let i = 0; i < sectionSize; i += phdrLength) {
@@ -40,14 +39,9 @@ export class PDTA {
               misc: [r.get32(), r.get32(), r.get32()],
               pbags: [],
               insts: [],
-              ibagSet: new Set<number>(),
               _defaultBag: -1,
               get defaultBag() {
-                return this._defaultBag > 0
-                  ? this._defaultBag
-                  : this.pbags.length > 0
-                  ? this.pbags[0]
-                  : null;
+                return this._defaultBag > -1 ? this._defaultBag : this.pbags[0];
               },
               set defaultBag(value) {
                 this._defaultBag = value;
@@ -87,15 +81,7 @@ export class PDTA {
               if (pbagId >= this.phdr[phdrId + 1].pbagIndex) {
                 phdrId++;
               }
-              if (this.pbag[pbagId].pzone.instrumentID == -1) {
-                if (this.phdr[phdrId].defaultBag == -1)
-                  this.phdr[phdrId].defaultBag = pbagId;
-              } else {
-                this.phdr[phdrId].pbags.push(pbagId);
-                this.phdr[phdrId].insts.push(
-                  this.pbag[pbagId].pzone.instrumentID
-                );
-              }
+              this.addPbagToPreset(pbagId, phdrId);
               pbagId++;
             }
           }
@@ -122,13 +108,22 @@ export class PDTA {
           }
           break;
         case 'ibag':
+          let ibginst = 0;
           for (let i = 0; i < sectionSize; i += pbagLength) {
+            if (
+              this.iheaders[ibginst + 1] &&
+              i >= this.iheaders[ibginst + 1].iBagIndex
+            )
+              ibginst++;
             this.ibag.push({
               igen_id: r.get16(),
               imod_id: r.get16(),
               izone: new SFZone(),
             });
+            this.psh(ibginst, i, pbagLength);
           }
+          //.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
+
           this.ibag.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
 
           break;
@@ -143,18 +138,8 @@ export class PDTA {
             this.igen.push(gen);
             if (gen.operator === 60) break;
             this.ibag[ibagId].izone.applyGenVal(gen);
-            if (igenId >= this.ibag[ibagId + 1]?.igen_id - 1) {
-              if (ibagId >= this.iheaders[instId + 1]?.iBagIndex) {
-                instId++;
-              }
-              this.iheaders[instId].ibags.push(ibagId);
-              this.ibag[ibagId].izone.instrumentID = instId;
-              if (this.ibag[ibagId].izone.sampleID == -1) {
-                if (this.iheaders[instId].defaultIbag == -1)
-                  this.iheaders[instId].defaultIbag = ibagId;
-              } else {
-                this.iheaders[instId].ibags.push(ibagId);
-              }
+
+            if (igenId >= this.ibag[ibagId + 1].igen_id - 1) {
               ibagId++;
             }
           }
@@ -195,25 +180,37 @@ export class PDTA {
           break;
       }
     } while (n++ <= 9);
-    this.phdr.forEach((phead) => {
-      phead.ibagSet = new Set();
-      phead.insts.forEach((instId) => {
-        this.iheaders[instId].ibags.forEach((ibagId) =>
-          phead.ibagSet.add(ibagId)
-        );
-      });
-    });
   }
-  getIbagZone(ibagId) {
+  private addPbagToPreset(pbagId: number, phdrId: number) {
+    if (this.pbag[pbagId].pzone.instrumentID == -1) {
+      if (this.phdr[phdrId].defaultBag == -1)
+        this.phdr[phdrId].defaultBag = pbagId;
+    } else {
+      this.phdr[phdrId]!.pbags.push(pbagId);
+      this.phdr[phdrId]!.insts.push(this.pbag[pbagId].pzone.instrumentID);
+    }
+  }
+
+  private psh(ibginst: number, i: number, pbagLength: number) {
+    this.iheaders[ibginst].ibags &&
+      this.iheaders[ibginst].ibags!.push(i / pbagLength);
+  }
+
+  getIbagZone(ibagId: number) {
     return this.ibag[ibagId] && this.ibag[ibagId].izone;
   }
-  getInstBags(instId) {
-    return this.iheaders[instId].ibags.map((ibgId) => this.ibag[ibgId]);
+  getInstBags(instId: number) {
+    return (
+      (this.iheaders[instId] &&
+        this.iheaders[instId].ibags &&
+        this.iheaders[instId].ibags!.map((ibgId) => this.ibag[ibgId])) ||
+      []
+    );
   }
-  getPbags(phdrIdx) {
-    return this.phdr[phdrIdx].pbags.map((pbagId) => this.pbag[pbagId]);
+  getPbags(phdrIdx: number) {
+    return this.phdr[phdrIdx].pbags?.map((pbagId) => this.pbag[pbagId]) || [];
   }
-  getProgram(presetId, bankId) {
+  getProgram(presetId: number, bankId: number) {
     return this.phdr.filter(
       (pd) => pd.bankId == bankId && pd.presetId == presetId
     )[0];
@@ -222,9 +219,9 @@ export class PDTA {
    * any preceived verbosity in the following lines of code
    * was done to ensure correctness
    */
-  findPreset(pid, bank_id = 0, key = -1, vel = -1): SFZone[] {
+  findPreset(pid: number, bank_id = 0, key = -1, vel = -1): SFZone[] {
     const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
-    function keyVelInRange(zone, key, vel): boolean {
+    function keyVelInRange(zone: SFZone, key: number, vel: number): boolean {
       return (
         (key < 0 || (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
         (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
@@ -244,22 +241,20 @@ export class PDTA {
 
     const phead = phdr[mphid];
     const defaultPbag = pbag[phdr[mphid].defaultBag].pzone;
-    const filteredPbags = this.getPbags(mphid).filter((pbag) =>
-      keyVelInRange(pbag.pzone, key, vel)
-    );
+    const filteredPbags = this.getPbags(mphid);
     const insts = Array.from(new Set(phead.insts).values());
     let zs = [];
     let visited = new Set();
     for (const instId of insts) {
       console.log(iheaders[instId].name);
-      const instDefault = this.getIbagZone(iheaders[instId].defaultIbag);
+      const instDefault = this.getIbagZone(iheaders[instId].iBagIndex);
       const filteredIbags = this.getInstBags(instId).filter(
         (ibg) => keyVelInRange(ibg.izone, key, vel) && ibg.izone.sampleID > -1
       );
 
       for (const ibg of filteredIbags) {
         //b
-        if (visited.has(ibg)) continue;
+
         visited.add(ibg);
         for (const pbg of filteredPbags) {
           if (pbg.pzone.instrumentID != instId) continue;

@@ -21,7 +21,7 @@ export class RenderCtx {
     while (this.productionNow.length) {
       const { channelId, rt, keyoff } = this.productionNow.shift();
       if (keyoff == 1 && this.voices[channelId]) {
-        this.voices[channelId]?.mods.ampVol.triggerRelease();
+        this.voices[channelId].mods.ampVol.triggerRelease();
         this.voices[channelId].length = this.voices[
           channelId
         ]?.mods.ampVol.stages[4];

@@ -1,7 +1,7 @@
 export function readAB(arb) {
   const u8b = new Uint8Array(arb);
-  var offset = 0;
-  const getChar = () => u8b[offset++];
+  var _offset = 0;
+  const getChar = () => u8b[_offset++];
   const getStr = (n) => {
     let str = '';
     let nullterm = 0;
@@ -22,9 +22,9 @@ export function readAB(arb) {
   };
 
   return {
-    ftell: () => offset,
+    ftell: () => _offset,
     skip: function (n) {
-      offset = offset + n;
+      _offset = _offset + n;
     },
     getChar,
     getStr,

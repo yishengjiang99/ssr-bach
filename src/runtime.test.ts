@@ -1,6 +1,6 @@
 import test from 'ava';
 import { cspawn } from './cspawn';
-import { Runtime } from './Runtime';
+import { Runtime } from './runtime';
 import { LFO } from './LFO';
 import { cent2hz } from './runtime.types';
 import { SF2File } from './sffile';

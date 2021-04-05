@@ -8,8 +8,8 @@ import { std_inst_names } from './utilv1';
 import { cspawn } from './cspawn';
 
 export class SF2File {
-  pdta: PDTA;
-  sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
+  pdta!: PDTA;
+  sdta!: { nsamples: number; data: Buffer; bit16s: Buffer };
   rend_ctx: RenderCtx;
   path: string;
   constructor(path: string = '') {
@@ -53,11 +53,6 @@ export class SF2File {
     const { bankId, presetId, key, vel } = props;
     const zones = this.pdta.findPreset(presetId, bankId, key, vel);
     return zones;
-  }
-  stdout() {
-    this.rend_ctx.output = cspawn(
-      'ffplay -f f32le -i pipe:0 -ac 2 -ar 48000'
-    ).stdin;
   }
   play(instrument: string, key = 44, vel = 66) {
     let found = 0;

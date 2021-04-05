@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z"
+      crossorigin="anonymous"
+    />
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+  </head>
+  <body class="container row">
+    <div id="root"></div>
+    <script type="text/babel">
+      function Synth({ phdr }) {
+        return (
+          <div>
+            <select>
+              {phdr.map((preset) => (
+                <option value={preset.presetId}>{preset.name}</option>
+              ))}
+            </select>
+          </div>
+        );
+      }
+    </script>
+    <script type="module">
+      import { SFGenerator } from './dist/generator.js';
+      import { SFZone } from './dist/Zone.js';
+      export class PDTA {
+        constructor(r) {
+          this.phdr = [];
+          this.pbag = [];
+          this.pgen = [];
+          this.pmod = [];
+          this.iheaders = [];
+          this.igen = [];
+          this.imod = [];
+          this.ibag = [];
+          this.shdr = [];
+          let n = 0;
+          do {
+            const ShdrLength = 46;
+            const imodLength = 10;
+            const phdrLength = 38;
+            const pbagLength = 4;
+            const pgenLength = 4,
+              igenLength = 4;
+            const pmodLength = 10;
+            const instLength = 22;
+            const sectionName = r.read32String();
+            const sectionSize = r.get32();
+            console.log(sectionName, sectionSize);
+            switch (sectionName) {
+              case 'phdr':
+                for (let i = 0; i < sectionSize; i += phdrLength) {
+                  const phdrItem = {
+                    name: r.readNString(20),
+                    presetId: r.get16(),
+                    bankId: r.get16(),
+                    pbagIndex: r.get16(),
+                    misc: [r.get32(), r.get32(), r.get32()],
+                    pbags: [],
+                    insts: [],
+                    _defaultBag: -1,
+                    get defaultBag() {
+                      return this._defaultBag > -1
+                        ? this._defaultBag
+                        : this.pbags[0];
+                    },
+                    set defaultBag(value) {
+                      this._defaultBag = value;
+                    },
+                  };
+                  this.phdr.push(phdrItem);
+                }
+                break;
+              case 'pbag':
+                for (let i = 0; i < sectionSize; i += pbagLength) {
+                  this.pbag.push({
+                    pgen_id: r.get16(),
+                    pmod_id: r.get16(),
+                    pzone: new SFZone(),
+                  });
+                }
+                this.pbag.push({
+                  pgen_id: -1,
+                  pmod_id: 0,
+                  pzone: new SFZone(),
+                });
+                break;
+              case 'pgen':
+                let pgenId = 0,
+                  pbagId = 0,
+                  phdrId = 0;
+                for (; pgenId < sectionSize / pgenLength; pgenId++) {
+                  const opid = r.get8();
+                  r.get8();
+                  const v = r.getS16();
+                  const pg = new SFGenerator(opid, v);
+                  this.pgen.push(pg);
+                  if (pg.operator == 60) break;
+                  this.pbag[pbagId].pzone.applyGenVal(pg, pgenId);
+                  if (
+                    this.pbag[pbagId + 1] &&
+                    pgenId >= this.pbag[pbagId + 1].pgen_id - 1
+                  ) {
+                    if (pbagId >= this.phdr[phdrId + 1].pbagIndex) {
+                      phdrId++;
+                    }
+                    this.addPbagToPreset(pbagId, phdrId);
+                    pbagId++;
+                  }
+                }
+                break;
+              case 'pmod':
+                for (let i = 0; i < sectionSize; i += pmodLength) {
+                  this.pmod.push({
+                    src: r.get16(),
+                    dest: r.get16(),
+                    amt: r.get16(),
+                    amtSrc: r.get16(),
+                    transpose: r.get16(),
+                  });
+                }
+                break;
+              case 'inst':
+                for (let i = 0; i < sectionSize; i += instLength) {
+                  this.iheaders.push({
+                    name: r.readNString(20),
+                    iBagIndex: r.get16(),
+                    ibags: [],
+                    defaultIbag: -1,
+                  });
+                }
+                break;
+              case 'ibag':
+                let ibginst = 0;
+                for (let i = 0; i < sectionSize; i += pbagLength) {
+                  if (
+                    this.iheaders[ibginst + 1] &&
+                    i >= this.iheaders[ibginst + 1].iBagIndex
+                  )
+                    ibginst++;
+                  this.ibag.push({
+                    igen_id: r.get16(),
+                    imod_id: r.get16(),
+                    izone: new SFZone(),
+                  });
+                  this.psh(ibginst, i, pbagLength);
+                }
+                //.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
+                this.ibag.push({
+                  igen_id: -1,
+                  imod_id: 0,
+                  izone: new SFZone(),
+                });
+                break;
+              case 'igen':
+                let ibagId = 0;
+                let instId = 0;
+                for (
+                  let igenId = 0;
+                  igenId < sectionSize / igenLength;
+                  igenId++
+                ) {
+                  const opid = r.get8() | (r.get8() << 8);
+                  if (opid == -1) break;
+                  const v = r.getS16();
+                  const gen = new SFGenerator(opid, v);
+                  this.igen.push(gen);
+                  if (gen.operator === 60) break;
+                  this.ibag[ibagId].izone.applyGenVal(gen);
+                  if (igenId >= this.ibag[ibagId + 1].igen_id - 1) {
+                    ibagId++;
+                  }
+                }
+                break;
+              case 'imod':
+                for (let i = 0; i < sectionSize; i += imodLength) {
+                  this.imod.push({
+                    src: r.get16(),
+                    dest: r.get16(),
+                    amt: r.get16(),
+                    amtSrc: r.get16(),
+                    transpose: r.get16(),
+                  });
+                }
+                break;
+              case 'shdr':
+                for (
+                  let i = 0;
+                  i < sectionSize;
+                  i += ShdrLength ///20 + 4 * 5 + 1 + 1 + 4)
+                ) {
+                  this.shdr.push({
+                    name: r.readNString(20),
+                    start: r.get32(),
+                    end: r.get32(),
+                    startLoop: r.get32(),
+                    endLoop: r.get32(),
+                    sampleRate: r.get32(),
+                    originalPitch: r.get8(),
+                    pitchCorrection: r.get8(),
+                    sampleLink: r.get16(),
+                    sampleType: r.get16(),
+                  });
+                }
+                break;
+              default:
+                break;
+            }
+          } while (n++ <= 9);
+        }
+        addPbagToPreset(pbagId, phdrId) {
+          if (this.pbag[pbagId].pzone.instrumentID == -1) {
+            if (this.phdr[phdrId].defaultBag == -1)
+              this.phdr[phdrId].defaultBag = pbagId;
+          } else {
+            this.phdr[phdrId].pbags.push(pbagId);
+            this.phdr[phdrId].insts.push(this.pbag[pbagId].pzone.instrumentID);
+          }
+        }
+        psh(ibginst, i, pbagLength) {
+          this.iheaders[ibginst].ibags &&
+            this.iheaders[ibginst].ibags.push(i / pbagLength);
+        }
+        getIbagZone(ibagId) {
+          return this.ibag[ibagId] && this.ibag[ibagId].izone;
+        }
+        getInstBags(instId) {
+          return (
+            (this.iheaders[instId] &&
+              this.iheaders[instId].ibags &&
+              this.iheaders[instId].ibags.map((ibgId) => this.ibag[ibgId])) ||
+            []
+          );
+        }
+        getPbags(phdrIdx) {
+          return (
+            this.phdr[phdrIdx].pbags?.map((pbagId) => this.pbag[pbagId]) || []
+          );
+        }
+        getProgram(presetId, bankId) {
+          return this.phdr.filter(
+            (pd) => pd.bankId == bankId && pd.presetId == presetId
+          )[0];
+        }
+        /**
+         * any preceived verbosity in the following lines of code
+         * was done to ensure correctness
+         */
+        findPreset(pid, bank_id = 0, key = -1, vel = -1) {
+          const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
+          function keyVelInRange(zone, key, vel) {
+            return (
+              (key < 0 ||
+                (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
+              (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
+            );
+          }
+          let phIdx,
+            mphid = -1;
+          let samegroup;
+          for (phIdx = 0; phIdx < phdr.length; phIdx++) {
+            if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) {
+              mphid = phIdx;
+              break;
+            }
+          }
+          if (mphid < 0 && !samegroup) return [];
+          if (mphid < 0) mphid = samegroup;
+          const phead = phdr[mphid];
+          const defaultPbag = pbag[phdr[mphid].defaultBag].pzone;
+          const filteredPbags = this.getPbags(mphid);
+          const insts = Array.from(new Set(phead.insts).values());
+          let zs = [];
+          let visited = new Set();
+          for (const instId of insts) {
+            console.log(iheaders[instId].name);
+            const instDefault = this.getIbagZone(iheaders[instId].ibagIndex);
+            const filteredIbags = this.getInstBags(instId).filter(
+              (ibg) =>
+                keyVelInRange(ibg.izone, key, vel) && ibg.izone.sampleID > -1
+            );
+            for (const ibg of filteredIbags) {
+              //b
+              visited.add(ibg);
+              for (const pbg of filteredPbags) {
+                if (pbg.pzone.instrumentID != instId) continue;
+                const output = new SFZone();
+                for (let i = 0; i < 60; i++) {
+                  if (ibg.izone.generators[i]) {
+                    output.setVal(ibg.izone.generators[i]);
+                  } else if (instDefault && instDefault.generators[i]) {
+                    output.setVal(instDefault.generators[i]);
+                  }
+                  if (pbg.pzone.generators[i]) {
+                    output.increOrSet(pbg.pzone.generators[i]);
+                  } else if (defaultPbag && defaultPbag.generators[i]) {
+                    output.increOrSet(defaultPbag.generators[i]);
+                  }
+                }
+                output.sample = shdr[ibg.izone.sampleID];
+                zs.push(output);
+              }
+            }
+          }
+          return zs;
+        }
+      }
+
+      function readAB(arb) {
+        const u8b = new Uint8Array(arb);
+        let offset = 0;
+        const get8 = () => {
+          return u8b[offset++];
+        };
+        const getStr = (n) => {
+          let str = '';
+          let nullterm = 0;
+          for (let i = 0; i < n; i++) {
+            let c = get8();
+            if (c == 0x00) nullterm = 1;
+            if (nullterm == 0) str += String.fromCharCode(c);
+          }
+          return str;
+        };
+        const getUint32 = () =>
+          get8() | (get8() << 8) | (get8() << 16) | (get8() << 24);
+        const getU16 = () => get8() | (get8() << 8);
+        const getS16 = () => {
+          const u16 = getU16();
+          if (u16 & 0x8000) return -0x10000 + u16;
+          else return u16;
+        };
+        return {
+          offset,
+
+          skip: function (n) {
+            offset = offset + n;
+          },
+          get8,
+          get16: getU16,
+          getS16,
+          readN: (n) => {
+            const ret = u8b.slice(offset, n);
+            offset += n;
+            return ret;
+          },
+          read32String: () => getStr(4),
+          varLenInt: () => {
+            let v = 0;
+            let n = get8();
+            v = n & 0x7f;
+            while (n & 0x80) {
+              n = get8();
+              v = (v << 7) | (n & 0x7f);
+            }
+            return n;
+          },
+          get32: getUint32,
+
+          readNString: (n) => getStr(n),
+          getUint16: getU16,
+        };
+      }
+
+      async function uint8sf2(ab) {
+        const r = readAB(ab);
+        const { readNString, get32, skip } = r;
+        const [riff, filesize, sig, list] = [
+          r.readNString(4),
+          r.get32(),
+          r.readNString(4),
+          r.readNString(4),
+        ];
+        let infosize = get32();
+        console.log(readNString(4), r.offset);
+
+        console.log(infosize, r.offset);
+
+        // while (infosize % 4 != 0) {
+        //   // r.get8();
+        //  // infosize++;
+        // }
+        r.skip(infosize - 4);
+        console.log(readNString(4), r.offset);
+
+        let sdtas = get32();
+        console.log(readNString(4), r.offset);
+        console.log(readNString(4), r.offset);
+        const b16s = r.readN(sdtas - 4);
+
+        console.log(get32());
+        console.log(readNString(4));
+        const pdta = new PDTA(r);
+        const sfbk = {
+          sdta: {
+            bit16s: b16s,
+            data: new Proxy(b16s, {
+              get: (target, index) => {
+                return target[index] / 0xffff;
+              },
+            }),
+          },
+          sdtastart: 1,
+          sdtaByteLength: 2,
+          pdta,
+          runtime: function (presetId, key, vel = 70, bankId = 0) {
+            const zones = this.pdta.findPreset(presetId, bankId, key, vel);
+            if (!zones || zones.length == 0) return false;
+            return this.pdta
+              .findPreset(presetId, bankId, key, vel)
+              .map((zone) => {
+                const rt = new Runtime(
+                  zone,
+                  {
+                    key,
+                    velocity: vel,
+                  },
+                  48000
+                );
+                return rt;
+              });
+          },
+        };
+        return sfbk;
+      }
+
+      async function gheap(length, wasmbin) {
+        const heap_start = 8;
+        const wasm_page_size = 1024 * 56;
+        const pages = Math.ceil((length / wasm_page_size) * 5 + 10240);
+        const mem = new WebAssembly.Memory({
+          initial: pages,
+          maximum: pages,
+        });
+        const heap = new Uint8Array(mem.buffer);
+        let offset = 8;
+        const malloc = (n) => {
+          while (offset % 8) offset++; // malign with 8 instead of 4 bc we gorilla 2step
+          const ptr = offset;
+          offset += n;
+          return ptr;
+        };
+        let stackTop = heap.byteLength - 4;
+        const allocStack = (n, cb) => {
+          stackTop -= n;
+          cb(stackTop);
+          stackTop += n;
+          return stackTop;
+        };
+        const config = {
+          env: {
+            memory: mem,
+
+            table: new WebAssembly.Table({ initial: 0, element: 'anyfunc' }),
+            _abort: () => console.log('abort?'),
+            _grow: () => {
+              console.log('grow?');
+            },
+            consolelog: (str, b) => console.log(str, b),
+          },
+        };
+        const {
+          instance: { exports },
+        } = await WebAssembly.instantiate(wasmbin, config);
+        const inputParams = malloc(4 + 4 + 4 + 4 + 4 + 4 + 4);
+
+        return { heap, malloc, mem, allocStack, exports };
+      }
+
+      async function initsf(sfurl) {
+        const bin = await (await fetch('sdta.wasm')).arrayBuffer();
+        const arr = new Uint8Array(await (await fetch(sfurl)).arrayBuffer());
+        const { pdta, sdta } = await uint8sf2(arr);
+        const { heap, malloc, mem, allocStack, exports } = await gheap(
+          arr.byteLength,
+          bin
+        );
+        const nsamples = arr.byteLength / 2;
+
+        const inputptr = malloc(arr.byteLength + 20);
+        heap.set(arr, inputptr);
+
+        const floffset = malloc(2 * arr.byteLength + 20);
+        console.log(inputptr, floffset);
+        // @ts-ignore
+        exports['load'](inputptr, floffset, nsamples);
+        const inputParams = malloc(4 + 4 + 4 + 4 + 4 + 4 + 4);
+        const dv = new DataView(heap.buffer, inputParams, 28);
+        const soundCard = malloc(10240);
+        function render(
+          { start, end, startLoop, endLoop },
+          { pitch, amount, pan }
+        ) {
+          [iterator, startLoop, endLoop, blockLength].map((v, idx) =>
+            dv.setUint32(idx * 4, v, true)
+          );
+          [pitch, volume * left, volume * right].map((v, idx) =>
+            dv.setFloat32(16 + idx * 4, v, true)
+          );
+        }
+        return { render, pdta, sdta };
+      }
+      window.loadSF2 = initsf;
+    </script>
+    <script type="text/babel">
+      window
+        .loadSF2('file.sf2')
+        .then(
+          ({
+            render,
+            pdta: { phdr, pbag, pgen, iheaders, igen, ibag, shdr },
+            sdta,
+          }) => {
+            function keyVelInRange(zone, key, vel) {
+              return (
+                (key < 0 ||
+                  (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
+                (vel < 0 ||
+                  (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
+              );
+            }
+            function findInstrument(instId, key = -1, vel = -1) {
+              const inst = iheaders[instId];
+              if (inst.name == 'EOI') return null;
+              const defaultBag = ibag[inst.ibagIndex];
+              return {
+                ...inst,
+                default: ibag[inst.ibagIndex],
+                izones: ibag
+                  .slice(inst.ibagIdex, iheaders[instId + 1].ibagIndex)
+                  .filter((ibg) => keyVelInRange(ibg.izone, key, vel))
+                  .map((ibg) => ibg.izone),
+              };
+            }
+            function findPreset(pid, bkid = 0, key = -1, vel = -1) {
+              for (let i = 0; i < phdr.length - 1; i++) {
+                if (phdr[i].presetId != pid) {
+                  continue;
+                }
+                const phd = phdr[i];
+                const presetDefault = pbag[phd.pbagIndex];
+                const pbagEnd = phdr[i + 1].pbagIndex;
+                const pbgs = pbag.slice(phd.pbagIndex, pbagEnd);
+                console.log(phd.pbagIndex, pbagEnd, pbgs);
+                const inrange = pbgs.filter(
+                  (pbg) =>
+                    pbg.pzone.instrumentID >= 0 &&
+                    keyVelInRange(pbg.pzone, key, vel)
+                );
+                const g = inrange.map((pbg) =>
+                  findInstrument(pbg.pzone.instrumentID, key, vel)
+                );
+                console.log(g);
+              }
+            }
+            findPreset(2);
+          }
+        );
+    </script>
+  </body>
+</html>

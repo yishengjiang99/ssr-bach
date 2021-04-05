@@ -6,10 +6,9 @@ export type Phdr = {
   presetId: number;
   bankId: number;
   pbagIndex: number;
-  pbags?: number[]; // & not *
+  pbags: number[]; // & not *
   defaultBag: number;
-  insts?: number[];
-  ibagSet?: Set<number>;
+  insts: number[];
 };
 export type Pbag = {
   pgen_id: number;

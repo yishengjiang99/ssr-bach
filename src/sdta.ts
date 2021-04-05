@@ -1,19 +1,19 @@
 import { readFile, readFileSync } from 'fs';
-import { gheap } from './gheap';
+import * as gheap from './gheap';
 import { Runtime } from './runtime';
 
 export type SDTA = {
   nsamples: number;
   data: Float32Array;
   bit16s: Uint8Array;
-  renderc: (voices: Runtime[], blockLength: number, output) => void;
+  renderc: (voices: Runtime[], blockLength: number, output: any) => void;
 };
-
-const fs_1 = require('fs');
 
 export async function initSDTA(data: Uint8Array) {
   const nsamples = data.byteLength / 2;
-  var { heap, malloc, mem, allocStack } = gheap(nsamples * 4 + 1024 * 1024);
+  var { heap, malloc, mem, allocStack } = gheap.gheap(
+    nsamples * 4 + 1024 * 1024
+  );
 
   const { instance } = await WebAssembly.instantiate(
     new Uint8Array(readFileSync('sdta.wasm')),
@@ -27,7 +27,7 @@ export async function initSDTA(data: Uint8Array) {
         _grow: () => {
           console.log('grow?');
         },
-        consolelog: (str, b) => console.log(str, b),
+        consolelog: (str: string, b: number) => console.log(str, b),
       },
     }
   );
@@ -36,7 +36,7 @@ export async function initSDTA(data: Uint8Array) {
 
   const load = instance.exports['load'];
   const floffset = malloc(2 * data.byteLength);
-  //@ts-ignore
+  // @ts-ignore
   load(inputptr, floffset, nsamples);
 
   /**typedef struct
@@ -49,9 +49,9 @@ export async function initSDTA(data: Uint8Array) {
   const resetMem = (ptr, n) => {
     for (let i = ptr; i < ptr + n; i++) heap[i] = 0x00;
   };
-  function renderc(voices: Runtime[], blockLength, output) {
+  function renderc(voices: Runtime[], blockLength: number, output: any) {
     const dv = new DataView(heap.buffer, inputParams, 28);
-    allocStack(blockLength * 8, (stackptr) => {
+    allocStack(blockLength * 8, (stackptr: number) => {
       resetMem(stackptr, blockLength * 8);
       for (const v of voices) {
         const { pitch, volume, filter } = v.run(blockLength);

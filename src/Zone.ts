@@ -19,13 +19,13 @@ export enum LOOPMODES {
   NO_LOOP_EQ,
   LOOP_DURATION_PRESS,
 }
-export function cent2hz(centiHz) {
+export function cent2hz(centiHz: number) {
   return 8.176 * Math.pow(2, centiHz / 1200.0);
 }
-export function timecent2sec(timecent) {
+export function timecent2sec(timecent: number) {
   return Math.pow(2, timecent / 1200.0);
 }
-export function centidb2gain(centibel) {
+export function centidb2gain(centibel: number) {
   return Math.pow(10, centibel / 200);
 }
 
@@ -73,8 +73,8 @@ export class SFZone {
     this._volEnv = value;
   }
   lpf: { cutoff: number; q: number } = { cutoff: 0, q: -1 };
-  chorus: number; /* chrous web %/10 */
-  reverbSend: number; /* percent of signal to send back.. in 0.1% units*/
+  chorus: number = 0; /* chrous web %/10 */ /* chrous web %/10 */
+  reverbSend: number = 0; /* percent of signal to send back.. in 0.1% units*/
   pan: number = -1; /* shift to right percent */
   attenuate: centibel = 0; /*db in attentuation*/
   instrumentID: number = -1;
@@ -90,7 +90,7 @@ export class SFZone {
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID: number = -1;
   generators: SFGenerator[] = [];
-  private shdr: Shdr = null;
+  private shdr: Shdr;
 
   set sample(shdr: Shdr) {
     this.shdr = shdr;
@@ -105,7 +105,7 @@ export class SFZone {
       ...this.sampleOffsets,
     };
   }
-  mergeWith(zoneb: SFZone, from) {
+  mergeWith(zoneb: SFZone, from = 0) {
     for (const g of Object.values(zoneb.generators)) {
       this.applyGenVal(g, from);
     }
