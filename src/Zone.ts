@@ -1,7 +1,105 @@
-import { SFGenerator } from './generator';
-import { Shdr } from './pdta.types';
-import { sf_gen_id } from './sf.types';
+export type GenRange = { lo: number; hi: number };
+export class SFGenerator {
+  from: number = 0;
+  constructor(private _operator: sf_gen_id, private int16: number) {}
+  add(modgen: SFGenerator) {
+    this.int16 += modgen.int16;
+  }
+  get operator() {
+    return this._operator;
+  }
+  get range(): GenRange {
+    return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0xff };
+  }
+  get u16() {
+    return this.int16 & 0x0ff0; // | (this.hi << 8);
+  }
+  get s16() {
+    return this.int16;
+  }
+  set s16(val) {
+    this.int16 += val;
+  }
+}
+
+export type Shdr = {
+  name: string;
+  start: number;
+  end: number;
+  startLoop: number;
+  endLoop: number;
+  sampleRate: number;
+  originalPitch: number;
+  pitchCorrection: number;
+  sampleLink: number;
+  sampleType: number;
+};
+
 type LFOParams = typeof SFZone.defaultLFO;
+export enum sf_gen_id {
+  startAddrsOffset,
+  endAddrsOffset,
+  startloopAddrsOffset,
+  endloopAddrsOffset,
+  startAddrsCoarseOffset,
+  modLfoToPitch,
+  vibLfoToPitch,
+  modEnvToPitch,
+  initialFilterFc,
+  initialFilterQ,
+  modLfoToFilterFc,
+  modEnvToFilterFc,
+  endAddrsCoarseOffset,
+  modLfoToVolume,
+  unused1,
+  chorusEffectsSend,
+  reverbEffectsSend,
+  pan,
+  unused2,
+  unused3,
+  unused4,
+  delayModLFO,
+  freqModLFO,
+  delayVibLFO,
+  freqVibLFO,
+  delayModEnv,
+  attackModEnv,
+  holdModEnv,
+  decayModEnv,
+  sustainModEnv,
+  releaseModEnv,
+  keynumToModEnvHold,
+  keynumToModEnvDecay,
+  delayVolEnv,
+  attackVolEnv,
+  holdVolEnv,
+  decayVolEnv,
+  sustainVolEnv,
+  releaseVolEnv,
+  keynumToVolEnvHold,
+  keynumToVolEnvDecay,
+  instrument,
+  reserved1,
+  keyRange,
+  velRange,
+  startloopAddrsCoarse,
+  keynum,
+  velocity,
+  initialAttenuation,
+  reserved2,
+  endloopAddrsCoarse,
+  coarseTune,
+  fineTune,
+  sampleID,
+  sampleModes,
+  reserved3,
+  scaleTuning,
+  exclusiveClass,
+  overridingRootKey,
+  unused5,
+  endOper,
+}
+
 export enum mergeTypes {
   SET_INST_DEFAULT,
   SET_INST,
@@ -32,7 +130,7 @@ export function centidb2gain(centibel: number) {
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
   velRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
-  sampleOffsets: Partial<Shdr> = {
+  sampleOffsets = {
     start: 0,
     end: 0,
     startLoop: 0,
@@ -349,7 +447,7 @@ would be 1200log2(.01) = -7973. */
       default:
         throw 'unexpected operator';
     }
-    gen.from = from;
+    gen.from = from || -1;
     if (from != -1) this.generators.push(gen);
   }
   static defaultEnv = {

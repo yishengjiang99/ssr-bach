@@ -1,7 +1,5 @@
-import { SFZone } from './Zone';
+import { SFZone, Shdr } from './Zone';
 import { centibel, centTone } from './runtime.types';
-import { Shdr } from './pdta.types';
-import { Note } from './runtime.types';
 import { LUT } from './LUT';
 import { Envelope } from './envAmplitue';
 import { LFO } from './LFO';

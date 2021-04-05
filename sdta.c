@@ -6,41 +6,36 @@
  * load(n, void* data, float*floats);
  * 
  *  
- */
+*/
+#include <webassembly.h>
 typedef struct
 {
   unsigned int position, startLoop, endLoop, blocklength;
   float ratio, gainL, gainR;
 
 } renderParams;
-#ifndef debug
-void consolelog(char *str, int n)
-{ /* dev null */
-}
-#else
-extern void
-consolelog(char *str, int n);
-#endif
-int load(void *data, float *floats, int n);
-int render(float *output, renderParams *params);
-float hermite4(float frac_pos, float xm1, float x0, float x1, float x2);
-static int nsamples;
-static short *bit16s;
-static float *floats;
 
-int load(void *data, float *floats, int n)
+ export int load(short *data, float *floats, int n);
+  export int render(float *floats, float *output, renderParams *params);
+float hermite4(float frac_pos, float xm1, float x0, float x1, float x2);
+
+
+
+
+ export int load(short *data, float *floats, int n)
 {
-  nsamples = n;
-  bit16s = (short *)data;
-  data = data + nsamples * sizeof(short);
-  for (int g = 0; g < nsamples; g++)
+
+  while(n-- >0)
   {
-    floats[g] = bit16s[g] / 65535.0f;
+    *floats = *data *1.0f/ 65535;
+    floats++;
+    data++;
+
   }
   return 1;
 }
 
-int render(float *output, renderParams *params)
+  export int render(float *floats, float *output, renderParams *params)
 {
 
   int loopr = (params->endLoop - params->startLoop);

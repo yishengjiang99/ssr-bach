@@ -1,4 +1,4 @@
-import { sf_gen_id } from './sf.types';
+import { sf_gen_id } from './sf.types.js';
 
 export type GenRange = { lo: number; hi: number };
 export class SFGenerator {

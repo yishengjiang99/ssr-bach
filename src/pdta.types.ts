@@ -33,15 +33,3 @@ export type InstrHeader = {
   ibags?: number[];
   defaultIbag?: number;
 };
-export type Shdr = {
-  name: string;
-  start: number;
-  end: number;
-  startLoop: number;
-  endLoop: number;
-  sampleRate: number;
-  originalPitch: number;
-  pitchCorrection: number;
-  sampleLink: number;
-  sampleType: number;
-};

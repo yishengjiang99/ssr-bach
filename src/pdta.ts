@@ -1,6 +1,12 @@
-import { SFGenerator } from './generator';
-import { SFZone } from './Zone';
-import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
+import { SFZone, Shdr, SFGenerator } from './Zone.js';
+import { IBag, InstrHeader, Mod, Pbag, Phdr } from './pdta.types.js';
+
+type findPresetFnType = (
+  pid: number,
+  bank_id?: number,
+  key?: number,
+  vel?: number
+) => any;
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -14,6 +20,69 @@ export class PDTA {
   shdr: Shdr[] = [];
 
   static fromUrl: (url: string) => Promise<PDTA>;
+  findPreset: findPresetFnType = (
+    pid: number,
+    bank_id = 0,
+    key = -1,
+    vel = -1
+  ) => {
+    const [phdr, pbag, shdr] = [this.phdr, this.pbag, this.shdr];
+    const zz: SFZone[] = [];
+    let phd,
+      i = 0;
+    for (i = 0; i < phdr.length - 1; i++) {
+      if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) {
+        continue;
+      }
+      phd = phdr[i];
+      break;
+    }
+    if (!phd) return [];
+    const presetDefault = pbag[phd.pbagIndex];
+    const pbagEnd = phdr[i + 1].pbagIndex;
+    const zones = pbag
+      .slice(phd.pbagIndex, pbagEnd)
+      .filter(
+        (pbg) =>
+          pbg.pzone.instrumentID >= 0 && keyVelInRange(pbg.pzone, key, vel)
+      )
+      .map((pbg) => {
+        const { inst, defaultBg, izones } = this.findInstrument(
+          pbg.pzone.instrumentID,
+          key,
+          vel
+        );
+
+        return { inst, defaultBg, izones };
+      });
+    return {
+      presetDefault,
+      zones,
+    };
+  };
+
+  findInstrument: (
+    instId: number,
+    key: number,
+    vel: number
+  ) => {
+    inst: InstrHeader;
+    defaultBg: SFZone;
+    izones: SFZone[];
+  } = (instId: any, key = -1, vel = -1) => {
+    const [ibag, iheaders] = [this.ibag, this.iheaders];
+
+    const ihead = iheaders[instId];
+    return {
+      inst: ihead,
+      defaultBg: ibag[ihead.iBagIndex].izone,
+      izones: ibag
+        .slice(ihead.iBagIndex, iheaders[instId + 1].iBagIndex)
+        .filter((ibg) => keyVelInRange(ibg.izone, key, vel))
+        .map((ibg) => ibg.izone),
+    };
+  };
+
   constructor(r: any) {
     let n = 0;
     do {
@@ -199,83 +268,38 @@ export class PDTA {
   getIbagZone(ibagId: number) {
     return this.ibag[ibagId] && this.ibag[ibagId].izone;
   }
-  getInstBags(instId: number) {
-    return (
-      (this.iheaders[instId] &&
-        this.iheaders[instId].ibags &&
-        this.iheaders[instId].ibags!.map((ibgId) => this.ibag[ibgId])) ||
-      []
-    );
-  }
-  getPbags(phdrIdx: number) {
-    return this.phdr[phdrIdx].pbags?.map((pbagId) => this.pbag[pbagId]) || [];
-  }
-  getProgram(presetId: number, bankId: number) {
-    return this.phdr.filter(
-      (pd) => pd.bankId == bankId && pd.presetId == presetId
-    )[0];
-  }
+
   /**
    * any preceived verbosity in the following lines of code
    * was done to ensure correctness
    */
-  findPreset(pid: number, bank_id = 0, key = -1, vel = -1): SFZone[] {
-    const { phdr, igen, ibag, iheaders, pbag, pgen, shdr } = this;
-    function keyVelInRange(zone: SFZone, key: number, vel: number): boolean {
-      return (
-        (key < 0 || (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
-        (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
-      );
+}
+function makeRuntime(
+  izone: SFZone,
+  instDefault: SFZone,
+  pbg: Pbag,
+  defaultPbag: SFZone,
+  shr: Shdr
+): SFZone {
+  const output = new SFZone();
+  for (let i = 0; i < 60; i++) {
+    if (izone.generators[i]) {
+      output.setVal(izone.generators[i]);
+    } else if (instDefault && instDefault.generators[i]) {
+      output.setVal(instDefault.generators[i]);
     }
-    let phIdx,
-      mphid = -1;
-    let samegroup;
-    for (phIdx = 0; phIdx < phdr.length; phIdx++) {
-      if (phdr[phIdx].bankId == bank_id && phdr[phIdx].presetId == pid) {
-        mphid = phIdx;
-        break;
-      }
+    if (pbg.pzone.generators[i]) {
+      output.increOrSet(pbg.pzone.generators[i]);
+    } else if (defaultPbag && defaultPbag.generators[i]) {
+      output.increOrSet(defaultPbag.generators[i]);
     }
-    if (mphid < 0 && !samegroup) return [];
-    if (mphid < 0) mphid = samegroup;
-
-    const phead = phdr[mphid];
-    const defaultPbag = pbag[phdr[mphid].defaultBag].pzone;
-    const filteredPbags = this.getPbags(mphid);
-    const insts = Array.from(new Set(phead.insts).values());
-    let zs = [];
-    let visited = new Set();
-    for (const instId of insts) {
-      console.log(iheaders[instId].name);
-      const instDefault = this.getIbagZone(iheaders[instId].iBagIndex);
-      const filteredIbags = this.getInstBags(instId).filter(
-        (ibg) => keyVelInRange(ibg.izone, key, vel) && ibg.izone.sampleID > -1
-      );
-
-      for (const ibg of filteredIbags) {
-        //b
-
-        visited.add(ibg);
-        for (const pbg of filteredPbags) {
-          if (pbg.pzone.instrumentID != instId) continue;
-          const output = new SFZone();
-          for (let i = 0; i < 60; i++) {
-            if (ibg.izone.generators[i]) {
-              output.setVal(ibg.izone.generators[i]);
-            } else if (instDefault && instDefault.generators[i]) {
-              output.setVal(instDefault.generators[i]);
-            }
-            if (pbg.pzone.generators[i]) {
-              output.increOrSet(pbg.pzone.generators[i]);
-            } else if (defaultPbag && defaultPbag.generators[i]) {
-              output.increOrSet(defaultPbag.generators[i]);
-            }
-          }
-          output.sample = shdr[ibg.izone.sampleID];
-          zs.push(output);
-        }
-      }
-    }
-    return zs;
   }
+  output.sample = shr;
+  return output;
+}
+function keyVelInRange(zone: SFZone, key: number, vel: number): boolean {
+  return (
+    (key < 0 || (zone.keyRange.lo <= key && zone.keyRange.hi >= key)) &&
+    (vel < 0 || (zone.velRange.lo <= vel && zone.velRange.hi >= vel))
+  );
 }
