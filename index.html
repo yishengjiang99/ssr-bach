@@ -18,7 +18,19 @@
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   </head>
   <body class="container">
-    <div id="root"></div>
+    <div id="root">
+      loading 300mb of SF.. b/c no webpack lol
+      <span id="timer"></span> mississipi
+    </div>
+    <script>
+      let i = 0,
+        root = document.querySelector('#timer');
+      function loop() {
+        root.innerHTML = (i++ / 60).toFixed(0);
+        requestAnimationFrame(loop);
+      }
+      loop();
+    </script>
     <script type="module">
       import { SFGenerator } from './dist/generator.js';
       import { SFZone } from './dist/Zone.js';
