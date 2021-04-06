@@ -1,6 +1,13 @@
+
+sf2
+public/build/*
+cache/*
 node_modules
 midisf/**/*pcm
 mp3
+junk
+*/dist
+*/node_modules
 
 dist/*js*
 dist/**/*
@@ -24,3 +31,7 @@ csv/*
 js/build
 **/*opus
 SFPiano
+junk
+v2/dist
+v2/fixtures
+html5-boilerplate/

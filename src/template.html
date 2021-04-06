@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      #ff1 {
+        top: 50px;
+        width: 50vw;
+      }
+      #ff2 {
+        position: fixed;
+        right: 10px;
+        top: 10px;
+        width: 50vw;
+      }
+      pre {
+        position: fixed;
+        top: 1px;
+        right: 10;
+      }
+      main {
+        margin-top: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="ff1">
+        <!--ff1-->
+      </div>
+      <div id="ff2"><!--ff2--></div>
+      <canvas></canvas>
+    </main>
+    <script>
+      const form = document.querySelector('form');
+      const ff3 = document.querySelector('#ff3');
+      const ff1 = document.querySelector('#ff1');
+      const ff2 = document.querySelector('#ff2');
+      ff1.onmouseup = (e) => {
+        if (e.target.classList.contains('ff2')) {
+          e.preventDefault();
+          e.stopPropagation();
+          fetch(e.target.getAttribute('href'))
+            .then((res) => res.text())
+            .then((txt) => (ff2.innerHTML = txt))
+            .catch((e) => alert(e.message));
+        }
+      };
+
+      function fetchpset(e) {
+        fetch('/' + e.target.value)
+          .then((rs) => rs.text())
+          .then((t) => (ff1.innerHTML = t));
+      }
+    </script>
+    <script type="module" src="js/build/playpcm.js"></script>
+  </body>
+</html>

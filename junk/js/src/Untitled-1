@@ -1,1 +1,0 @@
-strings -o xab |grep 'pbag\|pmod\|pgen\|inst\|ibag\imod\|igen\|phdr\|shdr'
