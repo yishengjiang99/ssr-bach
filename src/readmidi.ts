@@ -49,7 +49,7 @@ export function readMidi(
     for (const track of tracks) {
       // //console.log(track.time, g_time, reader.offset);
       reader.offset = track.offset;
-      while (track.time - 555 <= g_time && reader.offset < track.endofTrack) {
+      while (track.time <= g_time && reader.offset < track.endofTrack) {
         const deltaT = readVarLength();
         track.time += deltaT;
 

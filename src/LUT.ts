@@ -1,6 +1,4 @@
-import { dbfs } from './runtime.types';
-import { DecibelCent } from './sf.types';
-
+const dbfs = 96;
 export class LUT {
   static relPC: number[] = [];
   static frqST: number[] = [];

@@ -1,25 +1,65 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+  </head>
+  <pre></pre>
+  <body>
     <script type="module">
+      const pre = document.querySelector('pre');
       import { initsfbk } from './dist/sfbk.js';
+      import { Runtime } from './dist/runtime.js';
 
       initsfbk('GeneralUserGS.sf2').then(
-        ({ pdta: { findPreset, phdr, pbag, inst } }, sdta) => {
-          document.write('<pre>');
-          for (const phr of phdr) {
-            if (phr.bankId != 0) continue;
-            document.write(`${phr.name} ${phr.pbagIndex}\n`);
-            if (phr.presetId == 3) {
-              document.write(
-                JSON.stringify(findPreset(phr.presetId, 0), null, '\t')
-              );
-            }
+        async ({ pdta: { findPreset, phdr, pbag, inst } }, sdta) => {
+          const { durationTicks, header, tracks } = await Midi.fromUrl(
+            'https://grep32bit.blob.core.windows.net/midi/Beethoven-Symphony5-1.mid'
+          );
+          let t = -200;
+          while (t < durationTicks) {
+            let output = '';
+            tracks.map((track) => {
+              const _t = header.secondsToTicks(t / 1000);
+              const ratio = t / _t;
+              while (
+                track.notes &&
+                track.notes[0] &&
+                track.notes[0].ticks < _t + 230
+              ) {
+                const note = track.notes.shift();
+                const pset = findPreset(
+                  track.instrument.number,
+                  track.instrument.percussion ? 128 : 0,
+                  note.midi,
+                  note.velocity * 127
+                );
+                output +=
+                  '\n' +
+                  [
+                    ((note.ticks - _t) * ratio).toFixed(1),
+                    track.instrument.number,
+                    track.instrument.percussion ? 128 : 0,
+                    note.midi,
+                    note.velocity * 127,
+                    note.durationTicks,
+                  ].join('\t');
+                output += '\n';
+                pset.zones[0].map((z) => {
+                  const rt = new Runtime(z, {
+                    key: note.midi,
+                    velocity: note.velocity * 127,
+                  });
+                  delete rt.zone;
+                  output += JSON.stringify(rt) + '\n';
+                });
+              }
+            });
+            t += 200;
+            await new Promise((r) => setTimeout(r, 500));
+            if (output) pre.innerHTML = output;
           }
-          document.write('</pre>');
         }
       );
     </script>
-  </head>
-  <body></body>
+  </body>
 </html>

@@ -1,9 +1,226 @@
-import { SFZone, Shdr } from './Zone';
-import { centibel, centTone } from './runtime.types';
-import { LUT } from './LUT';
-import { Envelope } from './envAmplitue';
-import { LFO } from './LFO';
-import { RenderCtx } from './render-ctx';
+import { SFZone, Shdr } from './Zone.js';
+import { LUT } from './LUT.js';
+LUT.init();
+export function cent2hz(centiHz) {
+  return 8.176 * Math.pow(2, centiHz / 1200.0);
+}
+export function timecent2sec(timecent) {
+  return Math.pow(2, timecent / 1200.0);
+}
+export function centidb2gain(centibel) {
+  return Math.pow(10, centibel / 200);
+}
+export class LFO {
+  sampleRate: number = 48000;
+  amount: number = 0;
+  delta: number;
+  delay: number;
+  cycles: number = 0;
+  effects: ModEffects;
+  constructor(
+    delay: number,
+    freq: centTone,
+    effects: ModEffects,
+    sampleRate: number = 48000
+  ) {
+    this.sampleRate = sampleRate;
+    this.delta = (4.0 * cent2hz(freq)) / sampleRate; //covering distance of 1/4 4 times per cycle..
+    this.delay = delay < -12000 ? 0 : Math.pow(2, delay / 1200) * sampleRate;
+    this.effects = effects;
+  }
+  static fromJSON(str: string) {
+    const obj = JSON.parse(str);
+    return new LFO(obj.delay, obj.freq, obj.effects);
+  }
+  shift(steps: number = 1) {
+    while (steps-- > 0) {
+      if (this.delay-- > 0) continue;
+      this.amount += this.delta;
+      if (this.amount >= 1 || this.amount <= -1) {
+        this.delta = -1 * this.delta;
+        this.cycles++;
+      }
+    }
+    return this.amount;
+  }
+  get val() {
+    return this.amount;
+  }
+  get volCB() {
+    return (this.effects.volume * this.amount) / 10;
+  }
+  get pitchCent() {
+    return (this.effects.volume * this.amount) / 10;
+  }
+}
+
+export declare type centTone = number;
+export declare type TimeCent = number;
+export declare type centibel = number;
+export declare type centime = number;
+export declare type LFOParams = {
+  delay: centime;
+  freq: centTone;
+  effects: ModEffects;
+};
+export declare type EnvPhases = {
+  delay: centime;
+  attack: centime;
+  decay: centime;
+  release: centime;
+  hold: centime;
+};
+export declare type ModEffects = {
+  volume?: number;
+  filter?: number;
+  pitch?: number;
+};
+export declare type KRate = number;
+export interface ARate {
+  static?: KRate;
+  runtime: () => number;
+}
+export interface ModSource {
+  val: Generator<number, number, null>;
+  unit: centibel | centibel | centTone;
+}
+export interface VoiceState {
+  gain: ARate;
+  pitch: ARate;
+  filter: ARate;
+  filterQ: KRate;
+  phase: ARate;
+  pan: {
+    left: KRate;
+    right: KRate;
+  };
+}
+export interface Ctx {
+  sampleRate: number;
+  chanVols: () => number[];
+  masterVol: () => number;
+}
+export interface Note {
+  key: number;
+  velocity: number;
+  channel: number;
+}
+
+export declare enum LOOPMODES {
+  NO_LOOP = 0,
+  CONTINUOUS_LOOP = 1,
+  NO_LOOP_EQ = 2,
+  LOOP_DURATION_PRESS = 3,
+}
+/**
+ABSOLUTE CENTIBELS - An absolute measure of the attenuation of a signal, based on a reference of
+zero being no attenuation. A centibel is a tenth of a decibel, or a ratio in signal amplitude of the two
+hundredth root of 10, approximately 1.011579454.
+RELATIVE CENTIBELS - A relative measure of the attenua
+ */
+export declare enum EnvelopeTarget {
+  VOLUME = 0,
+  PITCH = 1,
+  FILTER = 2,
+}
+export declare enum stagesEnum {
+  delay = 0,
+  attack = 1,
+  hold = 2,
+  decay = 3,
+  release = 4,
+  done = 5,
+}
+export declare const dbfs = 960;
+
+export class Envelope {
+  effects: ModEffects;
+  state: {
+    stage: number;
+    stageStep: number;
+  } = {
+    stage: 0,
+    stageStep: 0,
+  };
+  sr: number;
+  stages: number[] = [];
+  deltas: number[];
+  keyOff: boolean = false;
+  egval: number;
+  modifier: number;
+  amts: number[];
+  constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
+    if (phases[4]) {
+      const [delay, attack, hold, decay, release] = phases;
+      return new Envelope(
+        { delay, attack, hold, decay, release },
+        sustainCB,
+        sampleRate
+      );
+    }
+    const { delay, attack, hold, decay, release } = phases;
+    this.stages = [delay, attack, hold, decay, release]
+      .map((centime) => LUT.centtime2sec(centime) * sampleRate)
+      .map((t) => Math.max(1, t));
+    const normalizedSustain = 1 - sustainCB / 1000;
+    this.amts = [0, 0, 1, 1, normalizedSustain, 0];
+    this.deltas = [
+      0,
+      1 / this.stages[1],
+      0,
+      normalizedSustain / this.stages[3],
+      -1 / this.stages[4],
+      0,
+    ];
+    this.egval = 0;
+  }
+
+  get done() {
+    return this.egval < -10 || this.state.stage == stagesEnum.done;
+  }
+  get val() {
+    return this.egval;
+  }
+  shift(steps: number) {
+    const { stage, stageStep } = this.state;
+    if (stage === stagesEnum.done) return 0;
+    const stepsremining = this.stages[stage] - stageStep - steps;
+    if (stepsremining < 0) {
+      this.state.stage++;
+      this.state.stageStep = -1 * stepsremining;
+      this.egval =
+        this.amts[this.state.stage] +
+        this.deltas[this.state.stage] * this.state.stageStep;
+    } else {
+      this.state.stageStep += steps;
+      this.egval += steps * this.deltas[this.state.stage];
+    }
+  }
+  get ampCB() {
+    return (1 - this.egval) * dbfs;
+  }
+  get gain() {
+    return Math.pow(10, this.ampCB / -200.0);
+  }
+  get modCenTune() {
+    return this.effects.pitch * this.egval;
+  }
+  get stage() {
+    return this.state.stage;
+  }
+  *iterator() {
+    if (this.done) return 0;
+    else yield this.val;
+  }
+  triggerRelease() {
+    if (this.state.stage < stagesEnum.release) {
+      this.state.stage = stagesEnum.release;
+      this.state.stageStep = 0;
+      this.stages[stagesEnum.release] =
+        this.egval / this.deltas[stagesEnum.release];
+    }
+  }
+}
 
 export class Runtime {
   staticLevels: {
@@ -23,10 +240,8 @@ export class Runtime {
   constructor(
     zone: SFZone,
     note: { key; velocity; channel?: number },
-    sampleRate: RenderCtx | number
+    sr: number = 48000
   ) {
-    const sr =
-      typeof sampleRate == 'number' ? sampleRate : sampleRate.sampleRate; //48000;
     this.zone = zone;
     this.staticLevels = {
       gainCB: zone.attenuate + LUT.velCB[note.velocity],
