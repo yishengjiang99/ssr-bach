@@ -216,9 +216,7 @@ export class SFZone {
     else this.generators[gen.operator].s16 += gen.s16;
   }
   applyGenVals() {
-    for (const g of this.generators) {
-      this.applyGenVal(g, -1);
-    }
+    this.generators.forEach((g) => this.applyGenVal(g, -1));
   }
   applyGenVal(gen: SFGenerator, from?: number): void {
     switch (gen.operator) {

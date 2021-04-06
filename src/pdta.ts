@@ -52,8 +52,15 @@ export class PDTA {
           key,
           vel
         );
-
-        return { inst, defaultBg, izones };
+        return izones.map((iz) =>
+          makeRuntime(
+            iz,
+            defaultBg,
+            pbg,
+            presetDefault.pzone,
+            shdr[iz.sampleID]
+          )
+        );
       });
     return {
       presetDefault,
@@ -79,6 +86,9 @@ export class PDTA {
       izones: ibag
         .slice(ihead.iBagIndex, iheaders[instId + 1].iBagIndex)
         .filter((ibg) => keyVelInRange(ibg.izone, key, vel))
+        .filter(
+          (ibg) => ibg.izone.sampleID > -1 && this.shdr[ibg.izone.sampleID]
+        )
         .map((ibg) => ibg.izone),
     };
   };
@@ -282,6 +292,11 @@ function makeRuntime(
   shr: Shdr
 ): SFZone {
   const output = new SFZone();
+  // output.mergeWith(instDefault);
+  // output.mergeWith(izone);
+  // for(const gen of pbg.pzone.generators){
+  //   output.applyGenVal
+  // }
   for (let i = 0; i < 60; i++) {
     if (izone.generators[i]) {
       output.setVal(izone.generators[i]);
@@ -294,7 +309,9 @@ function makeRuntime(
       output.increOrSet(defaultPbag.generators[i]);
     }
   }
+  output.applyGenVals();
   output.sample = shr;
+  delete output.generators;
   return output;
 }
 function keyVelInRange(zone: SFZone, key: number, vel: number): boolean {
