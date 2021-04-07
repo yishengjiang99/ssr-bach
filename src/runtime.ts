@@ -1,6 +1,7 @@
 import { SFZone, Shdr } from './Zone.js';
-import { LUT } from './LUT.js';
+import { LUT, dbfs } from './LUT.js';
 LUT.init();
+
 export function cent2hz(centiHz) {
   return 8.176 * Math.pow(2, centiHz / 1200.0);
 }
@@ -131,7 +132,6 @@ export declare enum stagesEnum {
   release = 4,
   done = 5,
 }
-export declare const dbfs = 960;
 
 export class Envelope {
   effects: ModEffects;
@@ -176,14 +176,14 @@ export class Envelope {
   }
 
   get done() {
-    return this.egval < -10 || this.state.stage == stagesEnum.done;
+    return this.egval < -10 || this.state.stage == 5;
   }
   get val() {
     return this.egval;
   }
   shift(steps: number) {
     const { stage, stageStep } = this.state;
-    if (stage === stagesEnum.done) return 0;
+    if (this.done) return null;
     const stepsremining = this.stages[stage] - stageStep - steps;
     if (stepsremining < 0) {
       this.state.stage++;

@@ -4,7 +4,7 @@ import { readAB } from './aba.js';
 export async function initsfbk(url) {
   const arr = new Uint8Array(
     await (
-      await fetch(url, { headers: { Range: 'bytes=0-6400' } })
+      await fetch(url, { mode: 'no-cors', headers: { Range: 'bytes=0-6400' } })
     ).arrayBuffer()
   );
 
@@ -26,7 +26,6 @@ export async function initsfbk(url) {
   const sdtaSize = r.get32();
   const stdstart = r.offset + 8;
   const pdtastart = stdstart + sdtaSize;
-  debugger;
   const worker = new Worker('dist/worker.js', { type: 'module' });
   worker.postMessage({
     sdta: {
@@ -45,6 +44,12 @@ export async function initsfbk(url) {
   console.log(pr.readNString(4));
   return {
     pdta: new pdta_1.PDTA(pr),
-    worker,
+    workerWait: new Promise((resolve) => {
+      worker.addEventListener('message', ({ data: { init } }) => {
+        if (init == 1) {
+          resolve(worker);
+        }
+      });
+    }),
   };
 }

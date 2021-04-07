@@ -3,7 +3,6 @@ import test from 'ava';
 import { reader } from './reader';
 import { readFileSync } from 'fs';
 import { performance, PerformanceObserver } from 'perf_hooks';
-import { SFfromUrl } from './SFBK';
 
 test('pdta', (t) => {
   const { pdta } = new SF2File('./file.sf2');

@@ -1,4 +1,4 @@
-const dbfs = 96;
+export const dbfs = 960;
 export class LUT {
   static relPC: number[] = [];
   static frqST: number[] = [];
