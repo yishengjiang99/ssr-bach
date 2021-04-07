@@ -136,6 +136,16 @@ export class SFZone {
     startLoop: 0,
     endLoop: 0,
   };
+  serialize() {
+    return {
+      ...this,
+      modLFO: this._modLFO,
+      vibrLFO: this._vibrLFO,
+      modEnv: this._modEnv,
+      volEnv: this._volEnv,
+      sample: this.sample,
+    };
+  }
   private _modLFO: LFOParams = SFZone.defaultLFO;
   public get modLFO() {
     if (this._modLFO) {

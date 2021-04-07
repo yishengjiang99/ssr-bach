@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title><span class="material-icons">face</span> Mocha</title>
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./mini-dark.min.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <header class="sticky">
+      <!-- This might seem a bight hacky but it works great -->
+      <div class="col-sm col-lg-8 col-lg-offset-4">
+        <button class="pcm" srcc="/node">Play</button>
+        <select id="sfselect">
+          <options>selectSF</options>
+        </select>
+        <select id="sfselect">
+          <options>selectMidi</options>
+        </select>
+      </div>
+    </header>
+    <div class="container">
+      <div id="root"></div>
+    </div>
+    <script>
+      let ctx, gainNode;
+      async function playSample(url, cb) {
+        try {
+          if (!ctx) {
+            ctx = new AudioContext({
+              sampleRate: 48000,
+              latencyHint: 'playback',
+            });
+            gainNode = new GainNode(ctx, { gain: 1 });
+
+            gainNode.connect(ctx.destination);
+          }
+          nchan = 2;
+          const dv = await fetch(url)
+            .then((resp) => {
+              cb('resp got');
+              return resp.arrayBuffer();
+            })
+            .then((ab) => new DataView(ab))
+            .catch((e) => cb('error ' + e.message));
+
+          if (!dv) return;
+          const audb = ctx.createBuffer(nchan, dv.buffer.byteLength / 8, 48000);
+          const buffers = [audb.getChannelData(0), audb.getChannelData(1)];
+
+          for (let i = 0; i < audb.length; i++) {
+            for (let ch = 0; ch < nchan; ch++) {
+              buffers[ch][i] = dv.getFloat32(i * 4 * nchan + ch, true);
+            }
+          }
+          let s = 0;
+          let s2 =
+            buffers[0][s] +
+            buffers[0][s + 5] +
+            buffers[0][s + 50] +
+            buffers[0][s + 43];
+          console.log(s2);
+          const abs = new AudioBufferSourceNode(ctx, { buffer: audb });
+          abs.connect(gainNode);
+
+          abs.start();
+        } catch (e) {
+          console.log("<font color='red'>" + e.message + '</font>');
+          throw e;
+        }
+      }
+    </script>
+    <script type="module">
+      import {ZoneUI, ZoneList}from'./
+      let sff;
+      function showerror(e) {
+        document.write(e.message);
+      }
+      const [sfselect, midselect] = document.body.querySelectorAll('select');
+      const lists = document.querySelectorAll('ul');
+
+      fetch('/lists', { headers: { accept: 'application/json' } })
+        .then((res) => res.json())
+        .then(({ mfiles, sffiles, pdta: { phdr } }) => {
+          const list = phdr.filter((item) => item.bankId == 0);
+          sffiles.map((f) => {
+            sfselect.appendChild(new Option(f.name, f.url));
+          });
+          ReactDOM.render(
+            React.createElement(ZoneList, { list }),
+            document.querySelector('#root')
+          );
+        });
+    </script>
+
+    <footer>
+      <div class="col-sm col-lg-10 col-lg-offset-1">
+        <p>
+          Copyright &copy; Your Website 2017 | Built using
+          <a href="https://chalarangelo.github.io/mini.css/">mini.css</a>
+        </p>
+      </div>
+    </footer>
+    <span class="material-icons">face</span>
+
+    <div id="prerend" class="hidden"></div>
+  </body>
+</html>

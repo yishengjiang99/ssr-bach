@@ -15,7 +15,7 @@ export async function gheap(length: number, wasmbin: BufferSource) {
     maximum: pages,
   });
   const heap = new Uint8Array(mem.buffer, heap_start);
-  let offset = heap_start;
+  let offset = 0;
   const malloc = (n: number) => {
     while (offset % 8) offset++; // malign with 8 instead of 4 bc we gorilla 2step
     const ptr = offset;
@@ -66,7 +66,9 @@ export async function initSDTA(
   arr: Uint8Array,
   { blockLength, sampleRate } = { blockLength: 128, sampleRate: 128 }
 ) {
-  const bin = await (await fetch('sdta.wasm')).arrayBuffer();
+  const bin = await (
+    await fetch('https://www.grepawk.com/ssr-bach/sdta.wasm')
+  ).arrayBuffer();
   const { heap, malloc, inputParams, exports } = await gheap(
     arr.byteLength,
     bin
