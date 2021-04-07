@@ -7,18 +7,8 @@
   <body>
     <pre></pre>
     <main></main>
-    <script>
-      const h = (type, attr, children) => {
-        const div = document.createElement(type);
-        for (const key in attr) {
-          div.setAttribute(key, attr[key]);
-        }
-        if (Array.isArray(children))
-          children.forEach((c) => div.appendChild(c));
-        else div.textContent = children;
-        return div;
-      };
-    </script>
+    <script type="template" id="rendproc"></script>
+    <script src="dist/ghettoreact.js"></script>
     <script type="module">
       import { initsfbk } from './dist/sfbk.js';
       const maindiv = document.querySelector('main');
@@ -28,13 +18,14 @@
       ];
       const sfurls = ['GeneralUserGS.sf2'];
       const selects = document.querySelectorAll('select');
-      let worker;
+      let worker, ctx, timer, _pdta;
       queueMicrotask(() => {
-        initsfbk(sfurls[0]).then(({ pdta, workerWait }) =>
-          displayMidi(midiurls[0], pdta)
-        );
+        initsfbk(sfurls[0]).then(({ pdta, workerWait }) => {
+          _pdta = pdta;
+          displayMidi(midiurls[0], pdta, workerWait);
+        });
       });
-      async function displayMidi(url, pdta) {
+      async function displayMidi(url, pdta, workerWait) {
         let playing = false;
         const { durationTicks, header, tracks } = await Midi.fromUrl(url);
         const selectView = (presetId, pdta) =>
@@ -51,17 +42,19 @@
           h(
             'button',
             {
-              onclick: async () => {
+              onclick: async (e) => {
                 ctx = ctx || new AudioContext();
-                debugger;
-                worker = await workerWait;
+
+                if (!worker) {
+                  worker = (await workerWait).worker;
+                }
                 if (!playing) {
                   playing = true;
                   timer = playMidi(durationTicks, header, tracks);
-                  this.innerHTML = 'st0p';
+                  e.target.innerHTML = 'st0p';
                 } else {
                   playing = false;
-                  this.innerHTML = 'start';
+                  e.target.innerHTML = 'start';
                 }
               },
             },
@@ -112,38 +105,33 @@
                 track.notes[0].ticks < _t + 230
               ) {
                 const note = track.notes.shift();
-                const pset = findPreset(
+                const pset = _pdta.findPreset(
                   track.instrument.number,
                   track.instrument.percussion ? 128 : 0,
                   note.midi,
                   note.velocity * 127
                 );
-                output +=
-                  '\n' +
-                  [
-                    ((note.ticks - _t) * ratio).toFixed(1),
-                    track.instrument.number,
-                    track.instrument.percussion ? 128 : 0,
-                    note.midi,
-                    note.velocity * 127,
-                    note.durationTicks,
-                  ].join('\t');
-                output += '\n';
                 pset.zones[0].map((z) => {
-                  worker.postMessage({
-                    zone: z,
-                    start: note.start,
-                    duration: note.duration,
-                    channelId: track.channel,
-                  });
-                  delete rt.zone;
-                  output += JSON.stringify(rt) + '\n';
+                  output +=
+                    '\n' +
+                    [
+                      ((note.ticks - _t) * ratio).toFixed(1),
+                      track.instrument.number,
+                      track.instrument.percussion ? 128 : 0,
+                      note.midi,
+                      note.velocity * 127,
+                      note.durationTicks,
+                    ].join('\t');
+                  output += '\n';
+
+                  output += JSON.stringify(z) + '\n';
                 });
               }
             });
             t += 200;
-            await new Promise((r) => setTimeout(r, 500));
             if (output) pre.innerHTML = output;
+
+            await new Promise((r) => setTimeout(r, 500));
           }
         }
       }

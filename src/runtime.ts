@@ -124,14 +124,14 @@ export declare enum EnvelopeTarget {
   PITCH = 1,
   FILTER = 2,
 }
-export declare enum stagesEnum {
-  delay = 0,
-  attack = 1,
-  hold = 2,
-  decay = 3,
-  release = 4,
-  done = 5,
-}
+export const stagesEnum = {
+  delay: 0,
+  attack: 1,
+  hold: 2,
+  decay: 3,
+  release: 4,
+  done: 5,
+};
 
 export class Envelope {
   effects: ModEffects;
@@ -178,7 +178,7 @@ export class Envelope {
   }
 
   get done() {
-    return this.egval < -10 || this.state.stage == stagesEnum.done;
+    return this.egval < -10 || this.state.stage == 5;
   }
   get val() {
     return this.egval;
@@ -189,7 +189,7 @@ export class Envelope {
       this.triggerRelease();
     }
     const { stage, stageStep } = this.state;
-    if (stage === stagesEnum.done) return 0;
+    if (stage === 5) return 0;
     const stepsremining = this.stages[stage] - stageStep - steps;
     if (stepsremining < 0) {
       this.state.stage++;

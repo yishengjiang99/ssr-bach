@@ -194,3 +194,4 @@ export function hermite4(frac_pos, xm1, x0, x1, x2) {
 
   return ((a * frac_pos - b_neg) * frac_pos + c) * frac_pos + x0;
 }
+const ren = new SF2File('file.sf2');

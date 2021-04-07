@@ -1,6 +1,6 @@
 export type GenRange = { lo: number; hi: number };
 export class SFGenerator {
-  from: number = 0;
+  from = 0;
   constructor(private _operator: sf_gen_id, private int16: number) {}
   add(modgen: SFGenerator) {
     this.int16 += modgen.int16;
@@ -181,13 +181,13 @@ export class SFZone {
     this._volEnv = value;
   }
   lpf: { cutoff: number; q: number } = { cutoff: 0, q: -1 };
-  chorus: number = 0; /* chrous web %/10 */ /* chrous web %/10 */
-  reverbSend: number = 0; /* percent of signal to send back.. in 0.1% units*/
-  pan: number = -1; /* shift to right percent */
+  chorus = 0; /* chrous web %/10 */ /* chrous web %/10 */
+  reverbSend = 0; /* percent of signal to send back.. in 0.1% units*/
+  pan = -1; /* shift to right percent */
   attenuate: centibel = 0; /*db in attentuation*/
-  instrumentID: number = -1;
-  rootkey: number = -1;
-  tuning: number = 0;
+  instrumentID = -1;
+  rootkey = -1;
+  tuning = 0;
 
   public get pitch(): number {
     const rk = this.rootkey > -1 ? this.rootkey : this.sample.originalPitch;
@@ -196,7 +196,7 @@ export class SFZone {
   }
 
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
-  sampleID: number = -1;
+  sampleID = -1;
   generators: SFGenerator[] = [];
   private shdr: Shdr;
 

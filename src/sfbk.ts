@@ -1,7 +1,7 @@
 import * as pdta_1 from './pdta.js';
 import { readAB } from './aba.js';
 
-export async function initsfbk(url) {
+export async function initsfbk(url: string) {
   const arr = new Uint8Array(
     await (
       await fetch(url, { mode: 'no-cors', headers: { Range: 'bytes=0-6400' } })
@@ -44,12 +44,17 @@ export async function initsfbk(url) {
   console.log(pr.readNString(4));
   return {
     pdta: new pdta_1.PDTA(pr),
-    workerWait: new Promise((resolve) => {
-      worker.addEventListener('message', ({ data: { init } }) => {
-        if (init == 1) {
-          resolve(worker);
+    workerWait: new Promise<{
+      worker: Worker;
+    }>((resolve) => {
+      worker.addEventListener(
+        'message',
+        ({ data: { init, soundCard, heap } }) => {
+          if (init == 1) {
+            resolve({ worker });
+          }
         }
-      });
+      );
     }),
   };
 }

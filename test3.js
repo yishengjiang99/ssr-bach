@@ -10,14 +10,14 @@ let proc, ctx, worker;
 async function initCtx() {
   ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
   await ctx.audioWorklet.addModule('dist/rend-proc.js');
-  proc = new AudioWorkletNode(ctx, 'wasm-render-proc', {
+  proc = new AudioWorkletNode(ctx, 'rend-proc', {
     outputChannelCount: [2],
   });
   worker.postMessage({ port: proc.port }, [proc.port]);
   proc.connect(ctx.destination);
 }
 initsfbk('https://dsp.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
-  ({ pdta, workerWait }) => {
+  async ({ pdta, workerWait }) => {
     document.body.querySelector('#mocha').appendChild(
       h('div', {}, [
         h('pre', {}, []),
@@ -27,7 +27,6 @@ initsfbk('https://dsp.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
             onclick: (e) => {
               if (!ctx) {
                 ctx = new AudioContext();
-                const proc;
               }
               e.target.parentElement.children[0].innerHTML = ctx.currentTime;
             },
@@ -38,30 +37,30 @@ initsfbk('https://dsp.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
           'button',
           {
             onclick: (e) => {
-              playnote();
+              playNote();
             },
-          },q
+          },
           'start'
         ),
       ])
     );
     const pre = document.querySelector('pre');
 
-    workerWait.then((worker) => {
-      worker.onmessage = ({ data }) => {
-        pre.innerHTML += JSON.stringify(data);
-      };
-      worker.postMessage({
-        zone: pdta.findPreset(0, 0, 55, 66).zones[0][0].serialize(),
-        note: {
-          key: 55,
-          velocity: 55,
-          start: 0.01,
-          duration: 0.5,
-          channelId: 0,
-        },
+    const { worker } = await workerWait;
+    function playNote() {
+      const pset = pdta.findPreset(0, 0, 44, 127);
+      pset.zones[0].map((z) => {
+        worker.postMessage({
+          zone: z.serialize(),
+          note: {
+            midi: 44,
+            velocity: 127,
+            start: 0.2,
+            durationTime: 0.5,
+            channelId: 1,
+          },
+        });
       });
-    });
+    }
   }
 );
-let ctx;

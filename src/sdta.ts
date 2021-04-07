@@ -8,14 +8,14 @@ export async function load(src, heapsize = 1024 * 1024) {
   return { heap, malloc, exports, mem };
 }
 export async function gheap(length: number, wasmbin: BufferSource) {
-  const heap_start = 68;
-  const wasm_page_size = 1024 * 56;
+  const heap_start = 4;
+  const wasm_page_size = 0xffff;
   const pages = Math.ceil(length / wasm_page_size);
   const mem = new WebAssembly.Memory({
-    initial: 10241,
-    maximum: 10241,
+    initial: pages,
+    maximum: pages,
     //@ts-ignore
-    shared: true,
+    shared: false,
   });
   const heap = new Uint8Array(mem.buffer, heap_start);
   let offset = 0;
@@ -54,20 +54,15 @@ export async function initSDTA(
     })
   ).arrayBuffer();
   const { heap, malloc, exports } = await gheap(arr.byteLength, bin);
-  const nsamples = arr.byteLength / 2;
 
-  const inputptr = malloc(arr.byteLength + 20);
-  heap.set(arr, inputptr);
-
-  const floffset = malloc(2 * arr.byteLength + 20);
-  console.log(inputptr, floffset);
-  // @ts-ignore
-  exports['load'](inputptr, floffset, nsamples);
+  const inputs = malloc(arr.byteLength);
+  heap.set(arr, inputs);
 
   const inputParams = [];
   for (let i = 0; i < 18; i++) {
     inputParams.push(malloc(36));
-  } //[=.map((chid) => {
+  }
+  //[=.map((chid) => {
   const rb = new RingBuffer(malloc, {
     sr: sampleRate,
     blocks: 30,
@@ -94,13 +89,13 @@ export async function initSDTA(
       if (done) break;
       if (value) {
         //@ts-ignore
-        iterator += exports['render'](floffset, inputParams[channelId], value);
+        position += exports['render'](inputs, inputParams[channelId], value);
       }
       yield;
     }
     return true;
   }
-  return { render, heap, soundCard: rb, floats: floffset };
+  return { render, heap, soundCard: rb, floats: 1 };
 }
 
 const bytesPerSample = 8;

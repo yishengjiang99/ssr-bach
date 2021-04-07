@@ -7,7 +7,6 @@
  * 
  *  
 */
-#include <webassembly.h>
 typedef struct
 {
   unsigned int position, startLoop, endLoop, blocklength;
@@ -15,27 +14,9 @@ typedef struct
 
 } renderParams;
 
- export int load(short *data, float *floats, int n);
-  export int render(float *floats, float *output, renderParams *params);
+int render(short *shorts, float *output, renderParams *params);
 float hermite4(float frac_pos, float xm1, float x0, float x1, float x2);
-
-
-
-
- export int load(short *data, float *floats, int n)
-{
-
-  while(n-- >0)
-  {
-    *floats = *data *1.0f/ 65535;
-    floats++;
-    data++;
-
-  }
-  return 1;
-}
-
-  export int render(float *floats, float *output, renderParams *params)
+int render(short *shorts, float *output, renderParams *params)
 {
 
   int loopr = (params->endLoop - params->startLoop);
@@ -46,10 +27,9 @@ float hermite4(float frac_pos, float xm1, float x0, float x1, float x2);
   for (int i = 0; i < blocklength - 1; i++)
   {
     output[i] = 0;
-    float mono = hermite4(shift, *(floats + position - 1), *(floats + position), *(floats + position + 1), *(floats + position + 2));
-
-    output[2 * i] = params->gainL * floats[position];
-    output[2 * i + 1] = params->gainL * floats[position]; //floats[position];
+    short mono = shorts[position];
+    output[2 * i] += params->gainL * shorts[position] * 1.0f / 0xffff;
+    output[2 * i + 1] += params->gainR * shorts[position] * 1.0f / 0xffff;
 
     shift += params->ratio;
 
