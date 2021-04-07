@@ -1,4 +1,3 @@
-import { RingBuffer } from '../nodep/dist/rb.js';
 import { Runtime } from './runtime.js';
 export async function load(src, heapsize = 1024 * 1024) {
   var { heap, malloc, exports, mem } = await gheap(
@@ -11,10 +10,10 @@ export async function load(src, heapsize = 1024 * 1024) {
 export async function gheap(length: number, wasmbin: BufferSource) {
   const heap_start = 68;
   const wasm_page_size = 1024 * 56;
-  const pages = Math.ceil((length / wasm_page_size) * 5 + 10240);
+  const pages = Math.ceil(length / wasm_page_size);
   const mem = new WebAssembly.Memory({
-    initial: pages,
-    maximum: pages,
+    initial: 10241,
+    maximum: 10241,
     //@ts-ignore
     shared: true,
   });
@@ -47,7 +46,7 @@ export async function gheap(length: number, wasmbin: BufferSource) {
 
 export async function initSDTA(
   arr: Uint8Array,
-  { blockLength, sampleRate } = { blockLength: 128, sampleRate: 128 }
+  { blockLength, sampleRate } = { blockLength: 128, sampleRate: 48000 }
 ) {
   const bin = await (
     await fetch('../sdta.wasm', {
@@ -90,15 +89,69 @@ export async function initSDTA(
     [pitch, volume * pan.left, volume * pan.right].map((v, idx) =>
       dv.setFloat32(16 + idx * 4, v, true)
     );
-    let nextPtr = writeIter.next();
     while (true) {
       const { done, value } = writeIter.next();
       if (done) break;
       if (value) {
         //@ts-ignore
-        exports['render'](floffset, inputParams[channelId], value);
+        iterator += exports['render'](floffset, inputParams[channelId], value);
       }
+      yield;
     }
+    return true;
   }
   return { render, heap, soundCard: rb, floats: floffset };
+}
+
+const bytesPerSample = 8;
+class RingBuffer {
+  readOffset: number;
+  sr: number;
+  perfTime: number;
+  blockLength: any;
+  blocks: any;
+  obOffset: any;
+  secondsPerFrame: number;
+  constructor(malloc, opts) {
+    this.readOffset = 0;
+    this.sr = 41000;
+    this.perfTime = 0;
+    opts = opts || {};
+    this.blockLength = opts.blockLength || 128;
+    this.blocks = opts.blocks || 20;
+    this.sr = opts.sr || 48000;
+    this.obOffset = malloc(this.blockLength * this.blocks);
+    this.secondsPerFrame = this.blockLength / this.sr;
+  }
+  shift() {
+    this.perfTime += this.secondsPerFrame;
+    const ret = bytesPerSample * this.readOffset + this.obOffset;
+    if (this.readOffset >= this.blockLength * (this.blocks - 1)) {
+      this.readOffset = 0;
+    } else {
+      this.readOffset += this.blockLength;
+    }
+    return ret;
+  }
+  writeptr(start) {
+    let delay = (start - this.perfTime) * this.sr - this.readOffset;
+    if (delay > this.blockLength * (this.blocks * 2 - 2)) {
+      return -1;
+    }
+    while (delay > this.blockLength * (this.blocks - 1)) {
+      delay -= this.blockLength * (this.blocks - 1);
+    }
+    return Math.ceil(this.obOffset + bytesPerSample * delay);
+  }
+  *writeIterator(start, duration) {
+    while (duration > 0) {
+      const pt = this.writeptr(start);
+      if (pt !== -1) {
+        duration -= this.secondsPerFrame;
+        start += this.secondsPerFrame;
+      }
+      yield pt;
+    }
+    return null;
+  }
 }

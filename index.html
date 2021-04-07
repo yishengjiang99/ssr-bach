@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="https://unpkg.com/@tonejs/midi"></script>
+    <script src="lib/miditone.js"></script>
   </head>
 
   <body>
-    <main>
-      <div>
-        <select></select>
-      </div>
-    </main>
+    <pre></pre>
+    <main></main>
     <script>
       const h = (type, attr, children) => {
         const div = document.createElement(type);
@@ -23,114 +20,133 @@
       };
     </script>
     <script type="module">
-      const pre = document.querySelector('pre');
       import { initsfbk } from './dist/sfbk.js';
-      import { Runtime } from './dist/runtime.js';
+      const maindiv = document.querySelector('main');
+      const pre = document.querySelector('pre');
       const midiurls = [
         'https://grep32bit.blob.core.windows.net/midi/Beethoven-Symphony5-1.mid',
       ];
-
+      const sfurls = ['GeneralUserGS.sf2'];
       const selects = document.querySelectorAll('select');
-
-      initsfbk('GeneralUserGS.sf2').then(({ pdta, worker }) =>
-        displayMidi(midiurls[0], pdta)
-      );
-      async function displayMidi(url, pdta) {
-        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
-        document.body.querySelector('main').appendChild(
-          h(
-            'div',
-            {},
-            tracks.map((t) => trackview(t, pdta))
-          )
+      let worker;
+      queueMicrotask(() => {
+        initsfbk(sfurls[0]).then(({ pdta, workerWait }) =>
+          displayMidi(midiurls[0], pdta)
         );
-      }
+      });
+      async function displayMidi(url, pdta) {
+        let playing = false;
+        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+        const selectView = (presetId, pdta) =>
+          h(
+            'select',
+            {
+              value: presetId,
+              oninput: (e) =>
+                e.target.parentElement.setAttribute('presetId', e.target.value),
+            },
+            pdta.phdr.map((p) => h('option', { value: p.presetId }, p.name))
+          );
+        const playBtn = () =>
+          h(
+            'button',
+            {
+              onclick: async () => {
+                ctx = ctx || new AudioContext();
+                debugger;
+                worker = await workerWait;
+                if (!playing) {
+                  playing = true;
+                  timer = playMidi(durationTicks, header, tracks);
+                  this.innerHTML = 'st0p';
+                } else {
+                  playing = false;
+                  this.innerHTML = 'start';
+                }
+              },
+            },
+            'start'
+          );
+        const trackview = (track, pdta) => {
+          const patchn = track.instrument.number;
+          const preset = pdta.phdr.filter(
+            (p) => p.presetId == (patchn & 0x7f) && p.bankId == (patchn & 0x80)
+          )[0];
+          return h(
+            'div',
+            {
+              presetId: patchn & 0x7f,
+              style: 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr',
+            },
+            [
+              h('span', {}, [
+                h('h5', {}, preset.name),
+                selectView(preset.presetId, pdta),
+              ]),
 
-      async function playMidi(durationTicks, header, tracks) {
-        //   const { durationTicks, header, tracks } = await Midi.fromUrl(midiUrl);
-        let t = -200;
-        while (t < durationTicks) {
-          let output = '';
-          tracks.map((track) => {
-            const _t = header.secondsToTicks(t / 1000);
-            const ratio = t / _t;
-            while (
-              track.notes &&
-              track.notes[0] &&
-              track.notes[0].ticks < _t + 230
-            ) {
-              const note = track.notes.shift();
-              const pset = findPreset(
-                track.instrument.number,
-                track.instrument.percussion ? 128 : 0,
-                note.midi,
-                note.velocity * 127
-              );
-              output +=
-                '\n' +
-                [
-                  ((note.ticks - _t) * ratio).toFixed(1),
+              h('span', {}, [
+                h('meter', {
+                  value: 50,
+                  max: 100,
+                  min: 0,
+                }),
+              ]),
+            ]
+          );
+        };
+        maindiv.appendChild(
+          h('div', {}, [playBtn(), ...tracks.map((t) => trackview(t, pdta))])
+        );
+
+        async function playMidi(durationTicks, header, tracks) {
+          //   const { durationTicks, header, tracks } = await Midi.fromUrl(midiUrl);
+          let t = -200;
+          while (t < durationTicks && playing) {
+            let output = '';
+            tracks.map((track) => {
+              const _t = header.secondsToTicks(t / 1000);
+              const ratio = t / _t;
+              while (
+                track.notes &&
+                track.notes[0] &&
+                track.notes[0].ticks < _t + 230
+              ) {
+                const note = track.notes.shift();
+                const pset = findPreset(
                   track.instrument.number,
                   track.instrument.percussion ? 128 : 0,
                   note.midi,
-                  note.velocity * 127,
-                  note.durationTicks,
-                ].join('\t');
-              output += '\n';
-              pset.zones[0].map((z) => {
-                const rt = new Runtime(z, {
-                  key: note.midi,
-                  velocity: note.velocity * 127,
+                  note.velocity * 127
+                );
+                output +=
+                  '\n' +
+                  [
+                    ((note.ticks - _t) * ratio).toFixed(1),
+                    track.instrument.number,
+                    track.instrument.percussion ? 128 : 0,
+                    note.midi,
+                    note.velocity * 127,
+                    note.durationTicks,
+                  ].join('\t');
+                output += '\n';
+                pset.zones[0].map((z) => {
+                  worker.postMessage({
+                    zone: z,
+                    start: note.start,
+                    duration: note.duration,
+                    channelId: track.channel,
+                  });
+                  delete rt.zone;
+                  output += JSON.stringify(rt) + '\n';
                 });
-                delete rt.zone;
-                output += JSON.stringify(rt) + '\n';
-              });
-            }
-          });
-          t += 200;
-          await new Promise((r) => setTimeout(r, 500));
-          if (output) pre.innerHTML = output;
+              }
+            });
+            t += 200;
+            await new Promise((r) => setTimeout(r, 500));
+            if (output) pre.innerHTML = output;
+          }
         }
       }
-    </script>
-    <script>
-      const selectView = (presetId, pdta) =>
-        h(
-          'select',
-          {
-            value: presetId,
-            oninput: (e) =>
-              e.target.parentElement.setAttribute('presetId', e.target.value),
-          },
-          pdta.phdr.map((p) => h('option', { value: p.presetId }, p.name))
-        );
-      const trackview = (track, pdta) => {
-        const patchn = track.instrument.number;
-        const preset = pdta.phdr.filter(
-          (p) => p.presetId == (patchn & 0x7f) && p.bankId == (patchn & 0x80)
-        )[0];
-        return h(
-          'div',
-          {
-            presetId: patchn & 0x7f,
-            style: 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr',
-          },
-          [
-            h('span', {}, [
-              h('h5', {}, preset.name),
-              selectView(preset.presetId, pdta),
-            ]),
-
-            h('span', {}, [
-              h('meter', {
-                value: 50,
-                max: 100,
-                min: 0,
-              }),
-            ]),
-          ]
-        );
-      };
     </script>
   </body>
 </html>

@@ -1,0 +1,25 @@
+{
+  "name": "nodep",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/rb.js",
+  "types": "dist/rb.d.ts",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/chai": "^4.2.16",
+    "@types/mocha": "^8.2.2",
+    "chai": "^4.3.4"
+  },
+  "mocha": {
+    "require": [
+      "ts-node/register"
+    ],
+    "spec": [
+      "src/*spec.ts"
+    ]
+  }
+}

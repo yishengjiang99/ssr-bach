@@ -149,6 +149,8 @@ export class Envelope {
   egval: number;
   modifier: number;
   amts: number[];
+  releaseTimeout: number = 99999;
+
   constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
     if (phases[4]) {
       const [delay, attack, hold, decay, release] = phases;
@@ -176,14 +178,18 @@ export class Envelope {
   }
 
   get done() {
-    return this.egval < -10 || this.state.stage == 5;
+    return this.egval < -10 || this.state.stage == stagesEnum.done;
   }
   get val() {
     return this.egval;
   }
   shift(steps: number) {
+    this.releaseTimeout -= steps;
+    if (this.releaseTimeout <= 128) {
+      this.triggerRelease();
+    }
     const { stage, stageStep } = this.state;
-    if (this.done) return null;
+    if (stage === stagesEnum.done) return 0;
     const stepsremining = this.stages[stage] - stageStep - steps;
     if (stepsremining < 0) {
       this.state.stage++;
@@ -212,8 +218,9 @@ export class Envelope {
     if (this.done) return 0;
     else yield this.val;
   }
-  triggerRelease() {
-    if (this.state.stage < stagesEnum.release) {
+  triggerRelease(timeout: number = 0) {
+    if (timeout && timeout > 0) this.releaseTimeout = timeout;
+    else if (this.state.stage < stagesEnum.release) {
       this.state.stage = stagesEnum.release;
       this.state.stageStep = 0;
       this.stages[stagesEnum.release] =

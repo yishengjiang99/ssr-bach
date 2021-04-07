@@ -3,7 +3,7 @@
   (type $t1 (func (param i32 i32 i32) (result i32)))
   (type $t2 (func (param i32 i32) (result i32)))
   (type $t3 (func (param f32 f32 f32 f32 f32) (result f32)))
-  (import "env" "memory" (memory $env.memory 1))
+  (import "env" "memory" (memory $env.memory 10241 10241 shared))
   (func $f0 (type $t0) (param $p0 i32) (param $p1 i32)
     (local $l2 i32)
     block $B0
