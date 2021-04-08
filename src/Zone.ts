@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 export type GenRange = { lo: number; hi: number };
 export class SFGenerator {
   from = 0;
+  ibagId = -1;
+  pbagId = -1;
   constructor(private _operator: sf_gen_id, private int16: number) {}
   add(modgen: SFGenerator) {
     this.int16 += modgen.int16;
@@ -136,6 +139,8 @@ export class SFZone {
     startLoop: 0,
     endLoop: 0,
   };
+  pbagId: number;
+  ibagId: number;
   serialize() {
     return {
       ...this,
@@ -145,6 +150,12 @@ export class SFZone {
       volEnv: this._volEnv,
       sample: this.sample,
     };
+  }
+  constructor(ids?: { pbagId?: number; ibagId?: number }) {
+    if (ids) {
+      if (ids.pbagId) this.pbagId = ids.pbagId;
+      if (ids.ibagId) this.ibagId = ids.ibagId;
+    }
   }
   private _modLFO: LFOParams = SFZone.defaultLFO;
   public get modLFO() {

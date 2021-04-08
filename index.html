@@ -5,61 +5,171 @@
   </head>
 
   <body>
-    <pre></pre>
-    <main></main>
-    <script type="template" id="rendproc"></script>
+    <main><button>start</button></main>
+    <script type="template" id="workletcode">
+                        import { Runtime } from 'https://api.grepawk.com/dist/runtime.js';
+                              const sampleRate = 48000;
+                              class RenderProcessor  extends AudioWorkletProcessor {
+                                  constructor(options) {
+                                      super()
+                                      this.staging=[];
+                                      this.production = new Array(16);
+                                      this.port.onmessage = (e) => {
+                                          const { samples, zone, note } = e.data;
+                                          if (samples) {
+                                              const c = new DataView(samples);
+                                              const nsamples = samples.byteLength / Int16Array.BYTES_PER_ELEMENT;
+                                              this.samples = new Uint8Array(nsamples*4);
+                                              const dv = new DataView(this.samples.buffer);
+                                              for (let i = 0; i < nsamples; i++) {
+
+                                                  dv.setFloat32(i * 4, c.getInt16(i * 2, true) / 0xffff, true);
+                                              }
+                                              this.port.postMessage({ready:1});
+                                          }
+                                          if (zone && note) {
+                                              const { start, channelId } = note;
+                                              const rt = new Runtime(zone, {
+                                                  key: note.midi,
+                                                  velocity: note.velocity,
+                                                  channel: channelId,
+                                              });
+
+                                              this.staging.push({
+                                                  channelId,
+                                                  note,
+                                                  rt: rt,
+                                                  startFrame: start * sampleRate,
+                                                  iterator: 0,
+                                                  shift: 0.0,
+                                              });
+                                          }
+                                      };
+                                  }
+                                  process(inputs, outputs, parameters) {
+
+                                     const dv = new DataView(this.samples.buffer);
+                                      // || 0;
+                                      while (this.staging.length && this.staging[0].startFrame < currentFrame + 128) {
+                                          const v = this.staging.shift();
+                                          v.preroll = ~~(v.startFrame - currentFrame);
+                                          this.production[v.channelId] = v;
+                                      }
+                                      for (let offset = 0; offset < 128; offset++) {
+
+                                      }
+                                      for (let vid = 0; vid < 17; vid++) {
+
+
+
+                                          if(!this.production[vid]) continue;
+                                          const v =  this.production[vid];
+
+                                          let { preroll, rt, iterator, note,shift } = v;
+                                      //    const rootkey = rt.zone.rootKey >-1 ? rt.zone.rootKey : rt.zone.sample.originalPitch;
+                                          const {pitch,volume} = rt.run(128);
+
+                                          const pan = rt.staticLevels.pan;
+      if(currentFrame% 4800==0) console.log(volume)
+
+                                          const looper = rt.sample.endLoop - rt.sample.startLoop;
+                                          for (let offset = 0; offset < 128; offset++) {
+                  let newval;
+                                              if (preroll-- >0) {
+                                                newval=0;
+                                              }
+                                              else{
+                                                 newval = dv.getFloat32(v.iterator*4, true);
+                                              }
+                                              newval=newval*volume;
+                                              outputs[0][0][offset] += newval * pan.left;
+                                              outputs[0][1][offset] += newval * pan.right;
+                                              v.shift =v.shift + pitch;
+
+                                              while (v.shift >= 1) {
+                                                v.iterator++;
+                                                v.shift--;
+                                               }
+                                              if (v.iterator >= rt.sample.endLoop) {
+                                                 v.iterator = v.iterator-looper;
+                                              }
+                                          }
+                                      }
+                                      return true;
+                                  }
+                              }
+                              registerProcessor("rend-proc",RenderProcessor);
+    </script>
     <script src="dist/ghettoreact.js"></script>
     <script type="module">
       import { initsfbk } from './dist/sfbk.js';
       const maindiv = document.querySelector('main');
-      const pre = document.querySelector('pre');
       const midiurls = [
-        'https://grep32bit.blob.core.windows.net/midi/Beethoven-Symphony5-1.mid',
-      ];
-      const sfurls = ['GeneralUserGS.sf2'];
-      const selects = document.querySelectorAll('select');
-      let worker, ctx, timer, _pdta;
-      queueMicrotask(() => {
-        initsfbk(sfurls[0]).then(({ pdta, workerWait }) => {
-          _pdta = pdta;
-          displayMidi(midiurls[0], pdta, workerWait);
-        });
-      });
-      async function displayMidi(url, pdta, workerWait) {
-        let playing = false;
-        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
-        const selectView = (presetId, pdta) =>
-          h(
-            'select',
-            {
-              value: presetId,
-              oninput: (e) =>
-                e.target.parentElement.setAttribute('presetId', e.target.value),
-            },
-            pdta.phdr.map((p) => h('option', { value: p.presetId }, p.name))
-          );
-        const playBtn = () =>
-          h(
-            'button',
-            {
-              onclick: async (e) => {
-                ctx = ctx || new AudioContext();
+        // 'c.mid',
 
-                if (!worker) {
-                  worker = (await workerWait).worker;
-                }
-                if (!playing) {
-                  playing = true;
-                  timer = playMidi(durationTicks, header, tracks);
-                  e.target.innerHTML = 'st0p';
-                } else {
-                  playing = false;
-                  e.target.innerHTML = 'start';
-                }
-              },
-            },
-            'start'
-          );
+        '/midi/serenade_k361_3rd-mid.mid',
+      ];
+      const workletcode = URL.createObjectURL(
+        new Blob([document.getElementById('workletcode').textContent], {
+          type: 'text/javascript',
+        })
+      );
+
+      const sfurls = ['GeneralUserGS.sf2'];
+      let sdta, _sdtaWait, timer, _pdta, proc, ctx;
+      let playing = false;
+      queueMicrotask(init);
+
+      async function init() {
+        const { pdta, sdtaWait } = await initsfbk(sfurls[0]);
+        _pdta = pdta;
+        _sdtaWait = sdtaWait;
+        displayMidi(midiurls[0], pdta);
+      }
+      async function initCtx() {
+        ctx = new AudioContext();
+        sdta = await _sdtaWait;
+        await ctx.audioWorklet.addModule(workletcode);
+        proc = new AudioWorkletNode(ctx, 'rend-proc', {
+          outputChannelCount: [2],
+        });
+
+        proc.onprocessorerror = (e) => {
+          console.trace();
+        };
+
+        proc.port.postMessage({ samples: sdta });
+        await new Promise((resolve) => {
+          proc.port.onmessage = async (e) => {
+            if (e.data.ready == 1) {
+              resolve();
+            }
+          };
+        });
+        proc.connect(ctx.destination);
+        await ctx.resume();
+      }
+
+      async function displayMidi(url, pdta) {
+        let playing = false;
+        await import('../lib/miditone.js');
+        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+        async function startstoptoggle(e) {
+          if (!ctx) {
+            await initCtx();
+          }
+          if (!playing) {
+            playing = true;
+            timer = playMidi(durationTicks, header, tracks);
+            e.target.innerHTML = 'st0p';
+          } else {
+            playing = false;
+            e.target.innerHTML = 'start';
+            clearTimeout(timer);
+          }
+        }
+        const playBtn = document.querySelector('button');
+        playBtn.addEventListener('click', startstoptoggle);
         const trackview = (track, pdta) => {
           const patchn = track.instrument.number;
           const preset = pdta.phdr.filter(
@@ -72,11 +182,7 @@
               style: 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr',
             },
             [
-              h('span', {}, [
-                h('h5', {}, preset.name),
-                selectView(preset.presetId, pdta),
-              ]),
-
+              h('span', {}, [h('h5', {}, preset.name)]),
               h('span', {}, [
                 h('meter', {
                   value: 50,
@@ -88,21 +194,25 @@
           );
         };
         maindiv.appendChild(
-          h('div', {}, [playBtn(), ...tracks.map((t) => trackview(t, pdta))])
+          h('div', {}, [
+            playBtn,
+            h('pre', {}, []),
+            ...tracks.map((t) => trackview(t, pdta)),
+          ])
         );
-
+        const pre = document.querySelector('pre');
         async function playMidi(durationTicks, header, tracks) {
           //   const { durationTicks, header, tracks } = await Midi.fromUrl(midiUrl);
           let t = -200;
           while (t < durationTicks && playing) {
             let output = '';
-            tracks.map((track) => {
+            tracks.map((track, channelId) => {
               const _t = header.secondsToTicks(t / 1000);
               const ratio = t / _t;
               while (
                 track.notes &&
                 track.notes[0] &&
-                track.notes[0].ticks < _t + 230
+                track.notes[0].ticks < _t + 211
               ) {
                 const note = track.notes.shift();
                 const pset = _pdta.findPreset(
@@ -111,27 +221,25 @@
                   note.midi,
                   note.velocity * 127
                 );
-                pset.zones[0].map((z) => {
-                  output +=
-                    '\n' +
-                    [
-                      ((note.ticks - _t) * ratio).toFixed(1),
-                      track.instrument.number,
-                      track.instrument.percussion ? 128 : 0,
-                      note.midi,
-                      note.velocity * 127,
-                      note.durationTicks,
-                    ].join('\t');
-                  output += '\n';
+                const z = pset.zones;
 
-                  output += JSON.stringify(z) + '\n';
-                });
+                if (z[0] && z[0][0]) {
+                  proc.port.postMessage({
+                    zone: z[0][0].serialize(),
+                    note: {
+                      midi: note.midi,
+                      velocity: note.velocity * 127,
+                      start: note.time,
+                      durationTime: note.durationTime,
+                      channelId: channelId,
+                    },
+                  });
+                }
               }
             });
             t += 200;
             if (output) pre.innerHTML = output;
-
-            await new Promise((r) => setTimeout(r, 500));
+            await new Promise((r) => setTimeout(r, 222));
           }
         }
       }

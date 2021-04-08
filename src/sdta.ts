@@ -80,7 +80,7 @@ export async function initSDTA(
     );
     const writeIter = rb.writeIterator(noteStartTime, rt.length);
     const pan = rt.staticLevels.pan;
-    const { volume, pitch, filter } = rt.run(blockLength);
+    const { volume, pitch } = rt.run(blockLength);
     [pitch, volume * pan.left, volume * pan.right].map((v, idx) =>
       dv.setFloat32(16 + idx * 4, v, true)
     );

@@ -2,38 +2,38 @@ import { SFZone, Shdr } from './Zone.js';
 import { LUT, dbfs } from './LUT.js';
 LUT.init();
 
-export function cent2hz(centiHz) {
+export function cent2hz(centiHz: number): number {
   return 8.176 * Math.pow(2, centiHz / 1200.0);
 }
-export function timecent2sec(timecent) {
+export function timecent2sec(timecent: number): number {
   return Math.pow(2, timecent / 1200.0);
 }
-export function centidb2gain(centibel) {
+export function centidb2gain(centibel: number): number {
   return Math.pow(10, centibel / 200);
 }
 export class LFO {
-  sampleRate: number = 48000;
-  amount: number = 0;
+  sampleRate = 48000;
+  amount = 0;
   delta: number;
   delay: number;
-  cycles: number = 0;
+  cycles = 0;
   effects: ModEffects;
   constructor(
     delay: number,
     freq: centTone,
     effects: ModEffects,
-    sampleRate: number = 48000
+    sampleRate = 48000
   ) {
     this.sampleRate = sampleRate;
     this.delta = (4.0 * cent2hz(freq)) / sampleRate; //covering distance of 1/4 4 times per cycle..
     this.delay = delay < -12000 ? 0 : Math.pow(2, delay / 1200) * sampleRate;
     this.effects = effects;
   }
-  static fromJSON(str: string) {
+  static fromJSON(str: string): LFO {
     const obj = JSON.parse(str);
     return new LFO(obj.delay, obj.freq, obj.effects);
   }
-  shift(steps: number = 1) {
+  shift(steps = 1): number {
     while (steps-- > 0) {
       if (this.delay-- > 0) continue;
       this.amount += this.delta;
@@ -44,14 +44,14 @@ export class LFO {
     }
     return this.amount;
   }
-  get val() {
+  get val(): number {
     return this.amount;
   }
-  get volCB() {
+  get volCB(): number {
     return (this.effects.volume * this.amount) / 10;
   }
-  get pitchCent() {
-    return (this.effects.volume * this.amount) / 10;
+  get pitchCent(): number {
+    return this.effects.pitch * this.amount;
   }
 }
 
@@ -145,13 +145,13 @@ export class Envelope {
   sr: number;
   stages: number[] = [];
   deltas: number[];
-  keyOff: boolean = false;
+  keyOff = false;
   egval: number;
   modifier: number;
   amts: number[];
-  releaseTimeout: number = 99999;
+  releaseTimeout = 99999;
 
-  constructor(phases: any, sustainCB: centibel, sampleRate: number = 48000) {
+  constructor(phases: any, sustainCB: centibel, sampleRate = 48000) {
     if (phases[4]) {
       const [delay, attack, hold, decay, release] = phases;
       return new Envelope(
@@ -218,7 +218,7 @@ export class Envelope {
     if (this.done) return 0;
     else yield this.val;
   }
-  triggerRelease(timeout: number = 0) {
+  triggerRelease(timeout = 0) {
     if (timeout && timeout > 0) this.releaseTimeout = timeout;
     else if (this.state.stage < stagesEnum.release) {
       this.state.stage = stagesEnum.release;
@@ -237,7 +237,12 @@ export class Runtime {
     pan: { left: number; right: number };
   };
   run: (steps: number) => { volume: number; pitch: number; filter: number };
-  mods: { ampVol; modVol; modLFO; vibrLFO };
+  mods: {
+    ampVol: { triggerRelease: (time?: number) => void; stages: number[] };
+    modVol: Envelope;
+    modLFO: LFO;
+    vibrLFO: LFO;
+  };
   length: number;
   sample: Shdr;
   iterator: number;
@@ -246,8 +251,8 @@ export class Runtime {
 
   constructor(
     zone: SFZone,
-    note: { key; velocity; channel?: number },
-    sr: number = 48000
+    note: { key: number; velocity: number; channel?: number },
+    sr = 48000
   ) {
     this.zone = zone;
     this.staticLevels = {
@@ -265,7 +270,8 @@ export class Runtime {
         right: 0.5 + zone.pan / 1000,
       },
     };
-
+    zone.modEnv.phases.attack =
+      (zone.modEnv.phases.attack * (145 - note.velocity)) / 144.0;
     this.iterator = zone.sampleOffsets.start;
     const ampVol = new Envelope(zone.volEnv.phases, zone.volEnv.sustain);
     const modVol = new Envelope(zone.modEnv.phases, zone.modEnv.sustain);
@@ -290,7 +296,14 @@ export class Runtime {
         volume: LUT.getAmp(this.staticLevels.gainCB + ampVol.ampCB),
 
         pitch:
-          LUT.relPC[~~(this.staticLevels.pitch - vibrLFO.pitchCent + 1200)],
+          LUT.relPC[
+            ~~(
+              this.staticLevels.pitch +
+              modLFO.pitchCent +
+              vibrLFO.pitchCent +
+              1200
+            )
+          ],
         filter: 1,
       };
 

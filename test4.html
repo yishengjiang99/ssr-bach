@@ -34,17 +34,15 @@
       async function init() {
         const { pdta, sdtaWait } = await initsfbk('file.sf2');
         _pdta = pdta;
-
         _sdtaWait = sdtaWait;
       }
       await init();
       let ctx;
       const div = document.querySelector('#mocha');
-      for (const i of ['oboe', 'trumpet', 'clarinet', 'cello']) {
-        pdta.findInstId(i).map((z) => h('button'));
-      }
+
       _pdta.shdr.forEach((sh, id) => {
         const btn = document.createElement('button');
+
         div.appendChild(
           h('p', {}, [
             h('span', {}, sh.name),

@@ -134,13 +134,12 @@ export class PDTA {
             this.pbag.push({
               pgen_id: r.get16(),
               pmod_id: r.get16(),
-              pzone: new SFZone(),
+              pzone: new SFZone({ pbagId: i }),
             });
           }
-          this.pbag.push({ pgen_id: -1, pmod_id: 0, pzone: new SFZone() });
 
           break;
-        case 'pgen':
+        case 'pgen': {
           let pgenId = 0,
             pbagId = 0,
             phdrId = 0;
@@ -165,6 +164,7 @@ export class PDTA {
             }
           }
           break;
+        }
         case 'pmod':
           for (let i = 0; i < sectionSize; i += pmodLength) {
             this.pmod.push({
@@ -186,7 +186,7 @@ export class PDTA {
             });
           }
           break;
-        case 'ibag':
+        case 'ibag': {
           let ibginst = 0;
           for (let i = 0; i < sectionSize; i += pbagLength) {
             if (
@@ -197,7 +197,7 @@ export class PDTA {
             this.ibag.push({
               igen_id: r.get16(),
               imod_id: r.get16(),
-              izone: new SFZone(),
+              izone: new SFZone({ ibagId: i }),
             });
             this.psh(ibginst, i, pbagLength);
           }
@@ -206,6 +206,7 @@ export class PDTA {
           this.ibag.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
 
           break;
+        }
         case 'igen':
           let ibagId = 0;
           let instId = 0;

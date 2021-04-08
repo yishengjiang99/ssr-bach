@@ -6,7 +6,7 @@ class RenderProcessor {
   port: any;
   samples: DataView;
   floats: DataView;
-  staging: any[];
+  staging: any;
   constructor(options) {
     this.production = new Array(16); //=[]
     this.port.onmessage = (e: {
