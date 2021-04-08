@@ -1,45 +1,22 @@
 import { Runtime } from './runtime.js';
-import { SFZone } from './Zone.js';
+import { getSample } from './sfbk.js';
 const sampleRate = 48000;
-class RenderProcessor {
+//@ts-ignore
+class RenderProcessor extends AudioWorkletProcessor {
+  staging: any[];
   production: any[];
   port: any;
-  samples: DataView;
-  floats: DataView;
-  staging: any[];
+  samples: Float32Array;
+  startTime: any;
   constructor(options) {
-    this.production = new Array(16); //=[]
-    this.port.onmessage = (e: {
-      data: {
-        samples: Uint8Array;
-        zone: SFZone;
-        channelId: number;
-        note: {
-          midi: number;
-          velocity: number;
-          durationTime: number;
-          start: number;
-          channelId: number;
-          time: number;
-        };
-      };
-    }) => {
+    super();
+    this.staging = [];
+    this.production = new Array(16);
+    this.port.onmessage = (e) => {
       const { samples, zone, note } = e.data;
       if (samples) {
-        const c = new DataView(samples);
-        const nsamples = this.samples.byteLength / Int16Array.BYTES_PER_ELEMENT;
-        this.samples = new DataView(
-          new Uint8Array(nsamples * Float32Array.BYTES_PER_ELEMENT)
-        );
-        for (let i = 0; i < nsamples; i++) {
-          this.samples.setFloat32(
-            i * 4,
-            c.getInt16(i * 2, true) / 0xffff,
-            true
-          );
-        }
+        this.samples = samples;
       }
-
       if (zone && note) {
         const { start, channelId } = note;
         const rt = new Runtime(zone, {
@@ -47,53 +24,66 @@ class RenderProcessor {
           velocity: note.velocity,
           channel: channelId,
         });
-        rt.mods.ampVol.triggerRelease();
+
         this.staging.push({
           channelId,
           note,
-          rt: rt,
-          startFrame: start * sampleRate,
-          iterator: 0,
+          rt,
+          sampleData: getSample(zone.sample, this.samples),
           shift: 0.0,
+          get startFrame() {
+            if (this.startTime == null) return false;
+            return (start - this.startTime) / sampleRate;
+          },
         });
+
+        if (this.staging.length > 5) {
+          this.startTime = globalThis.currentTime;
+          this.port.postMessage({ ready: 1 });
+        }
       }
     };
   }
 
   process(inputs, outputs, parameters) {
-    let currentFrame = globalThis.currentFrame;
-    // || 0;
-    while (this.staging[0].startFrame < currentFrame + 128) {
+    while (this.staging[0]?.startFrame < globalThis.currentFrame + 128) {
       const v = this.staging.shift();
-      this.production[v.id] = v;
-      v.preroll = v.startFrame - currentFrame;
+      v.preroll = ~~(v.startFrame - globalThis.currentFrame);
+      this.production[v.channelId] = v;
     }
+    for (let vid = 0; vid < 17; vid++) {
+      if (!this.production[vid]) continue;
+      const v = this.production[vid];
+      let { preroll } = v;
+      //    const rootkey =v.rt.zone.rootKey >-1 ?v.rt.zone.rootKey :v.rt.zone.sample.originalPitch;
+      const { pitch, volume } = v.rt.run(128);
 
-    for (let vid = 0; vid < 16; vid++) {
-      let { preroll, rt, iterator, shift } = this.production[vid];
-      const { volume, pitch, filter } = rt.run(128);
-      const pan = rt.staticLevels.pan;
-      const looper = rt.sample.endLoop - rt.sample.startLoop;
+      const pan = v.rt.staticLevels.pan;
+      const looper = v.rt.sample.endLoop - v.rt.sample.startLoop;
       for (let offset = 0; offset < 128; offset++) {
-        if (preroll > offset) {
-          offset = preroll;
-          this.production[vid].preroll = 0;
+        let newval;
+        if (preroll-- > 0) {
+          newval = 0;
           continue;
+        } else {
+          newval = v.sampleData[v.rt.iterator];
         }
-        while (this.production[vid].shift >= 1) {
-          this.production[vid].iterator++;
-          this.production[vid].shift--;
-        }
-        const newval = this.samples[this.production[vid].iterator] * volume;
+        newval = newval * volume;
         outputs[0][0][offset] += newval * pan.left;
         outputs[0][1][offset] += newval * pan.right;
+        v.shift = v.shift + pitch;
 
-        if (this.production[vid].iterator >= rt.sample.endLoop) {
-          this.production[vid].iterator -= looper;
+        while (v.shift >= 1) {
+          v.rt.iterator++;
+          v.shift--;
         }
-        this.production[vid].shift += pitch;
+        if (v.iterator >= v.rt.sample.endLoop) {
+          v.rt.iterator = v.iterator - looper;
+        }
       }
     }
     return true;
   }
 }
+// @ts-ignore
+registerProcessor('rend-proc', RenderProcessor);

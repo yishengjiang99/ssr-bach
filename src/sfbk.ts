@@ -1,20 +1,22 @@
-import * as pdta_1 from './pdta.js';
 import { readAB } from './aba.js';
-import { SFZone, sf_gen_id, Shdr } from './Zone.js';
-import { resolve } from 'node:path';
-import { IBag } from './pdta.types.js';
+import { SFZone, Shdr } from './Zone.js';
 import { PDTA } from './pdta.js';
-import { std_inst_names } from './utilv1.js';
-import { Runtime } from './runtime.js';
 
-export async function initsfbk(url: string) {
-  const arr = new Uint8Array(
-    await (
-      await fetch(url, { mode: 'no-cors', headers: { Range: 'bytes=0-6400' } })
-    ).arrayBuffer()
-  );
+interface SFBKRet {
+  pdta: PDTA;
+  sdtaWait: Promise<Float32Array>;
+}
 
-  const r = readAB(arr);
+export async function initsfbk(
+  url: string,
+  port?: MessagePort
+): Promise<SFBKRet> {
+  const ab = await (
+    await fetch(url, { mode: 'no-cors', headers: { Range: 'bytes=0-6400' } })
+  ).arrayBuffer();
+  const infosection = new Uint8Array(ab);
+
+  const r = readAB(infosection);
   const [riff, filesize, sig, list] = [
     r.readNString(4),
     r.get32(),
@@ -24,22 +26,38 @@ export async function initsfbk(url: string) {
   console.assert(riff == 'RIFF' && sig == 'sfbk');
 
   const infosize = r.get32();
-  console.log(r.readNString(4), r.offset);
+  console.log(r.readNString(4), filesize, list, r.offset);
   console.log(infosize, r.offset);
   r.skip(infosize - 4);
   console.assert(r.readNString(4) == 'LIST');
   const sdtaSize = r.get32();
   const stdstart = r.offset + 8;
   const pdtastart = stdstart + sdtaSize;
-  const sdtawait = fetch(url, {
+  const sdtaWait = fetch(url, {
     mode: 'no-cors',
     headers: {
       Range: 'bytes=' + stdstart + '-' + pdtastart,
     },
-  })
-    .then((res) => res.arrayBuffer())
-    .then((ab) => {
-      const uint16 = new Uint16Array(ab);
+  }).then(async (res) => {
+    const nsamples = res.headers.has('Content-Length')
+      ? parseInt(res.headers.get('Content-Length')) / 2
+      : (pdtastart - stdstart) / 2;
+    const floats = new Float32Array(nsamples);
+    if (res.body.getReader) {
+      let offset = 0;
+      const reader = res.body.getReader();
+      reader.read().then(function process({ done, value }) {
+        if (done) return;
+        for (let i = 0; i < value.length; i += 2) {
+          const int = value[i] | (value[i + 1] << 8);
+          floats[offset++] =
+            int >= 0x8000 ? -(0x10000 - int) / 0x8000 : int / 0x7fff;
+        }
+        port && port.postMessage({ prog: [offset, nsamples] });
+        reader.read().then(process);
+      });
+    } else {
+      const uint16 = new Uint16Array(await res.arrayBuffer());
       const floats = new Float32Array(uint16.length);
 
       for (let i = 0; i < uint16.length; i++) {
@@ -50,7 +68,8 @@ export async function initsfbk(url: string) {
         floats[i] = float; //(n = ++n % 2)][!n ? j++ : j - 1] = float;
       }
       return floats;
-    });
+    }
+  });
   const parr = new Uint8Array(
     await (
       await fetch(url, {
@@ -60,93 +79,39 @@ export async function initsfbk(url: string) {
   );
   const pr = readAB(parr);
   console.log(pr.readNString(4));
-  const pdta = new pdta_1.PDTA(pr);
+  const pdta = new PDTA(pr);
+
   return {
     pdta,
-    sdtaWait: sdtawait,
-    getSample,
-    renderZone: async (
-      z: SFZone,
-      _key: number,
-      _velocity: number,
-      ctx: AudioContext
-    ) => {
-      const g = new GainNode(ctx, { gain: 0.2 });
-      const src = getSample(
-        pdta.shdr[z.sampleID],
-        await sdtawait
-      ).audioBufferSrc(ctx);
-      src.connect(g).connect(ctx.destination);
-
-      function keyon() {
-        g.gain.linearRampToValueAtTime(
-          2,
-          Math.pow(2, z.volEnv.phases.attack / 1200)
-        );
-
-        src.start();
-      }
-      function keyoff() {
-        g.gain.cancelScheduledValues(0);
-        g.gain.exponentialRampToValueAtTime(0.0001, z.volEnv.phases.release);
-        src.stop(33);
-      }
-      return { keyon, keyoff };
-    },
+    sdtaWait,
   };
 }
-export function WAVheader(n: number, channel: number): Uint8Array {
-  const buffer = new Uint8Array(44);
-  const view = new DataView(buffer.buffer);
-  function writeString(view: DataView, offset: number, string: string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
-  /* RIFF identifier */
-  writeString(view, 0, 'RIFF');
-  /* RIFF chunk length */
-  view.setUint32(4, 36 + n * 4, true);
-  /* RIFF type */
-  writeString(view, 8, 'WAVE');
-  /* format chunk identifier */
-  writeString(view, 12, 'fmt ');
-  /* format chunk length */
-  view.setUint32(16, 16, true);
-  /* sample format (raw) */
-  view.setUint16(20, 0x0003, true);
-  /* channel count */
-  view.setUint16(22, 1, true);
-  /* sample rate */
-  view.setUint32(24, 48000, true);
-  /* byte rate (sample rate * block align) */
-  view.setUint32(28, 48000 * 8, true);
-  /* block align (channel count * bytes per sample) */
-  view.setUint16(32, channel * 8, true);
-  /* bits per sample */
-  view.setUint16(34, 32, true);
-  /* data chunk identifier */
-  writeString(view, 36, 'data');
-  /* data chunk length */
-  view.setUint32(40, n * 8, true);
-
-  return buffer;
+export function getSampleIzones(sid: number, pdta: PDTA): SFZone[] {
+  return pdta.ibag
+    .filter((ib) => ib.izone.sampleID == sid)
+    .map((ib) => ib.izone);
 }
 
-export function getSample(
-  shr: Shdr,
-  sdta: Float32Array
-): {
+export interface IGetSample {
   data: Float32Array;
   audioBufferSrc: (ctx: AudioContext) => AudioBufferSourceNode;
-  wav: ReadableStream;
-  loop: [number, number];
-  shift: any;
-} {
+  loop: number[];
+  shift: Generator<number, void, unknown>;
+}
+
+export function getSample(shr: Shdr, sdta: Float32Array): IGetSample {
   const { start, end } = shr;
   const data = sdta.subarray(start, end);
 
   const loop = [shr.startLoop - shr.start, shr.endLoop - shr.start];
+  function* shift(pitchRatio = 1) {
+    let pos = 0;
+    while (true) {
+      pos = pos + pitchRatio;
+      if (pos >= loop[1]) pos = loop[0];
+      yield data[pos];
+    }
+  }
   return {
     loop,
     audioBufferSrc: (ctx) => {
@@ -165,25 +130,7 @@ export function getSample(
         loopStart: loop[1],
       });
     },
-    shift: function* (pitchRatio = 1) {
-      let pos = 0;
-      while (true) {
-        pos = pos + pitchRatio;
-        if (pos >= loop[1]) pos = loop[0];
-        yield data[pos];
-      }
-    },
+    shift: shift(),
     data,
-    get wav() {
-      return new Blob([
-        WAVheader(length, 1).buffer,
-        sdta.subarray(start, end),
-      ]).stream();
-    },
   };
-}
-export function getSampleIzones(sid: number, pdta: PDTA): SFZone[] {
-  return pdta.ibag
-    .filter((ib) => ib.izone.sampleID == sid)
-    .map((ib) => ib.izone);
 }

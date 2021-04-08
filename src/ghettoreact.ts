@@ -25,24 +25,3 @@ const h = (
 
   return div;
 };
-const actionbtn = () =>
-  h(
-    'button',
-    {
-      onclick: async function (e) {
-        e.target.setAttribute('disabled', 'true');
-
-        let btncopy = e.target;
-        abs.connect(ctx.destination);
-        //  abs.loop = true;
-        abs.start();
-        abs.onended = () => {
-          btncopy.setAttribute('disabled', 'false');
-        };
-        abs.stop(1.0);
-      },
-
-      innerText: 'sample',
-    },
-    'sampl;e'
-  );

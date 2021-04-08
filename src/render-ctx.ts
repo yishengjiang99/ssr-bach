@@ -99,12 +99,6 @@ export class RenderCtx {
   keyOff(channelId, delay) {
     // let scheduledIndex = Math.floor(this.staging.index + delay * this.fps);
 
-    // if (scheduledIndex >= this.fps * 10)
-    //   scheduledIndex = scheduledIndex - this.fps * 10;
-    // this.staging.queue[scheduledIndex].push({
-    //   channelId,
-    //   keyoff: 1,
-    // });
     this.voices[channelId]?.mods.ampVol.triggerRelease();
     this.voices[channelId].length = this.voices[
       channelId
