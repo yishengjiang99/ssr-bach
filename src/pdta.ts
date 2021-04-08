@@ -27,7 +27,6 @@ export class PDTA {
     vel = -1
   ) => {
     const [phdr, pbag, shdr] = [this.phdr, this.pbag, this.shdr];
-    const zz: SFZone[] = [];
     let phd,
       i = 0;
     for (i = 0; i < phdr.length - 1; i++) {

@@ -40,8 +40,21 @@
       await init();
       let ctx;
       const div = document.querySelector('#mocha');
+      function btn(key) {
+        return h(
+          'button',
+          {
+            onmousedown: (e) => {
+              const { keyOn, keyOff } = _pdta.renderZone(i, key, vel);
+              keyOn();
+              e.target.addEventListener('mouseup', keyOff, { once: true });
+            },
+          },
+          keys88[key]
+        );
+      }
       for (const i of ['oboe', 'trumpet', 'clarinet', 'cello']) {
-        pdta.findInstId(i).map((z) => h('button'));
+        _pdta.findInstId(i).map((z) => h('button', {}));
       }
       _pdta.shdr.forEach((sh, id) => {
         const btn = document.createElement('button');

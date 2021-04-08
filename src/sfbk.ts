@@ -65,38 +65,40 @@ export async function initsfbk(url: string) {
     pdta,
     sdtaWait: sdtawait,
     getSample,
-    renderZone: async (instname, key, velocity, ctx) => {
-      const rt = new Runtime(
-        pdta
-          .findPreset(
-            pdta.phdr.find((v) => v.name.includes(instname))?.presetId
-          )
-          .zones.flat()[0],
-        { key, velocity },
-        ctx.sampleRate
-      );
-      const g = new GainNode(ctx, { gain: 0 });
-      const src = getSample(rt.sample, await sdtawait).audioBufferSrc(ctx);
+    renderZone: async (
+      z: SFZone,
+      _key: number,
+      _velocity: number,
+      ctx: AudioContext
+    ) => {
+      const g = new GainNode(ctx, { gain: 0.2 });
+      const src = getSample(
+        pdta.shdr[z.sampleID],
+        await sdtawait
+      ).audioBufferSrc(ctx);
       src.connect(g).connect(ctx.destination);
-      const runtimeNOde = new ScriptProcessorNode();
-      runtimeNOde.numberOfOutputs = 4;
-      pitchControl.connect(src.playbackRate);
-      function startPlay() {
-        pitchControl.offset.linearRampToValueAtTime();
+
+      function keyon() {
+        g.gain.linearRampToValueAtTime(
+          2,
+          Math.pow(2, z.volEnv.phases.attack / 1200)
+        );
+
+        src.start();
       }
-      return startPlay;
-    },
-    findInstId: (intName: string) => {
-      pdta
-        .findPreset(pdta.phdr.find((v) => v.name.includes(intName))?.presetId)
-        .zones.flat();
+      function keyoff() {
+        g.gain.cancelScheduledValues(0);
+        g.gain.exponentialRampToValueAtTime(0.0001, z.volEnv.phases.release);
+        src.stop(33);
+      }
+      return { keyon, keyoff };
     },
   };
 }
-export function WAVheader(n, channel): Uint8Array {
+export function WAVheader(n: number, channel: number): Uint8Array {
   const buffer = new Uint8Array(44);
   const view = new DataView(buffer.buffer);
-  function writeString(view, offset, string) {
+  function writeString(view: DataView, offset: number, string: string) {
     for (let i = 0; i < string.length; i++) {
       view.setUint8(offset + i, string.charCodeAt(i));
     }
@@ -158,8 +160,9 @@ export function getSample(
       return new AudioBufferSourceNode(ctx, {
         buffer: myArrayBuffer,
         loop: true,
-        loopEnd: loop[1],
-        loopStart: loop[0],
+
+        loopEnd: loop[0],
+        loopStart: loop[1],
       });
     },
     shift: function* (pitchRatio = 1) {
