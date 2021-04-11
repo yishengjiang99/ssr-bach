@@ -25,51 +25,49 @@
     <script>
       mocha.setup('bdd');
     </script>
-    <script src="dist/ghettoreact.js"></script>
+    <script src="./lib/react-light.js"></script>
+    <script></script>
     <script type="module">
       const pre = document.querySelector('pre');
       import { initsfbk } from './dist/sfbk.js';
       import { Runtime } from './dist/runtime.js';
-
+      import { pdtaView, mlist } from './dist/react-light.js';
       const expect = chai.expect;
       describe('mocha', () => {
         it('it tests stuff', () => {
           chai.expect(true);
         });
       });
-      describe('aba', () => {
-        it('reads ab iterables', async () => {
-          initsfbk('https://www.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
-            async ({ pdta: { findPreset }, worker }) => {
-              findPreset(0, 0, 55, 55).zones[0].map((z) => {
-                worker.postMessage({
-                  zone: z.serialize(),
-                  note: { key: 55, velocity: 55 },
-                  delay: 100,
-                });
-              });
-            }
-          );
+      describe('audio', () => {
+        it('can init ctx', async () => {
+          try {
+            const ctx = new AudioContext();
+            expect(ctx).to.exist;
+            expect(ctx.state).eq('suspended');
+            await ctx.audioWorklet.addModule('./dist/rend-proc.js');
+            const proc = new AudioWorkletNode(ctx, 'rend-proc');
+            expect(proc).to.exist;
+          } catch (e) {
+            expect.error(e);
+          }
         });
       });
-
-      describe.skip('init sfbk', () => {
+      describe('init sfbk', () => {
         it('makes 3 fetch calls with ranges for header,sdta, pdta', async () => {
           const sfbk = await initsfbk('file.sf2');
           expect(sfbk.pdta).to.exist;
-          return sfbk.sdta.then((res) => {
-            expect(res.render).to.exist;
-          });
         });
       });
 
-      describe('renderctx', () => {
-        it('afa', (done) => {
-          import('./dist/worker.js');
-        }).timeout(51554);
+      describe('html', () => {
+        it('sometimes dangerously set inner html?', async () => {
+          document.body.appendChild(mlist);
+          const sfbk = await initsfbk('file.sf2');
+          debugger;
+          document.body.appendChild(pdtaView(sfbk.pdta));
+        });
       });
       mocha.run();
     </script>
-    <script type="module" src="test3.js"></script>
   </body>
 </html>
