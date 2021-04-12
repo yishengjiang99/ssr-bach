@@ -39,12 +39,10 @@ export class PDTA {
     if (!phd) return [];
     const presetDefault = pbag[phd.pbagIndex];
     const pbagEnd = phdr[i + 1].pbagIndex;
-    const zones = pbag
+    return pbag
       .slice(phd.pbagIndex, pbagEnd)
-      .filter(
-        (pbg) =>
-          pbg.pzone.instrumentID >= 0 && keyVelInRange(pbg.pzone, key, vel)
-      )
+      .filter((pbg) => pbg.pzone.instrumentID >= 0)
+      .filter((pbg) => keyVelInRange(pbg.pzone, key, vel))
       .map((pbg) => {
         const { inst, defaultBg, izones } = this.findInstrument(
           pbg.pzone.instrumentID,
@@ -60,11 +58,8 @@ export class PDTA {
             shdr[iz.sampleID]
           )
         );
-      });
-    return {
-      presetDefault,
-      zones,
-    };
+      })
+      .flat();
   };
 
   findInstrument: (
@@ -79,6 +74,7 @@ export class PDTA {
     const [ibag, iheaders] = [this.ibag, this.iheaders];
 
     const ihead = iheaders[instId];
+    if (!ihead) return null;
     return {
       inst: ihead,
       defaultBg: ibag[ihead.iBagIndex].izone,

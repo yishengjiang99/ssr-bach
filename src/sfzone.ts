@@ -208,7 +208,7 @@ export class SFZone {
 
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID = -1;
-  generators: SFGenerator[] = [];
+  generators?: SFGenerator[] = [];
   private shdr: Shdr;
 
   set sample(shdr: Shdr) {

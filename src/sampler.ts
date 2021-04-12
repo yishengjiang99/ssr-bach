@@ -17,6 +17,7 @@ interface getSampleInterface {
   shift: Generator<number, number, never>;
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function main(sfbk: {
   pdta: PDTA;
   sdtaWait?: Promise<Float32Array>;
@@ -28,7 +29,7 @@ export function main(sfbk: {
     ctx: AudioContext
   ) => Promise<{ keyon: () => void; keyoff: () => void }>;
   findInstId?: any;
-}): Promise<void> {
+}) {
   // await init();
 
   let ctx = new AudioContext();

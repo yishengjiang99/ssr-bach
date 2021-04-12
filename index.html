@@ -4,20 +4,21 @@
     <script src="lib/miditone.js"></script>
   </head>
 
-  <body>
+  <body style="display: grid; place-items: center">
     <span id="prog"
       ><label></label><progress value="0" max="0"></progress
     ></span>
     <main>
       <pre></pre>
-      <button>start</button>
+      <button disabled>start</button>
+      <button disabled>stop</button>
     </main>
     <script
       schema="https://github.com/guest271314/AudioWorkletStream/blob/shared-memory-audio-worklet-stream/index.html"
       type="template/javascript"
       id="workletcode"
     >
-      import {Runtime} from "https://dsp.grepawk.com/ssr-bach/rt-bundle.js"; //runtime.js";
+      import {Runtime} from "https://www.grepawk.com/ssr-bach/rt-bundle.js"; //runtime.js";
           const sampleRate = 48000;
           //@ts-ignore
           class RenderProcessor extends AudioWorkletProcessor {
@@ -28,7 +29,7 @@
                   this.port.onmessage = (e) => {
                       const { samples, zone, note } = e.data;
                       if (samples) {
-                          this.samples = samples;
+                          this.samples = new Float32Array(samples);
                           this.startTime = globalThis.currentTime;
                           this.port.postMessage({ ready: 1 });
                       }
@@ -101,10 +102,12 @@
           // @ts-ignore
           registerProcessor('rend-proc', RenderProcessor);
     </script>
-    <script src="dist/ghettoreact.js"></script>
     <script type="module">
+      import { h, mlist, pdtaView } from './dist/react-light.js';
       import { initsfbk } from './dist/sfbk.js';
-      const maindiv = document.querySelector('main');
+      const maindiv = document.querySelector('main').appendChild(mlist);
+      let sdta, _sdtaWait, timer, _pdta, proc, ctx;
+      let playing = false;
       const midiurls = [
         // 'c.mid',
 
@@ -115,8 +118,18 @@
           type: 'text/javascript',
         })
       );
+      const [playBtn, stopbtn] = document.querySelectorAll('button');
+
       const ch = new MessageChannel();
       const cosole = document.querySelector('pre');
+      const div = document.querySelector('pre');
+      const logs = [];
+
+      const loghtml = (...entry) => {
+        logs.push(entry.join('\t'));
+        cosole.innerHTML = logs.join('\n');
+        if (logs.length > 90) logs.shift();
+      };
       const prog = document.querySelector('#prog progress');
       ch.port1.onmessage = (e) => {
         const {
@@ -125,135 +138,100 @@
             msg,
           },
         } = e;
-        console.log(e);
+
         if (n && d) {
           prog.max = d;
           prog.value = n;
         }
       };
       const sfurls = ['GeneralUserGS.sf2'];
-      let sdta, _sdtaWait, timer, _pdta, proc, ctx;
-      let playing = false;
+
       queueMicrotask(init);
 
       async function init() {
         const { pdta, sdtaWait } = await initsfbk(sfurls[0], ch.port2);
         _pdta = pdta;
-        _sdtaWait = sdtaWait;
-        displayMidi(midiurls[0], pdta);
+        sdta = await sdtaWait;
+        playBtn.removeAttribute('disabled');
       }
-      async function initCtx() {
-        ctx = new AudioContext();
-        sdta = await _sdtaWait;
-        await ctx.audioWorklet.addModule(workletcode);
-        proc = new AudioWorkletNode(ctx, 'rend-proc', {
-          outputChannelCount: [2],
-        });
 
-        proc.onprocessorerror = (e) => {
-          console.trace();
-        };
+      playBtn.addEventListener('click', async (e) => {
+        if (!ctx) {
+          loghtml('starting.');
+          ctx = new AudioContext();
+          await ctx.audioWorklet.addModule(workletcode);
+          proc = new AudioWorkletNode(ctx, 'rend-proc', {
+            outputChannelCount: [2],
+          });
+          loghtml('got proc.');
 
-        proc.port.postMessage({ samples: sdta });
-        await new Promise((resolve) => {
-          proc.port.onmessage = async (e) => {
-            if (e.data.ready == 1) {
-              resolve();
-            }
+          proc.onprocessorerror = (e) => {
+            console.trace();
           };
-        });
-        proc.connect(ctx.destination);
-        await ctx.resume();
-      }
+          const procreadyWait = new Promise((resolve) => {
+            proc.port.onmessage = (e) => {
+              console.log(e);
+              resolve();
+            };
+          });
+          proc.port.postMessage({ samples: sdta.buffer }, [sdta.buffer]);
+          loghtml('posting samp');
+          await procreadyWait;
+          await ctx.resume();
+          proc.connect(ctx.destination);
+          playing = true;
+          loghtml('posting samp');
 
-      async function displayMidi(url, pdta) {
-        let playing = false;
-        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
-        async function startstoptoggle(e) {
-          if (!ctx) {
-            await initCtx();
-          }
-          if (!playing) {
-            playing = true;
-            timer = playMidi(durationTicks, header, tracks);
-            e.target.innerHTML = 'st0p';
-          } else {
-            playing = false;
-            e.target.innerHTML = 'start';
-            clearTimeout(timer);
-          }
+          timer = playMidi(midiurls[0]);
+          e.target.setAttribute('disabled', 'true');
+          stopbtn.setAttribute('disabled', 'false');
         }
-        const playBtn = document.querySelector('button');
-        playBtn.addEventListener('click', startstoptoggle);
-        const trackview = (track, pdta) => {
-          const patchn = track.instrument.number;
-          const preset = pdta.phdr.filter(
-            (p) => p.presetId == (patchn & 0x7f) && p.bankId == (patchn & 0x80)
-          )[0];
-          return h(
-            'div',
-            {
-              presetId: patchn & 0x7f,
-              style: 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr',
-            },
-            [
-              h('span', {}, [h('h5', {}, preset.name)]),
-              h('span', {}, [
-                h('meter', {
-                  value: 50,
-                  max: 100,
-                  min: 0,
-                }),
-              ]),
-            ]
-          );
-        };
-        maindiv.appendChild(
-          h('div', {}, [
-            playBtn,
-            h('pre', {}, []),
-            ...tracks.map((t) => trackview(t, pdta)),
-          ])
-        );
-        async function* playMidi(durationTicks, header, tracks) {
-          //   const { durationTicks, header, tracks } = await Midi.fromUrl(midiUrl);
-          let t = -200;
-          while (t < durationTicks && playing) {
-            let output = '';
-            tracks.map((track, channelId) => {
-              const _t = header.secondsToTicks(t / 1000);
-              const ratio = t / _t;
-              while (
-                track.notes &&
-                track.notes[0] &&
-                track.notes[0].ticks < _t + 211
-              ) {
-                const note = track.notes.shift();
-                const pset = _pdta.findPreset(
-                  track.instrument.number,
-                  track.instrument.percussion ? 128 : 0,
-                  note.midi,
-                  note.velocity * 127
-                );
-                const z = pset.zones;
+      });
+      stopbtn.addEventListener('click', (e) => {
+        playing = false;
+        e.target.setAttribute('disabled', 'true');
+        playBtn.setAttribute('disabled', 'false');
+      });
 
-                if (z[0] && z[0][0]) {
-                  proc.port.postMessage({
-                    zone: z[0][0].serialize(),
-                    note: {
-                      midi: note.midi,
-                      velocity: note.velocity * 127,
-                      start: note.time,
-                      durationTime: note.durationTime,
-                      channelId: channelId,
-                    },
-                  });
-                }
+      async function playMidi(url) {
+        const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+        let t = 1;
+        while (t < durationTicks && playing) {
+          let output = '';
+          const _t = header.secondsToTicks(t / 1000);
+          const ratio = t / _t;
+          for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            while (
+              track.notes &&
+              track.notes[0] &&
+              track.notes[0].ticks < _t + 230
+            ) {
+              const note = track.notes.shift();
+              const z = _pdta.findPreset(
+                track.instrument.number,
+                track.instrument.percussion ? 128 : 0,
+                note.midi,
+                note.velocity * 127
+              );
+
+              if (z && z[0]) {
+                proc.port.postMessage({
+                  zone: z[0].serialize(),
+                  note: {
+                    midi: note.midi,
+                    velocity: note.velocity * 127,
+                    start: note.time,
+                    durationTime: note.durationTime,
+                    channelId: track.channel,
+                  },
+                });
+                console.log(z[0]);
               }
-            });
+            }
             t += 200;
+            // await new Promise((r) => setTimeout(r, 200));
             if (output) pre.innerHTML = output;
-            yield;
           }
         }
       }

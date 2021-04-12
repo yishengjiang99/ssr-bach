@@ -1,6 +1,7 @@
 import { readAB } from './aba.js';
 import { SFZone, Shdr } from './Zone.js';
 import { PDTA } from './pdta.js';
+import { resolve } from 'node:path';
 
 interface SFBKRet {
   pdta: PDTA;
@@ -56,6 +57,7 @@ export async function initsfbk(
         port && port.postMessage({ prog: [offset, nsamples] });
         reader.read().then(process);
       });
+      return floats;
     } else {
       const uint16 = new Uint16Array(await res.arrayBuffer());
       const floats = new Float32Array(uint16.length);

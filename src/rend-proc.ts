@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Runtime } from './runtime.js';
 import { getSample } from './sfbk.js';
 const sampleRate = 48000;
