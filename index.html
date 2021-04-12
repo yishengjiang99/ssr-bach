@@ -72,7 +72,7 @@
                       const { pitch, volume } = v.rt.run(128);
                       const pan = v.rt.staticLevels.pan;
                       let iterator = v.rt.iterator;
-                      const looper = v.rt.sample.endLoop - v.rt.sample.startLoop;
+                      const looper = v.rt.sample.end - v.rt.sample.start;
                       for (let offset = 0; offset < 128; offset++) {
                           let newval;
                           if (preroll-- > 0) {

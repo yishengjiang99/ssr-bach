@@ -16,8 +16,11 @@ async function initCtx() {
   worker.postMessage({ port: proc.port }, [proc.port]);
   proc.connect(ctx.destination);
 }
-initsfbk('https://dsp.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
-  async ({ pdta, workerWait }) => {
+
+initsfbk('https://www.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
+  async ({ pdta, sdtaWait }) => {
+    await initCtx();
+
     document.body.querySelector('#mocha').appendChild(
       h('div', {}, [
         h('pre', {}, []),
@@ -46,7 +49,6 @@ initsfbk('https://dsp.grepawk.com/ssr-bach/GeneralUserGS.sf2').then(
     );
     const pre = document.querySelector('pre');
 
-    const { worker } = await workerWait;
     function playNote() {
       const pset = pdta.findPreset(0, 0, 44, 127);
       pset.zones[0].map((z) => {
