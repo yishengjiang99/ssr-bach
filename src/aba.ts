@@ -1,6 +1,19 @@
-export function readAB(arb: Iterable<number>) {
+export interface IReadAB {
+  skip: (arg0: number) => void;
+  get8: () => number;
+  get16: () => number;
+  getS16: () => number;
+  readN: (n: number) => Uint8Array;
+  read32String: () => string;
+  varLenInt: () => number;
+  get32: () => number;
+  readNString: (arg0: number) => string;
+  offset: number;
+}
+
+export function readAB(arb: Iterable<number>): IReadAB {
   const u8b = new Uint8Array(arb);
-  var _offset = 0;
+  let _offset = 0;
   function get8() {
     return u8b[_offset++];
   }
@@ -8,48 +21,51 @@ export function readAB(arb: Iterable<number>) {
     let str = '';
     let nullterm = 0;
     for (let i = 0; i < n; i++) {
-      let c = get8();
+      const c = get8();
       if (c == 0x00) nullterm = 1;
       if (nullterm == 0) str += String.fromCharCode(c);
     }
     return str;
   }
-  function getUint32() {
+  function get32() {
     return get8() | (get8() << 8) | (get8() << 16) | (get8() << 24);
   }
-  const getU16 = () => get8() | (get8() << 8);
+  const get16 = () => get8() | (get8() << 8);
   const getS16 = () => {
-    const u16 = getU16();
+    const u16 = get16();
     if (u16 & 0x8000) return -0x10000 + u16;
     else return u16;
   };
+  const readN = (n: number) => {
+    const ret = u8b.slice(_offset, n);
+    _offset += n;
+    return ret as Uint8Array;
+  };
+  function varLenInt() {
+    let v = 0;
+    let n = get8();
+    v = n & 0x7f;
+    while (n & 0x80) {
+      n = get8();
+      v = (v << 7) | (n & 0x7f);
+    }
+    return n;
+  }
+  const skip = (n: number) => {
+    _offset = _offset + n;
+  };
+  const read32String = () => getStr(4);
+  const readNString = (n: number) => getStr(n);
   return {
-    skip: function (n: number) {
-      _offset = _offset + n;
-    },
+    skip,
     get8,
-    get16: getU16,
+    get16,
     getS16,
-    readN: (n: number) => {
-      const ret = u8b.slice(_offset, n);
-      _offset += n;
-      return ret as Uint8Array;
-    },
-    read32String: () => getStr(4),
-    varLenInt: () => {
-      let v = 0;
-      let n = get8();
-      v = n & 0x7f;
-      while (n & 0x80) {
-        n = get8();
-        v = (v << 7) | (n & 0x7f);
-      }
-      return n;
-    },
-    get32: getUint32,
-
-    readNString: (n: any) => getStr(n),
-    getUint16: getU16,
+    readN,
+    read32String,
+    varLenInt,
+    get32,
+    readNString,
     get offset() {
       return _offset;
     },

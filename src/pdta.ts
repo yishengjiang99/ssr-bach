@@ -1,12 +1,12 @@
 import { SFZone, Shdr, SFGenerator } from './Zone.js';
 import { IBag, InstrHeader, Mod, Pbag, Phdr } from './pdta.types.js';
-
+import { IReadAB } from './aba.js';
 type findPresetFnType = (
   pid: number,
   bank_id?: number,
   key?: number,
   vel?: number
-) => any;
+) => SFZone[];
 
 export class PDTA {
   phdr: Phdr[] = [];
@@ -19,7 +19,6 @@ export class PDTA {
   ibag: IBag[] = [];
   shdr: Shdr[] = [];
 
-  static fromUrl: (url: string) => Promise<PDTA>;
   findPreset: findPresetFnType = (
     pid: number,
     bank_id = 0,
@@ -44,7 +43,7 @@ export class PDTA {
       .filter((pbg) => pbg.pzone.instrumentID >= 0)
       .filter((pbg) => keyVelInRange(pbg.pzone, key, vel))
       .map((pbg) => {
-        const { inst, defaultBg, izones } = this.findInstrument(
+        const { defaultBg, izones } = this.findInstrument(
           pbg.pzone.instrumentID,
           key,
           vel
@@ -70,7 +69,7 @@ export class PDTA {
     inst: InstrHeader;
     defaultBg: SFZone;
     izones: SFZone[];
-  } = (instId: any, key = -1, vel = -1) => {
+  } = (instId: number, key = -1, vel = -1) => {
     const [ibag, iheaders] = [this.ibag, this.iheaders];
 
     const ihead = iheaders[instId];
@@ -88,7 +87,7 @@ export class PDTA {
     };
   };
 
-  constructor(r: any) {
+  constructor(r: IReadAB) {
     let n = 0;
     do {
       const ShdrLength = 46;
@@ -202,9 +201,8 @@ export class PDTA {
 
           break;
         }
-        case 'igen':
+        case 'igen': {
           let ibagId = 0;
-          let instId = 0;
           for (let igenId = 0; igenId < sectionSize / igenLength; igenId++) {
             const opid = r.get8() | (r.get8() << 8);
             if (opid == -1) break;
@@ -219,6 +217,7 @@ export class PDTA {
             }
           }
           break;
+        }
         case 'imod':
           for (let i = 0; i < sectionSize; i += imodLength) {
             this.imod.push({
@@ -261,14 +260,14 @@ export class PDTA {
       if (this.phdr[phdrId].defaultBag == -1)
         this.phdr[phdrId].defaultBag = pbagId;
     } else {
-      this.phdr[phdrId]!.pbags.push(pbagId);
-      this.phdr[phdrId]!.insts.push(this.pbag[pbagId].pzone.instrumentID);
+      this.phdr[phdrId]?.pbags.push(pbagId);
+      this.phdr[phdrId]?.insts.push(this.pbag[pbagId].pzone.instrumentID);
     }
   }
 
   private psh(ibginst: number, i: number, pbagLength: number) {
     this.iheaders[ibginst].ibags &&
-      this.iheaders[ibginst].ibags!.push(i / pbagLength);
+      this.iheaders[ibginst].ibags?.push(i / pbagLength);
   }
 
   getIbagZone(ibagId: number) {
@@ -288,11 +287,7 @@ function makeRuntime(
   shr: Shdr
 ): SFZone {
   const output = new SFZone();
-  // output.mergeWith(instDefault);
-  // output.mergeWith(izone);
-  // for(const gen of pbg.pzone.generators){
-  //   output.applyGenVal
-  // }
+
   for (let i = 0; i < 60; i++) {
     if (izone.generators[i]) {
       output.setVal(izone.generators[i]);
