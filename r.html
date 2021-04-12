@@ -32,7 +32,7 @@
       <canvas></canvas>
     <script type="module">
       import { initsfbk, getSample } from './dist/sfbk.js';
-      import { fetchAwaitBuffer, seekTo } from './dist/fetch-utils.js';
+          
       const initAnalyser = function (getData,lenght) {
         var canvas = document.querySelector('canvas'); //(elemId);
         const height = canvas.parentElement.clientHeight;
@@ -118,7 +118,7 @@
           },
         };
 
-        const bin = await fetchAwaitBuffer('r.wasm');
+        const bin = await(await fetch('r.wasm')).arrayBuffer();
         const { instance } = await WebAssembly.instantiate(bin, config);
         const { exports } = instance;
         const heap = new Uint8Array(mem.buffer);
@@ -126,8 +126,9 @@
         const { pdta, sdtaWait } = await initsfbk('file.sf2'); // ch.port2);
         const sdta = await sdtaWait;
         console.assert(instance && instance.exports);
-        //const d = getSample(pdta.shdr[0], sdta);
+       const d = getSample(pdta.shdr[0], sdta);
         const z = pdta.findPreset()
+        let shr=pdta.shdr[0];
         heap.set(new Uint8Array(sdta.subarray(shr.start,shr.end).buffer),48);
                 const floffset = Math.ceil((48 + (shr.end - shr.start) + 8)/4)*4;
         const lop = (shr.endLoop - shr.startLoop);
@@ -145,51 +146,13 @@
         },128).start()
      
         let ctx = new AudioContext();
-  const div = document.querySelector('body');
+        
+        const div = document.querySelector('body');
 
-  for (const pid of ['oboe', 'trumpet', 'clarinet', 'cello'].map((name) =>
-    sfbk.pdta.phdr
-      .filter((p) => p.bankId == 0 && p.name.toLowerCase().includes(name))
-      .map((p) => p.presetId)
-  )[0]) {
-    for (const key of keys88.keys()) {
-      const { keyon, keyoff } = sfbk.pdta
-        .findPreset(pid, 0, key, 88)
-        .zones[0].map((zz) => sfbk.renderZone(zz, key, 76, ctx));
-      div.appendChild(
-        h('button', {
-          onmousedown: (e) => {
-            keyon();
-            e.target.addEventListener('mouseup', keyoff, { once: true });
-          },
-        })
-      );
-    }
-  }
+
       })();
-      let ctx = new AudioContext();
-  const div = document.querySelector('#mocha');
 
-  for (const pid of ['oboe', 'trumpet', 'clarinet', 'cello'].map((name) =>
-    sfbk.pdta.phdr
-      .filter((p) => p.bankId == 0 && p.name.toLowerCase().includes(name))
-      .map((p) => p.presetId)
-  )[0]) {
-    for (const key of keys88.keys()) {
-      const { keyon, keyoff } = sfbk.pdta
-        .findPreset(pid, 0, key, 88)
-        .zones[0].map((zz) => sfbk.renderZone(zz, key, 76, ctx));
-      div.appendChild(
-        h('button', {
-          onmousedown: (e) => {
-            keyon();
-            e.target.addEventListener('mouseup', keyoff, { once: true });
-          },
-        })
-      );
-    }
-  }
-
+    
     </script>
     </body>
 
