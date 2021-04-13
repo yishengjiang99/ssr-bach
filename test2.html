@@ -4,70 +4,177 @@
     <meta charset="utf-8" />
     <title>Mocha</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.css"
-      integrity="sha512-Ytt2foRGKdIInPXwyS3gxRvfTv4n2wi7uB7neCLH1LjExT+PKBeQu6LNVB4QpHaJqx7m2btagBs4kqxYC1QNFg=="
-      crossorigin="anonymous"
+      rel="css"
+      href="https://cdn.rawgit.com/Chalarangelo/mini.css/v3.0.1/dist/mini-dark.min.css"
     />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"></script>
   </head>
   <body>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.js"
-      integrity="sha512-TfAL33PtGUxii1awTCbr3qbzQT5fYi7ItCGUfzWlnMJ4cK5BA8JNY4gJzEs+tQVbyElVbtcI2Jlaf9EFVMvyeg=="
-      crossorigin="anonymous"
-    ></script>
-    <pre></pre>
+    <div id="mocha">
+      <span id="prog"
+        ><label></label><progress value="0" max="0"></progress
+      ></span>
+      <div class="rx"></div>
+      <div>
+        <span class="rx"></span>
+        <button>start</button><button>stop</button><button>rw</button>
+        <span class="rx"></span>
+        <span class="rx"></span>
+      </div>
+      <pre style="max-height: 200px; overflow-y: scroll"></pre>
+    </div>
 
-    <div id="mocha"></div>
-
-    <script>
-      mocha.setup('bdd');
-    </script>
-    <script src="./lib/react-light.js"></script>
-    <script></script>
     <script type="module">
-      const pre = document.querySelector('pre');
+      import { h, mlist, pdtaView } from './dist/react-light.js';
       import { initsfbk } from './dist/sfbk.js';
-      import { Runtime } from './dist/runtime.js';
-      import { pdtaView, mlist } from './dist/react-light.js';
-      const expect = chai.expect;
-      describe('mocha', () => {
-        it('it tests stuff', () => {
-          chai.expect(true);
-        });
-      });
-      describe('audio', () => {
-        it('can init ctx', async () => {
-          try {
-            const ctx = new AudioContext();
-            expect(ctx).to.exist;
-            expect(ctx.state).eq('suspended');
-            await ctx.audioWorklet.addModule('./dist/rend-proc.js');
-            const proc = new AudioWorkletNode(ctx, 'rend-proc');
-            expect(proc).to.exist;
-          } catch (e) {
-            expect.error(e);
-          }
-        });
-      });
-      describe('init sfbk', () => {
-        it('makes 3 fetch calls with ranges for header,sdta, pdta', async () => {
-          const sfbk = await initsfbk('file.sf2');
-          expect(sfbk.pdta).to.exist;
-        });
-      });
+      import { readMidi } from './midiread/dist/index.js';
+      const sfurls = ['GeneralUserGS.sf2'];
+      const ch = new MessageChannel();
+      let sdta, _sdtaWait, timer, _pdta, proc, ctx, _reader;
+      let playing = false;
+      const prog = document.querySelector('#prog progress');
+      const [playBtn, stopbtn, ff, next] = document.querySelectorAll('button');
+      const rxs = document.querySelectorAll('.rx');
+      ch.port1.onmessage = (e) => {
+        const {
+          data: {
+            prog: [n, d],
+            msg,
+          },
+        } = e;
 
-      describe('html', () => {
-        it('sometimes dangerously set inner html?', async () => {
-          document.body.appendChild(mlist);
-          const sfbk = await initsfbk('file.sf2');
-          debugger;
-          document.body.appendChild(pdtaView(sfbk.pdta));
+        if (n && d) {
+          prog.max = d;
+          prog.value = n;
+        }
+      };
+      (async function init() {
+        const { _pdta, sdtaWait } = await initsfbk(sfurls[0], ch.port2);
+        _reader = await canvasR(
+          'https://grep32bit.blob.core.windows.net/midi/all_hell_billie.mid'
+        );
+        stopbtn.onclick = _reader.stop();
+
+        sdta = await sdtaWait;
+        playBtn.removeAttribute('disabled');
+      })();
+
+      playBtn.onclick = () => canvasR('song.mid');
+      async function canvasR(url) {
+        const g = document.querySelector('#mocha');
+
+        const consosle = g.querySelector('pre');
+
+        const r = readMidi(
+          new Uint8Array(await (await fetch(url)).arrayBuffer()),
+          null
+        );
+        const canvasCCs = r.tracks.map((t, ch) => getCanvas(ch, g));
+        const programs = {};
+        r.addListener((cmd, obj, time) => {
+          if (time) rxs[0].innerHTML = time / r.ticksPerSecond + 's';
+          switch (cmd) {
+            case 'header':
+              const { division, ntracks, format } = obj;
+              rxs[0].innerHTML = ``;
+              break;
+            case 'tempo':
+              rxs[1].innerHTML = `tempo: ${obj.tempo}`;
+              break;
+            case 'noteOn':
+              if (!canvasCCs[obj.channel])
+                canvasCCs[obj.channel] = getCanvas(obj.channel, g);
+              canvasCCs[obj.channel].keyOn(obj);
+              const prog = programs[obj.channel];
+              debugger;
+              _pdta.findPreset(
+                prog & 0x7f,
+                prog & 0x80,
+                obj.note,
+                obj.velocity
+              );
+              break;
+            case '"Program"':
+              canvasCCs[obj.channel].setText(obj.Program);
+              programs[obj.channel] = obj.Program;
+              break;
+            case 'noteOff':
+              if (!canvasCCs[obj.channel])
+                canvasCCs[obj.channel] = getCanvas(obj.channel, g);
+              canvasCCs[obj.channel].keyOff(obj);
+              break;
+            case 'timeSig':
+              rxs[3].innerHTML = obj.qnpm + '/' + obj.beat;
+              break;
+            case 'channelMode':
+              rxs[2].innerHTML = JSON.stringify(obj);
+              break;
+            default:
+              break;
+          }
+          console.log(obj, cmd);
+          consosle.innerHTML = `${obj.channel}	${cmd}
+                  ${JSON.stringify(obj)}
+                  ${consosle.innerHTML.substring(0, 102)}`;
         });
-      });
-      mocha.run();
+
+        g.parentElement.style['margin-top'] = '10px';
+        function getCanvas(channel, container) {
+          const cells = 1 * 88;
+          const gridw = 578 / 88;
+          const gridh = 29;
+          const canvas = document.createElement('canvas');
+          const ctgx = canvas.getContext('2d');
+          canvas.style.transform = `translate("440, ${channel * 30}")`;
+          const height = 29;
+          const width = 578;
+          canvas.setAttribute('width', '578');
+          canvas.setAttribute('height', '30');
+          ctgx.lineWidth = 1;
+          ctgx.strokeStyle = 'grey';
+          ctgx.clearRect(0, 0, width, height);
+          ctgx.fillRect(0, 0, width, height);
+          container.append(canvas);
+          return {
+            keyOn: (obj) => {
+              ctgx.clearRect(obj.note * gridw, 0, gridw, gridh);
+              ctgx.fillStyle = 'red';
+              ctgx.rect(obj.note * gridw, 0, gridw, gridh);
+              ctgx.fill();
+            },
+            keyOff: (obj) => {
+              ctgx.clearRect(obj.note * gridw, 0, gridw, gridh);
+              ctgx.fillStyle = 'black';
+              ctgx.rect(obj.note * gridw, 0, gridw, gridh);
+              ctgx.fill();
+            },
+            setText: (text) => {
+              ctgx.fillStyle = 'black';
+              ctgx.clearRect(0, 0, 55, 20);
+              ctgx.fillRect(0, 0, 55, 20);
+              ctgx.strokeStyle = 'yellow';
+              ctgx.strokeText(text, 0, 0, 55); //`time: ${time / midid.ticksPerSecond}`, 10, 20, 55);
+            },
+          };
+        }
+        function render(state) {
+          return `<table id="mocha">
+              <tr>
+                <div>
+                  <span class="rx"></span>
+                  <span class="rx"></span>
+                  <button>start</button><button>stop</button><button>rw</button>
+                  <span class="rx"></span>
+                  <span class="rx"></span>
+                </div>
+                <div><pre style="max-height: 200px; overflow-y: scroll"></pre></div>
+              </tr>
+            </table>`;
+        }
+        r.readAt(5);
+        return r;
+      }
     </script>
   </body>
 </html>
