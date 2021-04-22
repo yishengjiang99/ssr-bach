@@ -17,7 +17,7 @@ export type Reader = {
   getUint16: () => number;
   seekToString?: (str: string) => number | false;
   fd?: number;
-  offset?: number;
+  offset: number;
 };
 export const LE = 0x00;
 export const BE = 0x01;

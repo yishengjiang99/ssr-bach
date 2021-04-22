@@ -19,10 +19,7 @@
     "arrowParens": "always"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.13.12",
-    "@typescript-eslint/eslint-plugin": "^4.20.0",
-    "@typescript-eslint/parser": "^4.20.0",
-    "eslint": "^7.23.0",
+    "@types/node": "^14.14.41",
     "ts-node": "^9.1.1"
   },
   "ava": {
@@ -37,13 +34,7 @@
   "license": "ISC",
   "dependencies": {
     "@tonejs/midi": "github:tonejs/midi",
-    "@types/node": "^14.14.37",
     "ava": "^3.15.0",
-    "cypress": "^7.0.1",
-    "is-promise": "^4.0.0",
-    "node-fetch": "^2.6.1",
-    "nodep": "file:nodep",
-    "tslib": "^1.14.1",
-    "webassembly": "^0.11.0"
+    "midiread": "file:midiread"
   }
 }

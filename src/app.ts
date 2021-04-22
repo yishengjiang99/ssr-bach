@@ -69,6 +69,8 @@ async function loadMidi(url: string) {
   const { durationTicks, header, tracks } = await Midi.fromUrl(url);
 }
 async function playMidi(url) {
+  const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+
   let t = 1;
   while (t < durationTicks && playing) {
     let output = '';
