@@ -1,11 +1,10 @@
 import { PDTA } from './pdta.js';
 import { readAB } from './aba.js';
-import * as sfTypes from './sf.types.js';
-import { SFZone } from './Zone.js';
 
 export class SF2File {
   pdta!: PDTA;
-  sdta!: { nsamples: number; data: Float32Array; bit16s: Int16Array };
+  sdta!: { nsamples: number; data: Uint8Array };
+  static fromURL: (url: string) => Promise<SF2File>;
   constructor(ab: Uint8Array) {
     const r = readAB(ab);
     console.assert(r.read32String(), 'RIFF');
@@ -23,23 +22,21 @@ export class SF2File {
       } else if (section === 'sdta') {
         console.assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
-        const bit16s = new Int16Array(r.readN(sectionSize - 4).buffer);
-        const s16tof32 = (i16: number) => i16 / 0x7fff;
-        const data = new Float32Array(nsamples);
-        for (let i = 0; i < nsamples; i++) {
-          data[i] = bit16s[i];
-        }
+        const uint8s = r.readN(sectionSize - 4);
         this.sdta = {
           nsamples,
-          data,
-          bit16s,
+          data: uint8s,
         };
       } else {
         r.skip(sectionSize);
       }
     } while (size > 0);
   }
-  static async fromURL(url: string = 'http://grepawk.com/ssr-bach/file.sf2') {
+}
+
+if (typeof require != 'undefined') {
+} else {
+  SF2File.fromURL = async (url: string) => {
     return new SF2File(new Uint8Array(await (await fetch(url)).arrayBuffer()));
-  }
+  };
 }

@@ -1,5 +1,5 @@
-import { SFZone, Shdr, SFGenerator } from './Zone.js';
-import { IBag, InstrHeader, Mod, Pbag, Phdr } from './pdta.types.js';
+import { SFZone, SFGenerator } from './Zone.js';
+import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './sf.types.js';
 import { IReadAB } from './aba.js';
 type findPresetFnType = (
   pid: number,
