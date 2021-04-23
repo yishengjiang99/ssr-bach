@@ -1,4 +1,4 @@
-export * from './sf.types';
+export * from './sf.types.js';
 export * from './Zone.js';
 export * from './pdta.js';
 

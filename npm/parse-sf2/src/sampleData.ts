@@ -4,9 +4,8 @@ export class SampleData {
   shdr: Shdr;
   uint8s: Uint8Array;
   get f32leArr(): Float32Array {
-    this.uint8s;
     const floats = new Float32Array(this.uint8s.length / 2 - 1);
-    const dv = new DataView(this.uint8s);
+    const dv = new DataView(this.uint8s.buffer);
     for (let i = 0; i < dv.byteLength / 2 - 1; i++) {
       floats[2 * i] = dv.getInt16(2 * i, true) / 0x7fff; // / 0x7fff;
     }

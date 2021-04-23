@@ -1,10 +1,11 @@
-import { resolve } from 'node:dns';
 import { SFZone, EnvParams, SampleData } from '../node_modules/parse-sf2/dist/';
+import {
+  centone2hz,
+  centibel2regularamp,
+  attenuate2gain,
+  centtime2sec,
+} from './math';
 
-const attenuate2gain = (cent: number) => Math.pow(10, cent / -200);
-const centone2hz = (cent: number) => Math.pow(2, cent / 1200) * 8.176;
-const centibel2regularamp = (centible: number) => Math.pow(10, centible / 200);
-const centtime2sec = (centtime: number) => Math.pow(2, centtime / 1200);
 function passthrough(ctx: BaseAudioContext) {
   return ctx.createGain();
 }
@@ -82,26 +83,8 @@ export function renderZone(
   };
 }
 
-export async function renderOffline(
-  zone: SFZone,
-  audioBuffer: AudioBuffer
-): Promise<AudioBuffer> {
-  return new Promise((resolve) => {
-    const sr = zone.sample.sampleRate;
-    const nchannels = zone.sample.sampleType == 4 ? 2 : 1;
-
-    const ctx = new OfflineAudioContext(nchannels, 1 * sr, sr);
-    const { triggerStart } = renderZone(ctx, zone, audioBuffer);
-    triggerStart();
-    ctx.startRendering();
-    ctx.oncomplete = (e: OfflineAudioCompletionEvent) => {
-      resolve(e.renderedBuffer);
-    };
-  });
-}
-
-type fn = () => void;
-function applyEnvelope(
+export type fn = () => void;
+export function applyEnvelope(
   envelope: EnvParams,
   target: AudioParam,
   ctx: BaseAudioContext,
