@@ -1,6 +1,7 @@
 import { SFZone, SFGenerator } from './Zone.js';
-import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './sf.types.js';
+import { IBag, InstrHeader, Mod, Pbag, Phdr } from './pdta.types.js';
 import { IReadAB } from './aba.js';
+import { Shdr } from './index.js';
 type findPresetFnType = (
   pid: number,
   bank_id?: number,
@@ -73,6 +74,7 @@ export class PDTA {
     const [ibag, iheaders] = [this.ibag, this.iheaders];
 
     const ihead = iheaders[instId];
+
     return {
       inst: ihead,
       defaultBg: ibag[ihead.iBagIndex].izone,
@@ -254,6 +256,7 @@ export class PDTA {
       }
     } while (n++ <= 9);
   }
+
   private addPbagToPreset(pbagId: number, phdrId: number) {
     if (this.pbag[pbagId].pzone.instrumentID == -1) {
       if (this.phdr[phdrId].defaultBag == -1)

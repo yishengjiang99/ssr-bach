@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mocha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script
+      src="https://unpkg.com/mocha@8.3.2/mocha.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"
+      integrity="sha512-gkZWobgJrQevN2HMEeTnSlxWPJ3HS0JJ3nXcgI6XLK/NI0z59jbztRZqbTlIzfl21vIGahQaeW0knwH1az/tbg=="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="mocha">
+      <button>play</button>
+    </div>
+
+    <script type="module">
+      import { draw } from './node_modules/draw-canvas-60fps/index.js';
+      import { SF2File } from './node_modules/parse-sf2/bundle.js';
+      import { applyEnvelope } from './dist/adsr.js';
+      import { resolveBuffer } from './dist/resolve-buffer-source.js';
+      mocha.setup('bdd');
+
+      async function start() {
+        const expect = chai.expect;
+        const button = document.querySelector('button');
+        const sffile = await SF2File.fromURL('FluidR3_GM.sf2');
+        const zone = sffile.pdta.findPreset(0, 0, 33);
+        console.log(zone);
+
+        const ctx = new AudioContext({
+          sampleRate: zone[0].sample.sampleRate,
+        });
+        const g = ctx.createGain(0);
+        zone.forEach((z, i) => {
+          const triggers = {
+            onStarts: [],
+            onReleases: [],
+          };
+          const abs = resolveBuffer(ctx, sffile, z, 33);
+          abs.connect(g).connect(ctx.destination);
+
+          abs.loopStart = z.sample.startLoop - z.sample.start;
+          applyEnvelope(z.volEnv, g.gain, ctx, triggers);
+          button.addEventListener('mousedown', async () => {
+            if (ctx.state != 'running') {
+              await ctx.resume();
+              abs.start();
+            }
+            triggers.onStarts[0]();
+            button.addEventListener(
+              'mouseup',
+              () => {
+                triggers.onReleases.forEach((r) => r());
+              },
+              { once: true }
+            );
+          });
+        });
+      }
+
+      start();
+      // document.write(abs.buffer.getChannelData(0).slice0);
+    </script>
+  </body>
+</html>

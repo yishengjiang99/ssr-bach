@@ -1,11 +1,58 @@
-import { SFZone, EnvParams, SampleData } from '../node_modules/parse-sf2/dist/';
+import {
+  SFZone,
+  SF2File,
+  EnvParams,
+  SampleData,
+} from '../node_modules/parse-sf2/bundle.js';
 import {
   centone2hz,
   centibel2regularamp,
   attenuate2gain,
   centtime2sec,
-} from './math';
+} from './math.js';
+import { InputStream, resolveBuffer } from './resolve-buffer-source.js';
 
+export class SynthChannel {
+  ctx: BaseAudioContext;
+  preamp: GainNode;
+  lpf: BiquadFilterNode;
+  modLFO: OscillatorNode;
+  ampVol: GainNode;
+  program: number[] = [0, 0];
+  sffile: SF2File;
+  sampleData: SampleData;
+  inputs: InputStream[];
+
+  constructor(ctx: BaseAudioContext, sffile: SF2File) {
+    this.ctx = ctx;
+    this.sffile = sffile;
+    this.sampleData = new SampleData(sffile.sdta.data);
+    this.preamp = new GainNode(ctx, { gain: 1 });
+    this.ampVol = new GainNode(ctx, { gain: 0 });
+    this.lpf = new BiquadFilterNode(ctx, { type: 'lowpass' });
+    this.modLFO = new OscillatorNode(ctx, { type: 'triangle', frequency: 60 });
+    this.inputs = [];
+    this.ampVol.connect(this.preamp).connect(this.lpf).connect(ctx.destination);
+  }
+  setProgram(presetId: number, bankId = 0) {
+    this.program = [presetId, bankId];
+  }
+
+  keyOn(key: number, vel: number, when: number) {
+    this.sffile.pdta
+      .findPreset(this.program[0], this.program[0], key, vel)
+      .map((z: SFZone) => {
+        this.inputs.push();
+        const input = new InputStream(this.ctx);
+        input.iterator = this.sampleData.sampleBuffer(z, 1, 48000 * 2);
+        input.scriptNode.connect(this.ampVol);
+      });
+  }
+
+  keyOff(key: any, vels: any) {
+    this.sffile;
+  }
+}
 function passthrough(ctx: BaseAudioContext) {
   return ctx.createGain();
 }

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mocha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+  <body>
+    <div id="mocha">
+      <canvas></canvas> <button>play</button> <canvas></canvas>
+    </div>
+
+    <script type="module">
+      import { applyEnvelope } from './dist/adsr.js';
+      import { SF2File } from './node_modules/parse-sf2/bundle.js';
+      import { SynthChannel } from './dist/audio-path.js';
+      let ctx;
+      const ensureCtx = (cb) => {
+        if (!ctx) ctx = new AudioContext();
+        if (ctx.state !== 'running') ctx.resume().then(cb);
+        else cb();
+      };
+      const b = document.querySelector('button');
+      SF2File.fromURL('8bitsf.SF2').then((sffile) => {
+        // const ctx = new OfflineAudioContext({
+        //   numberOfChannels: 2,
+        //   sampleRate: 44100,
+        //   length: 48000,
+        // });
+        ctx = new AudioContext();
+        const ch = new SynthChannel(ctx, sffile);
+        ch.setProgram(0, 128);
+        b.onmousedown = () => {
+          ensureCtx(() => ch.keyOn(55, 44));
+          b.addEventListener(
+            'mouseup',
+            () => {
+              ch.keyOff(55, 55);
+            },
+            { once: true }
+          );
+        };
+      });
+    </script>
+  </body>
+</html>
