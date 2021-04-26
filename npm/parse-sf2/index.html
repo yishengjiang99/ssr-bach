@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Mocha</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css"
+		/>
+	</head>
+	<body>
+		<script type="module">
+			import { sfbkstream } from "./dist/sfbkstream.js";
+			import { PDTA } from "./dist/pdta.js";
+			import { generatorNames } from "./dist/sf.types.js";
+			import { readAB } from "./dist/aba.js";
+			import { mkdiv as h } from "./node_modules/mkdiv/index.js";
+			const rendfile = async (file) => {
+				const { pdtaBuffer, sdtaStream, nsamples, infos } = await sfbkstream(file);
+				document.body.append(
+					h("section", {}, [
+						"info",
+						h(
+							"ul",
+							{},
+							infos.map(({ section, text }) => h("li", {}, `${section}:${text}`))
+						),
+					])
+				);
+
+				const pdta = new PDTA(readAB(pdtaBuffer));
+				let sampleIdx;
+				const ibag2pbag = {};
+				function printPbags(ib) {
+					if (!ib.izone.ibagId || !ibag2pbag[ib.izone.ibagId]) {
+						return "";
+					}
+					return h(
+						"div",
+						{},
+						ibag2pbag[ib.izone.ibagId].map((pb) =>
+							h(
+								"span",
+								{},
+								ib.izone.generators.map((g) => `${generatorNames[g.operator]}:${g.s16}`)
+							)
+						)
+					);
+				}
+				const presets = pdta.pbag.reduce((inst2pb, pb, pbidx) => {
+					if (pb?.pzone?.instrumentID > -1) {
+						inst2pb[pb.pzone.instrumentID] = inst2pb[pb.pzone.instrumentID] || [];
+						inst2pb[pb.pzone.instrumentID].push(pb);
+
+						pdta.iheaders[pb.pzone.instrumentID].ibags.forEach((ibagId) => {
+							ibag2pbag[ibagId] = ibag2pbag[ibagId] || [];
+							ibag2pbag[ibagId].push(pb);
+						});
+					}
+					return inst2pb;
+				}, {});
+				const samples = pdta.shdr
+					.map((sh, idx) => ({
+						...sh,
+						sid: idx,
+						izones: pdta.ibag.filter((ib) => ib.izone.sampleID == idx),
+					}))
+					.filter((sh) => sh.sampleRate > 0)
+					.sort((sampleA, sampleB) => sampleA.start > sampleB.start);
+				// document.write(samples.map((s) => s.sampleRate).join(', '));
+
+				const reader = sdtaStream.getReader();
+				const floats = new Float32Array(nsamples);
+				const fdv = new DataView(floats.buffer);
+				let ctx = new AudioContext();
+				let sampleOffset = 0;
+				function createSamplebuffer() {
+					samples[sampleOffset].ab = ctx.createBuffer(
+						1,
+						samples[sampleOffset].end - samples[sampleOffset].start,
+						samples[sampleOffset].sampleRate
+					);
+					const floatss = samples[sampleOffset].ab.getChannelData(0);
+					sampleOffset++;
+					return [floatss, floatss.length];
+				}
+				let [floatss, nsample] = createSamplebuffer();
+				var offset = 0;
+
+				reader
+					.read()
+					.then(function process({ done, value }) {
+						if (done) {
+							return;
+						}
+
+						const dv = new DataView(value.buffer);
+						for (let i = 0; i < value.byteLength / 2 - 1; i++) {
+							floatss[offset++] = dv.getInt16(2 * i, true) / 0x7fff; // / 0x7fff;
+							if (offset >= floatss.length) {
+								if (sampleOffset >= samples.length) return;
+								[floatss, nsample] = createSamplebuffer();
+								offset = 0;
+							}
+						}
+						reader.read().then(process);
+					})
+					.then(() => {
+						for (const sample of samples) {
+							const div = h("div");
+							for (const ib of sample.izones) {
+								div.append(printPbags(ib));
+								ib.sample = sample;
+								const card = h(
+									"span",
+									{},
+									ib.izone.generators
+										.map((g) => `${generatorNames[g.operator]}:${g.s16}`)
+										.join("&nbsp;")
+								);
+								const button = document.createElement("button");
+
+								button.innerText = sample.name;
+								button.onclick = () => {
+									if (ctx.sampleRate !== sample.sampleRate)
+										ctx = new AudioContext({ sampleRate: sample.sampleRate });
+									const abs = new AudioBufferSourceNode(ctx, {
+										buffer: sample.ab,
+										loop: false,
+									});
+
+									abs.connect(ctx.destination);
+									abs.start(0);
+								};
+								card.appendChild(button);
+								div.appendChild(card);
+							}
+							document.body.append(div);
+						}
+					});
+			};
+			document.body.append(
+				h("button", { onclick: () => rendfile("GeneralUserGS.sf2") }, "GeneralUserGS.sf2")
+			);
+		</script>
+	</body>
+</html>

@@ -1,11 +1,12 @@
 import { PDTA } from './pdta';
-import { reader } from './reader';
+import { readAB } from './aba.js';
 import * as sfTypes from './sf.types';
 import assert from 'assert';
 import { RenderCtx } from './render-ctx';
 import { SFZone } from './Zone';
 import { std_inst_names } from './utilv1';
 import { cspawn } from './cspawn';
+import { readFile, readFileSync } from 'node:fs';
 
 export class SF2File {
   pdta!: PDTA;
@@ -13,7 +14,7 @@ export class SF2File {
   rend_ctx: RenderCtx;
   path: string;
   constructor(path: string = '') {
-    const r = reader(path);
+    const r = readAB(new Uint8Array(readFileSync(path).buffer));
     this.path = path;
     assert(r.read32String(), 'RIFF');
     let size: number = r.get32();
@@ -26,7 +27,7 @@ export class SF2File {
       const section = r.read32String();
       size = size - sectionSize;
       if (section === 'pdta') {
-        this.pdta = new PDTA(r);
+        this.pdta = new PDTA((readAB(r.path).offset = r.offset));
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;

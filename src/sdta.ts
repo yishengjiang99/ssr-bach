@@ -1,152 +1,150 @@
-import { Runtime } from './runtime.js';
+import { Runtime } from "./runtime.js";
 export async function load(src, heapsize = 1024 * 1024) {
-  var { heap, malloc, exports, mem } = await gheap(
-    heapsize * 4 + 1024 * 1024,
-    new Uint8Array(await (await fetch(src, { mode: 'no-cors' })).arrayBuffer())
-  );
+	var { heap, malloc, exports, mem } = await gheap(
+		heapsize * 4 + 1024 * 1024,
+		new Uint8Array(await (await fetch(src, { mode: "no-cors" })).arrayBuffer())
+	);
 
-  return { heap, malloc, exports, mem };
+	return { heap, malloc, exports, mem };
 }
 export async function gheap(length: number, wasmbin: BufferSource) {
-  const heap_start = 4;
-  const wasm_page_size = 0xffff;
-  const pages = Math.ceil(length / wasm_page_size);
-  const mem = new WebAssembly.Memory({
-    initial: pages,
-    maximum: pages,
-    //@ts-ignore
-    shared: false,
-  });
-  const heap = new Uint8Array(mem.buffer, heap_start);
-  let offset = 0;
-  const malloc = (n: number) => {
-    while (offset % 8) offset++; // malign with 8 instead of 4 bc we gorilla 2step
-    const ptr = offset;
-    offset += n;
-    return ptr;
-  };
+	const heap_start = 4;
+	const wasm_page_size = 0xffff;
+	const pages = Math.ceil(length / wasm_page_size);
+	const mem = new WebAssembly.Memory({
+		initial: pages,
+		maximum: pages,
+		//@ts-ignore
+		shared: false,
+	});
+	const heap = new Uint8Array(mem.buffer, heap_start);
+	let offset = 0;
+	const malloc = (n: number) => {
+		while (offset % 8) offset++; // malign with 8 instead of 4 bc we gorilla 2step
+		const ptr = offset;
+		offset += n;
+		return ptr;
+	};
 
-  const config = {
-    env: {
-      memory: mem,
-      table: new WebAssembly.Table({ initial: 0, element: 'anyfunc' }),
-      _abort: () => console.log('abort?'),
-      _grow: () => {
-        console.log('grow?');
-      },
-      consolelog: (str: any, b: any) => console.log(str, b),
-    },
-  };
-  const {
-    instance: { exports },
-  } = await WebAssembly.instantiate(wasmbin, config);
+	const config = {
+		env: {
+			memory: mem,
+			table: new WebAssembly.Table({ initial: 0, element: "anyfunc" }),
+			_abort: () => console.log("abort?"),
+			_grow: () => {
+				console.log("grow?");
+			},
+			consolelog: (str: any, b: any) => console.log(str, b),
+		},
+	};
+	const {
+		instance: { exports },
+	} = await WebAssembly.instantiate(wasmbin, config);
 
-  return { heap, malloc, mem, exports };
+	return { heap, malloc, mem, exports };
 }
 
 export async function initSDTA(
-  arr: Uint8Array,
-  { blockLength, sampleRate } = { blockLength: 128, sampleRate: 48000 }
+	arr: Uint8Array,
+	{ blockLength, sampleRate } = { blockLength: 128, sampleRate: 48000 }
 ) {
-  const bin = await (
-    await fetch('../sdta.wasm', {
-      mode: 'no-cors',
-    })
-  ).arrayBuffer();
-  const { heap, malloc, exports } = await gheap(arr.byteLength, bin);
+	const bin = await (
+		await fetch("../sdta.wasm", {
+			mode: "no-cors",
+		})
+	).arrayBuffer();
+	const { heap, malloc, exports } = await gheap(arr.byteLength, bin);
 
-  const inputs = malloc(arr.byteLength);
-  heap.set(arr, inputs);
+	const inputs = malloc(arr.byteLength);
+	heap.set(arr, inputs);
 
-  const inputParams = [];
-  for (let i = 0; i < 18; i++) {
-    inputParams.push(malloc(36));
-  }
-  //[=.map((chid) => {
-  const rb = new RingBuffer(malloc, {
-    sr: sampleRate,
-    blocks: 30,
-    blockLength: blockLength,
-  });
+	const inputParams = [];
+	for (let i = 0; i < 18; i++) {
+		inputParams.push(malloc(36));
+	}
+	//[=.map((chid) => {
+	const rb = new RingBuffer(malloc, {
+		sr: sampleRate,
+		blocks: 30,
+		blockLength: blockLength,
+	});
 
-  function* render(rt: Runtime, noteStartTime: number, channelId: number) {
-    const dv = new DataView(heap.buffer, inputParams[channelId], 28);
+	function* render(rt: Runtime, noteStartTime: number, channelId: number) {
+		const dv = new DataView(heap.buffer, inputParams[channelId], 28);
 
-    const { start, startLoop, endLoop } = rt.sample;
-    let position = start;
+		const { start, startLoop, endLoop } = rt.sample;
+		let position = start;
 
-    [position, startLoop, endLoop, blockLength].map((v, idx) =>
-      dv.setUint32(idx * 4, v, true)
-    );
-    const writeIter = rb.writeIterator(noteStartTime, rt.length);
-    const pan = rt.staticLevels.pan;
-    const { volume, pitch } = rt.run(blockLength);
-    [pitch, volume * pan.left, volume * pan.right].map((v, idx) =>
-      dv.setFloat32(16 + idx * 4, v, true)
-    );
-    while (true) {
-      const { done, value } = writeIter.next();
-      if (done) break;
-      if (value) {
-        //@ts-ignore
-        position += exports['render'](inputs, inputParams[channelId], value);
-      }
-      yield;
-    }
-    return true;
-  }
-  return { render, heap, soundCard: rb, floats: 1 };
+		[position, startLoop, endLoop, blockLength].map((v, idx) => dv.setUint32(idx * 4, v, true));
+		const writeIter = rb.writeIterator(noteStartTime, rt.length);
+		const pan = rt.staticLevels.pan;
+		const { volume, pitch } = rt.run(blockLength);
+		[pitch, volume * pan.left, volume * pan.right].map((v, idx) =>
+			dv.setFloat32(16 + idx * 4, v, true)
+		);
+		while (true) {
+			const { done, value } = writeIter.next();
+			if (done) break;
+			if (value) {
+				//@ts-ignore
+				position += exports["render"](inputs, inputParams[channelId], value);
+			}
+			yield;
+		}
+		return true;
+	}
+	return { render, heap, soundCard: rb, floats: 1 };
 }
 
 const bytesPerSample = 8;
 class RingBuffer {
-  readOffset: number;
-  sr: number;
-  perfTime: number;
-  blockLength: any;
-  blocks: any;
-  obOffset: any;
-  secondsPerFrame: number;
-  constructor(malloc, opts) {
-    this.readOffset = 0;
-    this.sr = 41000;
-    this.perfTime = 0;
-    opts = opts || {};
-    this.blockLength = opts.blockLength || 128;
-    this.blocks = opts.blocks || 20;
-    this.sr = opts.sr || 48000;
-    this.obOffset = malloc(this.blockLength * this.blocks);
-    this.secondsPerFrame = this.blockLength / this.sr;
-  }
-  shift() {
-    this.perfTime += this.secondsPerFrame;
-    const ret = bytesPerSample * this.readOffset + this.obOffset;
-    if (this.readOffset >= this.blockLength * (this.blocks - 1)) {
-      this.readOffset = 0;
-    } else {
-      this.readOffset += this.blockLength;
-    }
-    return ret;
-  }
-  writeptr(start) {
-    let delay = (start - this.perfTime) * this.sr - this.readOffset;
-    if (delay > this.blockLength * (this.blocks * 2 - 2)) {
-      return -1;
-    }
-    while (delay > this.blockLength * (this.blocks - 1)) {
-      delay -= this.blockLength * (this.blocks - 1);
-    }
-    return Math.ceil(this.obOffset + bytesPerSample * delay);
-  }
-  *writeIterator(start, duration) {
-    while (duration > 0) {
-      const pt = this.writeptr(start);
-      if (pt !== -1) {
-        duration -= this.secondsPerFrame;
-        start += this.secondsPerFrame;
-      }
-      yield pt;
-    }
-    return null;
-  }
+	readOffset: number;
+	sr: number;
+	perfTime: number;
+	blockLength: any;
+	blocks: any;
+	obOffset: any;
+	secondsPerFrame: number;
+	constructor(malloc, opts) {
+		this.readOffset = 0;
+		this.sr = 41000;
+		this.perfTime = 0;
+		opts = opts || {};
+		this.blockLength = opts.blockLength || 128;
+		this.blocks = opts.blocks || 20;
+		this.sr = opts.sr || 48000;
+		this.obOffset = malloc(this.blockLength * this.blocks);
+		this.secondsPerFrame = this.blockLength / this.sr;
+	}
+	shift() {
+		this.perfTime += this.secondsPerFrame;
+		const ret = bytesPerSample * this.readOffset + this.obOffset;
+		if (this.readOffset >= this.blockLength * (this.blocks - 1)) {
+			this.readOffset = 0;
+		} else {
+			this.readOffset += this.blockLength;
+		}
+		return ret;
+	}
+	writeptr(start) {
+		let delay = (start - this.perfTime) * this.sr - this.readOffset;
+		if (delay > this.blockLength * (this.blocks * 2 - 2)) {
+			return -1;
+		}
+		while (delay > this.blockLength * (this.blocks - 1)) {
+			delay -= this.blockLength * (this.blocks - 1);
+		}
+		return Math.ceil(this.obOffset + bytesPerSample * delay);
+	}
+	*writeIterator(start, duration) {
+		while (duration > 0) {
+			const pt = this.writeptr(start);
+			if (pt !== -1) {
+				duration -= this.secondsPerFrame;
+				start += this.secondsPerFrame;
+			}
+			yield pt;
+		}
+		return null;
+	}
 }

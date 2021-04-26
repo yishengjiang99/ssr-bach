@@ -1,0 +1,46 @@
+<html>
+  <head>
+    <style>
+  
+      body {
+        background-color: black;
+      }
+
+  
+    </style>
+    <body class="">
+      <canvas></canvas>
+      <button>clear</button>
+    <script type="module">
+      import { draw } from './index.js';
+       let lines = new Float32Array(1024);
+       const {start,stop}=draw(function getData(){
+          return lines;
+        });
+        
+
+        let started=false;
+        let dataTimer;
+        let i=0;
+        document.querySelector('button').onclick=()=>{
+          if(!started){
+            dataTimer= setInterval(()=>{
+              lines[i++ % 1024]= Math.random()-1;
+              },1);
+            start();
+          }
+          else {
+             clearInterval(dataTimer)
+          }
+          
+          started=!started;
+        }
+ 
+   
+
+
+    
+    </script>
+    </body>
+
+</html>

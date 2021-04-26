@@ -11,7 +11,7 @@ export interface IReadAB {
   offset: number;
 }
 
-export function readAB(arb: Iterable<number>): IReadAB {
+export function readAB(arb: ArrayBuffer | Uint8Array): IReadAB {
   const u8b = new Uint8Array(arb);
   let _offset = 0;
   function get8() {

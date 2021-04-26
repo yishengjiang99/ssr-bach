@@ -9,37 +9,69 @@
     <div id="mocha">
       <canvas></canvas> <button>play</button> <canvas></canvas>
     </div>
-
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.js"
+      integrity="sha512-TfAL33PtGUxii1awTCbr3qbzQT5fYi7ItCGUfzWlnMJ4cK5BA8JNY4gJzEs+tQVbyElVbtcI2Jlaf9EFVMvyeg=="
+      crossorigin="anonymous"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.css"
+      integrity="sha512-6RWs5FczsXwODIZJoL0szz3bXX5W+q/m7bFVQ7HSwZbBXd7PpyYrg2f9Dr4Y2Guqi5k4NJsemxXuiiFoI8fQ4A=="
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"
+      integrity="sha512-gkZWobgJrQevN2HMEeTnSlxWPJ3HS0JJ3nXcgI6XLK/NI0z59jbztRZqbTlIzfl21vIGahQaeW0knwH1az/tbg=="
+      crossorigin="anonymous"
+    ></script>
     <script type="module">
       import { applyEnvelope } from './dist/adsr.js';
       import { SF2File } from './node_modules/parse-sf2/bundle.js';
       import { SynthChannel } from './dist/audio-path.js';
-      let ctx;
-      const ensureCtx = (cb) => {
-        if (!ctx) ctx = new AudioContext();
-        if (ctx.state !== 'running') ctx.resume().then(cb);
-        else cb();
-      };
-      const b = document.querySelector('button');
-      SF2File.fromURL('8bitsf.SF2').then((sffile) => {
-        // const ctx = new OfflineAudioContext({
-        //   numberOfChannels: 2,
-        //   sampleRate: 44100,
-        //   length: 48000,
-        // });
-        ctx = new AudioContext();
-        const ch = new SynthChannel(ctx, sffile);
-        ch.setProgram(0, 128);
-        b.onmousedown = () => {
-          ensureCtx(() => ch.keyOn(55, 44));
-          b.addEventListener(
-            'mouseup',
-            () => {
-              ch.keyOff(55, 55);
-            },
-            { once: true }
-          );
-        };
+      const sffff = await SF2File.fromURL('../parse-sf2/sm.sf2');
+
+      mocha.setup('bdd');
+      const bnt = document.querySelector('button');
+      describe('baseline', () => {
+        it('iteraator from sf2file sample turned into audio buffersource', (done) => {
+          SF2File.fromURL('../parse-sf2/sm.SF2').then((sffile) => {
+            const z = sffile.pdta.findPreset(
+              sffile.pdta.phdr[0].presetId,
+              0
+            )[0];
+
+            const it = sffile.sdta.iterator(z, 44, 48000, 1200);
+            chai.expect(Array.from(it).length).eq(1200);
+            done();
+          });
+        }).timeout(100022);
+        describe('synthchan', () => {
+          it('it plays aud samples', async () => {
+            const sff = await SF2File.fromURL('../parse-sf2/sm.sf2');
+            let ctx = new AudioContext();
+            const sch = new SynthChannel(ctx, sff);
+            sch.keyOn(33, 44, 0);
+          });
+        });
+      });
+      mocha.run();
+
+      let ctx = new AudioContext();
+      const sch = new SynthChannel(ctx, sffff);
+      bnt.addEventListener('mousedown', async () => {
+        if (ctx.state != 'running') {
+          await ctx.resume();
+        }
+        sch.keyOn(55, 62, 0);
+
+        bnt.addEventListener(
+          'mouseup',
+          () => {
+            sch.keyOff(44);
+          },
+          { once: true }
+        );
       });
     </script>
   </body>

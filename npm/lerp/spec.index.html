@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <script type="module">
+      import { lerp, pow2over12 } from './lerp.js';
+      document.body.innerHTML +=
+        '<pre>' +
+        '\r\n' +
+        lerp(0, 1, 0.1) +
+        '\r\n' +
+        pow2over12(0) +
+        '\r\n' +
+        pow2over12(0.41) +
+        '\r\n' +
+        pow2over12(1.55) +
+        '</pre>';
+    </script>
+  </body>
+</html>

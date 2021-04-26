@@ -255,6 +255,34 @@ export class PDTA {
       }
     } while (n++ <= 9);
   }
+
+  defaultZone(pid: number, bankId: number) {
+    const preset = this.phdr.find(
+      (p) => p.presetId == pid && p.bankId == bankId
+    );
+    const presetDefaults = this.pbag[preset.pbagIndex].pzone;
+    const inst = this.iheaders[preset.insts[0]];
+    const instDefault = this.ibag[inst.iBagIndex].izone;
+
+    const ibags = inst.ibags.map((ib) => this.ibag[ib].izone);
+    const pbags = preset.pbags.map((pb) => this.pbag[pb]);
+    return {
+      presetDefaults,
+      instDefault,
+      ibags,
+      pbags,
+      adjZone: (key, vel) => {
+        const ib = ibags.filter((z) => keyVelInRange(z, key, vel))[0];
+        return makeRuntime(
+          ib,
+          instDefault,
+          pbags.filter((pb) => keyVelInRange(pb.pzone, key, vel))[0],
+          presetDefaults,
+          this.shdr[ib.sampleID]
+        );
+      },
+    };
+  }
   private addPbagToPreset(pbagId: number, phdrId: number) {
     if (this.pbag[pbagId].pzone.instrumentID == -1) {
       if (this.phdr[phdrId].defaultBag == -1)

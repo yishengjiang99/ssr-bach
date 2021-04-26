@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Runtime } from './runtime.js';
 import { getSample } from './sfbk.js';
+import { lerp } from '../node_modules/lerp/lerp.js';
 const sampleRate = 48000;
 //@ts-ignore
 class RenderProcessor extends AudioWorkletProcessor {
@@ -67,7 +68,11 @@ class RenderProcessor extends AudioWorkletProcessor {
           newval = 0;
           continue;
         } else {
-          newval = v.sampleData[v.rt.iterator];
+          newval = lerp(
+            v.sampleData[v.rt.iterator],
+            v.sampleData[v.rt.iterator + 1],
+            v.shift
+          );
         }
         newval = newval * volume;
         outputs[0][0][offset] += newval * pan.left;
