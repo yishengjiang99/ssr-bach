@@ -1,0 +1,18 @@
+{
+	"name": "parse-sf2",
+	"version": "2.1.0",
+	"description": "",
+	"author": "Yisheng Jiang",
+	"license": "Do_not_use",
+	"export": {
+		"require": "lib/index.js",
+		"import": "dist/index.js"
+	},
+	"main": "bundle.js",
+	"scripts": {
+		"build": "npx rollup dist/index.js > bundle.js; npm run build:cjs",
+		"build:cjs": "tsc -m commonjs -outDir lib",
+		"postinstall": "node postinstall"
+	},
+	"types": "dist/index.d.js"
+}
