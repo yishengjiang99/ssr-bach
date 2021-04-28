@@ -1,37 +1,51 @@
 #!/usr/bin/env node
-const { SF2File } = require("../lib/sffile");
 const Fs = require("fs");
 const Path = require("path");
 const Readable = require("stream").Readable;
+const libroot = Path.resolve(__dirname, "../lib");
+const { SF2File } = require(Path.resolve(libroot, "sffile.js"));
+
 const fname = process.argv[2] || Path.resolve(__dirname, "../GeneralUserGS.sf2");
 const sffile = new SF2File(new Uint8Array(Fs.readFileSync(fname)));
 if (!sffile) {
 	console.log(fname, "notfound");
 }
 const b = sffile.pdta.phdr.filter((p) => p.bankId == 0).sort((a, b) => a.presetId - b.presetId);
-const presetIter = (function* _() {
+function pronpt() {
+	process.stdout.write("\n*(Q)uit, (N)ext, (Anykey)>\n");
+}
+async function presetIter(cb) {
 	let i = 0;
 	while (b.length) {
 		const p = b.shift();
 		process.stdout.write("\n" + p.presetId + `: ${p.name}\t`);
-		if (i++ % 20 == 0) {
-			process.stdout.write("\n>");
-			yield;
+		if (i++ % 20 == 19) {
+			pronpt();
+			await cb();
 		}
 	}
-})();
-for (const a of presetIter) {
-	const input = awaitStdin().toString().trim();
-	if (input == "q") process.exit();
-	else if (parseInt(input) != NaN) {
-		process.stdout.write("downloading " + input + "\n");
-		downloadPreset(parseInt(input), 0);
-	} else {
-	}
 }
+
+presetIter(async () => {
+	let input;
+	while (input != "q") {
+		input = await new Promise((resolve) =>
+			process.stdin.on("data", (d) => resolve(d.toString().trim()))
+		);
+		if (input == "q") process.exit();
+		else if (!isNaN(parseInt(input))) {
+			process.stdout.write("downloading " + input + "\n");
+			downloadPreset(parseInt(input), 0);
+			pronpt();
+		} else {
+			break;
+		}
+	}
+});
+
 async function awaitStdin() {
 	await new Promise((resolve) => {
-		process.stdin.on("data", resolve);
+		process.stdin.on("data", (d) => resolve(d));
 	});
 }
 function downloadPreset(pid, bankid) {
