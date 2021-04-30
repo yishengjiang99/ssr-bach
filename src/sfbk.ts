@@ -57,7 +57,7 @@ export async function initsfbk(url: string, port?: MessagePort): Promise<SFBKRet
 			});
 			return floats;
 		} else {
-			const uint16 = new Uint16Array(await res.arrayBuffer());
+			const uint16 = new Int16Array(await res.arrayBuffer());
 			const floats = new Float32Array(uint16.length);
 
 			for (let i = 0; i < uint16.length; i++) {

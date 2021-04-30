@@ -222,9 +222,10 @@
 			        right: 0.5 + zone.pan / 1000,
 			      },
 			    };
+
 			    zone.modEnv.phases.attack =
 			      (zone.modEnv.phases.attack * (145 - note.velocity)) / 144.0;
-			    this.iterator = zone.sampleOffsets.start;
+			    this.iterator = zone.sample.start;
 			    const ampVol = new Envelope(zone.volEnv.phases, zone.volEnv.sustain);
 			    const modVol = new Envelope(zone.modEnv.phases, zone.modEnv.sustain);
 			    this.length =
@@ -364,9 +365,10 @@
 		</script>
 		<script type="module">
 			import { h, mlist, pdtaView } from "./dist/react-light.js";
-			import { initsfbk } from "./dist/sfbk.js";
-			const maindiv = document.querySelector("main").appendChild(mlist);
-			let sdta, _sdtaWait, timer, _pdta, proc, ctx;
+			import { SF2File } from "./node_modules/parse-sf2/dist/sffile.js";
+			//	const maindiv = document.querySelector("main").appendChild(mlist());
+
+			let timer, _pdta, proc, ctx;
 			let playing = false;
 			const midiurls = [
 				// 'c.mid',
@@ -407,14 +409,20 @@
 			const sfurls = ["GeneralUserGS.sf2"];
 
 			queueMicrotask(init);
-
+			let sdta;
 			async function init() {
-				const { pdta, sdtaWait } = await initsfbk(sfurls[0], ch.port2);
-				_pdta = pdta;
-				sdta = await sdtaWait;
+				loghtml("loading.");
+
+				const sffile = await SF2File.fromURL("GeneralUserGS.sf2");
+				sdta = sffile.sdta;
+				_pdta = sffile.pdta;
+				loghtml("loaded");
+
+				// const { pdta, sdtaWait } = await initsfbk(sfurls[0], ch.port2);
+				// _pdta = pdta;
+				// sdta = await sdtaWait;
 				playBtn.removeAttribute("disabled");
 			}
-
 			playBtn.addEventListener("click", async (e) => {
 				if (!ctx) {
 					loghtml("starting.");
@@ -434,14 +442,13 @@
 							resolve();
 						};
 					});
-					proc.port.postMessage({ samples: sdta.buffer }, [sdta.buffer]);
+					proc.port.postMessage({ samples: sdta.floatArr });
 					loghtml("posting samp");
 					await procreadyWait;
 					await ctx.resume();
 					proc.connect(ctx.destination);
 					playing = true;
 					loghtml("posting samp");
-
 					timer = playMidi(midiurls[0]);
 					e.target.setAttribute("disabled", "true");
 					stopbtn.setAttribute("disabled", "false");
