@@ -1,5 +1,4 @@
-import { SFGenerator } from './generator';
-import { SFZone } from './Zone';
+import { SFZone, SFGenerator } from './Zone';
 
 export type Phdr = {
   name: string;

@@ -1,25 +1,22 @@
-import { PDTA } from "./pdta";
 import { readAB } from "./aba.js";
-import * as sfTypes from "./sf.types";
-import assert from "assert";
-import { RenderCtx } from "./render-ctx";
-import { SFZone } from "./Zone";
-import { std_inst_names } from "./utilv1";
-import { cspawn } from "./cspawn";
-import { readFile, readFileSync } from "fs";
+import { PDTA } from "./pdta.js";
+import { SFZone } from "./Zone.js";
 
 export class SF2File {
 	pdta!: PDTA;
-	sdta!: { nsamples: number; data: Buffer; bit16s: Buffer };
-	rend_ctx: RenderCtx;
-	path: string;
-	constructor(path: string = "") {
-		const r = readAB(new Uint8Array(readFileSync(path).buffer));
-		this.path = path;
-		assert(r.read32String(), "RIFF");
+	sdta!: {
+		nsamples: number;
+		data: Uint8Array;
+		floatArr: SharedArrayBuffer;
+		iterator: any;
+	};
+	static fromURL: (url: string) => Promise<SF2File>;
+	constructor(ab: ArrayBuffer | Uint8Array) {
+		const r = readAB(ab);
+		console.assert(r.read32String() == "RIFF");
 		let size: number = r.get32();
-		assert(r.read32String(), "sfbk");
-		assert(r.read32String(), "LIST");
+		console.assert(r.read32String() == "sfbk");
+		console.assert(r.read32String() == "LIST");
 		size -= 64;
 		const sections: any = {};
 		do {
@@ -29,61 +26,53 @@ export class SF2File {
 			if (section === "pdta") {
 				this.pdta = new PDTA(r);
 			} else if (section === "sdta") {
-				assert(r.read32String(), "smpl");
+				console.assert(r.read32String() == "smpl");
 				const nsamples = (sectionSize - 4) / 2;
-				const bit16s = r.readN(sectionSize - 4) as Buffer;
-				const ob: Buffer = Buffer.alloc(nsamples * 4);
-				const s16tof32 = (i16: number) => i16 / 0xffff;
-				for (let i = 0; i < nsamples; i++) {
-					const n = bit16s.readInt16LE(i * 2);
-					ob.writeFloatLE(s16tof32(n), i * 4);
+				const uint8s = r.readN(sectionSize - 4);
+				const floatArr = new SharedArrayBuffer(uint8s.byteLength * 2);
+				const dv2 = new DataView(floatArr);
+				const dv = new DataView(uint8s.buffer);
+				for (let i = 0; i < dv.byteLength / 2 - 1; i++) {
+					dv2.setFloat32(i * 4, dv.getInt16(2 * i, true) / 0x7fff, true);
+				}
+				function iterate(zone: SFZone, key: number, outputSampleRate: number, length = 48000 * 2) {
+					const data = new Float32Array(floatArr);
+
+					const { start, end, startLoop, endLoop } = zone.sample;
+					const loop = [startLoop - start, endLoop - start];
+					const pitchRatio =
+						(Math.pow(2, (key * 100 - zone.pitch) / 1200) * zone.sample.sampleRate) /
+						outputSampleRate;
+					function* shift() {
+						let pos = 0x00;
+						let n = 0;
+						let shift = 0.0;
+						while (n++ < length) {
+							yield data[pos];
+							shift = shift + pitchRatio;
+							while (shift >= 1) {
+								shift--;
+								pos++;
+							}
+							if (pos >= loop[1]) pos = loop[0];
+						}
+						return data[pos];
+					}
+					return shift();
 				}
 				this.sdta = {
-					nsamples: nsamples,
-					data: ob,
-					bit16s: bit16s,
+					nsamples,
+					data: uint8s,
+					floatArr: floatArr,
+					iterator: iterate,
 				};
 			} else {
 				r.skip(sectionSize);
 			}
 		} while (size > 0);
-		this.rend_ctx = new RenderCtx(this);
-	}
-
-	findPreset(props: sfTypes.FindPresetProps): SFZone[] {
-		const { bankId, presetId, key, vel } = props;
-		const zones = this.pdta.findPreset(presetId, bankId, key, vel);
-		return zones;
-	}
-	play(instrument: string, key = 44, vel = 66) {
-		let found = 0;
-
-		for (let idx = 0; idx < std_inst_names.length; idx++) {
-			if (std_inst_names[idx].includes(instrument)) {
-				console.log("playing " + std_inst_names[idx]);
-				found = 1;
-				this.rend_ctx.programs[0] = { presetId: idx, bankId: 0 };
-				break;
-			}
-		}
-		this.rend_ctx.keyOn(key, vel, 0);
-	}
-	key(key: any, vel = 57) {
-		this.rend_ctx.keyOn(key, vel, 0);
 	}
 }
-function test() {
-	const g = new SF2File("./file.sf2");
-	const ctx = g.rend_ctx;
-	ctx.keyOn(33, 55);
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-	console.log(ctx.render(132));
-}
+
+SF2File.fromURL = async (url: string) => {
+	return new SF2File(await (await fetch(url)).arrayBuffer());
+};

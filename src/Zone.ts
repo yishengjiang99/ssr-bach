@@ -1,5 +1,13 @@
+import {
+  sf_gen_id,
+  Shdr,
+  centibel,
+  LOOPMODES,
+  LFOParams,
+  GenRange,
+} from './sf.types.js';
+
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-export type GenRange = { lo: number; hi: number };
 export class SFGenerator {
   from = 0;
   ibagId = -1;
@@ -24,102 +32,6 @@ export class SFGenerator {
     this.int16 += val;
   }
 }
-
-export type Shdr = {
-  name: string;
-  start: number;
-  end: number;
-  startLoop: number;
-  endLoop: number;
-  sampleRate: number;
-  originalPitch: number;
-  pitchCorrection: number;
-  sampleLink: number;
-  sampleType: number;
-};
-
-type LFOParams = typeof SFZone.defaultLFO;
-export enum sf_gen_id {
-  startAddrsOffset,
-  endAddrsOffset,
-  startloopAddrsOffset,
-  endloopAddrsOffset,
-  startAddrsCoarseOffset,
-  modLfoToPitch,
-  vibLfoToPitch,
-  modEnvToPitch,
-  initialFilterFc,
-  initialFilterQ,
-  modLfoToFilterFc,
-  modEnvToFilterFc,
-  endAddrsCoarseOffset,
-  modLfoToVolume,
-  unused1,
-  chorusEffectsSend,
-  reverbEffectsSend,
-  pan,
-  unused2,
-  unused3,
-  unused4,
-  delayModLFO,
-  freqModLFO,
-  delayVibLFO,
-  freqVibLFO,
-  delayModEnv,
-  attackModEnv,
-  holdModEnv,
-  decayModEnv,
-  sustainModEnv,
-  releaseModEnv,
-  keynumToModEnvHold,
-  keynumToModEnvDecay,
-  delayVolEnv,
-  attackVolEnv,
-  holdVolEnv,
-  decayVolEnv,
-  sustainVolEnv,
-  releaseVolEnv,
-  keynumToVolEnvHold,
-  keynumToVolEnvDecay,
-  instrument,
-  reserved1,
-  keyRange,
-  velRange,
-  startloopAddrsCoarse,
-  keynum,
-  velocity,
-  initialAttenuation,
-  reserved2,
-  endloopAddrsCoarse,
-  coarseTune,
-  fineTune,
-  sampleID,
-  sampleModes,
-  reserved3,
-  scaleTuning,
-  exclusiveClass,
-  overridingRootKey,
-  unused5,
-  endOper,
-}
-
-export enum mergeTypes {
-  SET_INST_DEFAULT,
-  SET_INST,
-  SET_PBAG,
-  SET_PBAGDEFAULT,
-}
-export type centTone = number;
-export type TimeCent = number;
-export type centibel = number;
-export type centime = number;
-
-export enum LOOPMODES {
-  NO_LOOP,
-  CONTINUOUS_LOOP,
-  NO_LOOP_EQ,
-  LOOP_DURATION_PRESS,
-}
 export function cent2hz(centiHz: number) {
   return 8.176 * Math.pow(2, centiHz / 1200.0);
 }
@@ -129,18 +41,39 @@ export function timecent2sec(timecent: number) {
 export function centidb2gain(centibel: number) {
   return Math.pow(10, centibel / 200);
 }
-
+export type EnvParams = {
+  default: boolean;
+  phases: {
+    decay: number;
+    attack: number;
+    delay: number;
+    release: number;
+    hold: number;
+  };
+  sustain: number;
+  effects: {
+    pitch: number;
+    filter: number;
+    volume: number;
+  };
+};
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
   velRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
-  sampleOffsets = {
+  _shdr: Shdr = {
+    name: 'init',
     start: 0,
     end: 0,
     startLoop: 0,
     endLoop: 0,
+    originalPitch: 60,
+    sampleRate: -1,
+    pitchCorrection: 0,
+    sampleLink: 0,
+    sampleType: 0,
   };
-  pbagId: number;
-  ibagId: number;
+  pbagId!: number;
+  ibagId!: number;
   serialize() {
     return {
       ...this,
@@ -151,13 +84,16 @@ export class SFZone {
       sample: this.sample,
     };
   }
+
+  sampleOffsets: number[] = [0, 0, 0, 0];
   constructor(ids?: { pbagId?: number; ibagId?: number }) {
     if (ids) {
       if (ids.pbagId) this.pbagId = ids.pbagId;
       if (ids.ibagId) this.ibagId = ids.ibagId;
     }
   }
-  private _modLFO: LFOParams = SFZone.defaultLFO;
+
+  _modLFO: LFOParams = SFZone.defaultLFO;
   public get modLFO() {
     if (this._modLFO) {
       this._modLFO = SFZone.defaultLFO;
@@ -174,14 +110,14 @@ export class SFZone {
   public set vibrLFO(value) {
     this._vibrLFO = value;
   }
-  private _modEnv = SFZone.defaultEnv;
+  private _modEnv: EnvParams = SFZone.defaultEnv;
   public get modEnv() {
     return this._modEnv;
   }
   public set modEnv(value) {
     this._modEnv = value;
   }
-  private _volEnv = SFZone.defaultEnv;
+  private _volEnv: EnvParams = SFZone.defaultEnv;
   public get volEnv() {
     if (!this._modEnv) {
       this._modEnv = SFZone.defaultEnv;
@@ -197,31 +133,43 @@ export class SFZone {
   pan = -1; /* shift to right percent */
   attenuate: centibel = 0; /*db in attentuation*/
   instrumentID = -1;
-  rootkey = -1;
+  get scaleTuning() {
+    return this.generators[sf_gen_id.scaleTuning]
+      ? this.generators[sf_gen_id.scaleTuning].s16
+      : 0;
+  }
+  get keynumToVolEnvDecay() {
+    return this.generators[sf_gen_id.keynumToVolEnvDecay]
+      ? this.generators[sf_gen_id.keynumToVolEnvDecay].s16
+      : 0;
+  }
+  private _rootkey = -1;
+  public get rootkey() {
+    return this._rootkey > -1 ? this._rootkey : this.sample.originalPitch;
+  }
+  public set rootkey(value) {
+    this._rootkey = value;
+  }
   tuning = 0;
 
-  public get pitch(): number {
-    const rk = this.rootkey > -1 ? this.rootkey : this.sample.originalPitch;
-
-    return rk * 100 + this.tuning + Math.log2(this.sample.sampleRate) * 1200;
+  public get pitch(): centibel {
+    return this.rootkey * 100 + this.tuning - this.sample.pitchCorrection;
   }
 
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID = -1;
   generators: SFGenerator[] = [];
-  private shdr: Shdr;
 
   set sample(shdr: Shdr) {
-    this.shdr = shdr;
-    this.sampleOffsets.start += shdr.start;
-    this.sampleOffsets.end += shdr.end;
-    this.sampleOffsets.startLoop += shdr.startLoop;
-    this.sampleOffsets.endLoop += shdr.endLoop;
+    this._shdr = shdr;
   }
   get sample() {
     return {
-      ...this.shdr,
-      ...this.sampleOffsets,
+      ...this._shdr,
+      start: this._shdr.start + this.sampleOffsets[0],
+      end: this._shdr.end + this.sampleOffsets[1],
+      startLoop: this._shdr.startLoop + this.sampleOffsets[2],
+      endLoop: this._shdr.endLoop + this.sampleOffsets[3],
     };
   }
   mergeWith(zoneb: SFZone, from = 0) {
@@ -242,19 +190,20 @@ export class SFZone {
   applyGenVal(gen: SFGenerator, from?: number): void {
     switch (gen.operator) {
       case startAddrsOffset:
-        this.sampleOffsets.start += gen.s16;
+        this.sampleOffsets[0] += gen.s16;
+
         break;
       case endAddrsOffset:
-        this.sampleOffsets.end += gen.s16;
+        this.sampleOffsets[1] += gen.s16;
         break;
       case startloopAddrsOffset:
-        this.sampleOffsets.startLoop += gen.s16;
+        this.sampleOffsets[2] += gen.s16;
         break;
       case endloopAddrsOffset:
-        this.sampleOffsets.endLoop += gen.s16;
+        this.sampleOffsets[3] += gen.s16;
         break;
       case startAddrsCoarseOffset:
-        this.sampleOffsets.start += 15 << gen.s16;
+        this.sampleOffsets[0] += gen.s16 << 15;
         break;
       case modLfoToPitch:
         this.modLFO.effects.pitch = gen.s16;
@@ -280,7 +229,7 @@ export class SFZone {
         this.modEnv.effects.filter = gen.s16;
         break;
       case endAddrsCoarseOffset:
-        this.sampleOffsets.end += 15 << gen.s16;
+        this.sampleOffsets[1] += gen.s16 << 15;
         break;
       case modLfoToVolume:
         this.modLFO.effects.volume = gen.s16;
@@ -420,7 +369,8 @@ would be 1200log2(.01) = -7973. */
 
         break;
       case startloopAddrsCoarse:
-        this.sampleOffsets.startLoop += 15 << gen.s16;
+        this.sampleOffsets[2] += gen.s16 << 15;
+
         break;
       case keynum:
         break;
@@ -432,7 +382,9 @@ would be 1200log2(.01) = -7973. */
       case reserved2:
         break;
       case endloopAddrsCoarse:
-        this.sampleOffsets.endLoop += 15 << gen.s16;
+        this.sampleOffsets[3] += gen.s16 << 15;
+
+        // this._shdr.endLoop += 15 << gen.s16;
         break;
       case coarseTune:
         this.tuning += gen.s16 * 100; //semitone

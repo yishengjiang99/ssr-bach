@@ -1,0 +1,26 @@
+{
+  "name": "ssr-bach",
+  "version": "1.0.0",
+  "description": "sincere attemp at originality but with help from many many repos i read on this website.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yishengjiang99/ssr-bach.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yishengjiang99/ssr-bach/issues"
+  },
+  "homepage": "https://github.com/yishengjiang99/ssr-bach#readme",
+  "dependencies": {
+    "parse-sf2": "^2.1.1"
+  }
+}

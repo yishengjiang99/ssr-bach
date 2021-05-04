@@ -1,6 +1,7 @@
-import { SFZone, Shdr, SFGenerator } from './Zone.js';
+import { SFZone, SFGenerator } from './Zone.js';
 import { IBag, InstrHeader, Mod, Pbag, Phdr } from './pdta.types.js';
 import { IReadAB } from './aba.js';
+import { Shdr } from './index.js';
 type findPresetFnType = (
   pid: number,
   bank_id?: number,
@@ -73,7 +74,7 @@ export class PDTA {
     const [ibag, iheaders] = [this.ibag, this.iheaders];
 
     const ihead = iheaders[instId];
-    if (!ihead) return null;
+
     return {
       inst: ihead,
       defaultBg: ibag[ihead.iBagIndex].izone,
@@ -256,33 +257,6 @@ export class PDTA {
     } while (n++ <= 9);
   }
 
-  defaultZone(pid: number, bankId: number) {
-    const preset = this.phdr.find(
-      (p) => p.presetId == pid && p.bankId == bankId
-    );
-    const presetDefaults = this.pbag[preset.pbagIndex].pzone;
-    const inst = this.iheaders[preset.insts[0]];
-    const instDefault = this.ibag[inst.iBagIndex].izone;
-
-    const ibags = inst.ibags.map((ib) => this.ibag[ib].izone);
-    const pbags = preset.pbags.map((pb) => this.pbag[pb]);
-    return {
-      presetDefaults,
-      instDefault,
-      ibags,
-      pbags,
-      adjZone: (key, vel) => {
-        const ib = ibags.filter((z) => keyVelInRange(z, key, vel))[0];
-        return makeRuntime(
-          ib,
-          instDefault,
-          pbags.filter((pb) => keyVelInRange(pb.pzone, key, vel))[0],
-          presetDefaults,
-          this.shdr[ib.sampleID]
-        );
-      },
-    };
-  }
   private addPbagToPreset(pbagId: number, phdrId: number) {
     if (this.pbag[pbagId].pzone.instrumentID == -1) {
       if (this.phdr[phdrId].defaultBag == -1)
@@ -330,7 +304,6 @@ function makeRuntime(
   }
   output.applyGenVals();
   output.sample = shr;
-  delete output.generators;
   return output;
 }
 function keyVelInRange(zone: SFZone, key: number, vel: number): boolean {

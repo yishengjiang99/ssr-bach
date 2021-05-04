@@ -1,48 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Mocha</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<head>
+		<meta charset="utf-8" />
+		<title>Mocha</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.js"
-      integrity="sha512-TfAL33PtGUxii1awTCbr3qbzQT5fYi7ItCGUfzWlnMJ4cK5BA8JNY4gJzEs+tQVbyElVbtcI2Jlaf9EFVMvyeg=="
-      crossorigin="anonymous"
-    ></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.css"
-      crossorigin="anonymous"
-    />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"
-      crossorigin="anonymous"
-    ></script>
-  </head>
-  <body>
-    <div id="mocha">
-      <canvas></canvas> <button>play</button> <canvas></canvas>
-    </div>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.js"
+			integrity="sha512-TfAL33PtGUxii1awTCbr3qbzQT5fYi7ItCGUfzWlnMJ4cK5BA8JNY4gJzEs+tQVbyElVbtcI2Jlaf9EFVMvyeg=="
+			crossorigin="anonymous"
+		></script>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/mocha/8.3.2/mocha.min.css"
+			crossorigin="anonymous"
+		/>
+		<script
+			src="https://cdnjs.cloudflare.com/ajax/libs/chai/4.3.4/chai.min.js"
+			crossorigin="anonymous"
+		></script>
+	</head>
+	<body>
+		<div id="mocha"><canvas></canvas> <button>play</button> <canvas></canvas></div>
 
-    <script type="module">
-      import { SF2File } from './node_modules/parse-sf2/dist/index.js';
+		<script type="module">
+			import { SF2File } from "./node_modules/parse-sf2/dist/index.js";
 
-      import { initWithSF2 } from './index.js';
-      mocha.setup('bdd');
-      describe('mocha', () => {
-        it('tests things', async () => {
-          const sff = new SF2File(
-            await (await fetch('file.sf2')).arrayBuffer()
-          );
+			import { initWithSF2 } from "./index.js";
+			mocha.setup("bdd");
+			describe("mocha", () => {
+				it("tests things", async () => {
+					const sff = new SF2File(await (await fetch("file.sf2")).arrayBuffer());
 
-          const { sdd } = await initWithSF2(sff);
+					const { sdd } = await initWithSF2(sff);
 
-          console.log(keyon(0, 55, 33));
-          chai.expect(true);
-        });
-      });
-      mocha.run();
-    </script>
-  </body>
+					console.log(keyon(0, 55, 33));
+					chai.expect(true);
+				});
+			});
+			mocha.run();
+		</script>
+	</body>
 </html>

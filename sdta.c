@@ -15,5 +15,4 @@ typedef struct
 
 void render(short *input, float *output, nco_params *nco_params)
 {
-  
 }
