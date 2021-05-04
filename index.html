@@ -365,7 +365,7 @@
 		</script>
 		<script type="module">
 			import { h, mlist, pdtaView } from "./dist/react-light.js";
-			import { SF2File } from "./node_modules/parse-sf2/dist/sffile.js";
+			import { SF2File } from "../sffilebundle.js";
 			//	const maindiv = document.querySelector("main").appendChild(mlist());
 
 			let timer, _pdta, proc, ctx;
@@ -373,7 +373,7 @@
 			const midiurls = [
 				// 'c.mid',
 
-				"silent_night_easy.mid",
+				"song.mid",
 			];
 			const workletcode = URL.createObjectURL(
 				new Blob([document.getElementById("workletcode").textContent], {
@@ -469,7 +469,7 @@
 					const ratio = t / _t;
 					for (let i = 0; i < tracks.length; i++) {
 						const track = tracks[i];
-						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 230) {
+						while (track.notes && track.notes[0] && track.notes[0].ticks < _t) {
 							const note = track.notes.shift();
 							const z = _pdta.findPreset(
 								track.instrument.number,
@@ -478,9 +478,9 @@
 								note.velocity * 127
 							);
 
-							if (z && z[0]) {
+							if (z && z[z.length - 1]) {
 								proc.port.postMessage({
-									zone: z[0].serialize(),
+									zone: z[z.length - 1].serialize(),
 									note: {
 										midi: note.midi,
 										velocity: note.velocity * 127,
@@ -489,7 +489,7 @@
 										channelId: track.channel,
 									},
 								});
-								console.log(z[0]);
+								//	console.log(z[0]);
 							}
 						}
 						t += 200;
