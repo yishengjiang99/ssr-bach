@@ -1,4 +1,4 @@
-import { SFZone, EnvParams } from "../node_modules/parse-sf2/dist/";
+import { SFZone, EnvParams } from "../node_modules/parse-sf2/dist/index.js";
 const attenuate2gain = (cent: number) => Math.pow(10, cent / -200);
 const centtime2sec = (centtime: number) => Math.pow(2, centtime / 1200);
 export type fn = () => void;

@@ -57,7 +57,7 @@
             button.addEventListener(
               'mouseup',
               () => {
-                triggers.onReleases.forEach((r) => r());
+                triggers.onReleases.forEach(async (r) => r());
               },
               { once: true }
             );
@@ -65,7 +65,7 @@
         });
       }
 
-      start();
+      start(4);
       // document.write(abs.buffer.getChannelData(0).slice0);
     </script>
   </body>

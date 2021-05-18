@@ -1,18 +1,15 @@
-import { initsfbk } from "./sfbk.js";
-import { Midi } from "../lib/miditone.js";
-let sdta, timer, _pdta, proc, ctx;
-let playing = false;
-const midiurls = ["midi/serenade_k361_3rd-mid.mid"];
-const workletcode = URL.createObjectURL(
-	new Blob([document.getElementById("workletcode").textContent], {
-		type: "text/javascript",
-	})
-);
-const [playBtn, stopbtn] = Array.from(document.querySelectorAll("button"));
+import { h, mlist, pdtaView } from "./dist/react-light.js";
+import { SF2File } from "./dist/index.js";
+//	const maindiv = document.querySelector("main").appendChild(mlist());
 
-export const ch = new MessageChannel();
-const cosole = document.createElement("pre");
-document.body.append(cosole);
+let timer, _pdta, proc, ctx;
+let playing = false;
+const midiurls = ["song.mid"];
+
+const [playBtn, stopbtn] = Array.from(document.querySelectorAll("button"));
+const ch = new MessageChannel();
+const cosole = document.querySelector("pre");
+const div = document.querySelector("pre");
 const logs = [];
 
 const loghtml = (...entry) => {
@@ -20,66 +17,84 @@ const loghtml = (...entry) => {
 	cosole.innerHTML = logs.join("\n");
 	if (logs.length > 90) logs.shift();
 };
+const prog = document.querySelector("#prog progress");
+ch.port1.onmessage = (e) => {
+	const {
+		data: {
+			prog: [n, d],
+			msg,
+		},
+	} = e;
+
+	if (n && d) {
+		prog.setAttribute("max", d + ""); // = d;
+		prog.setAttribute("value", n + "");
+	}
+};
 const sfurls = ["GeneralUserGS.sf2"];
 
 queueMicrotask(init);
-
+let sdta;
 async function init() {
-	const { pdta, sdtaWait } = await initsfbk(sfurls[0], ch.port2);
-	_pdta = pdta;
-	sdta = await sdtaWait;
+	loghtml("loading.");
+
+	const sffile = await SF2File.fromURL("GeneralUserGS.sf2");
+	sdta = sffile.sdta;
+	_pdta = sffile.pdta;
+	loghtml("loaded");
+
 	playBtn.removeAttribute("disabled");
 }
-
 playBtn.addEventListener("click", async (e) => {
 	if (!ctx) {
 		loghtml("starting.");
 		ctx = new AudioContext();
-		await ctx.audioWorklet.addModule(workletcode);
+		await ctx.audioWorklet.addModule("dist/rend-proc.js");
 		proc = new AudioWorkletNode(ctx, "rend-proc", {
 			outputChannelCount: [2],
 		});
 		loghtml("got proc.");
 
-		proc.onprocessorerror = () => {
+		proc.onprocessorerror = (e) => {
 			console.trace();
 		};
-		const procreadyWait = new Promise<void>((resolve) => {
+		const procreadyWait = new Promise((resolve) => {
 			proc.port.onmessage = (e) => {
 				console.log(e);
 				resolve();
 			};
 		});
-		proc.port.postMessage({ samples: sdta.buffer }, [sdta.buffer]);
+		proc.port.postMessage({ samples: sdta.floatArr });
 		loghtml("posting samp");
 		await procreadyWait;
 		await ctx.resume();
 		proc.connect(ctx.destination);
 		playing = true;
 		loghtml("posting samp");
-		playMidi(midiurls[0]);
-		(e.target as HTMLElement).setAttribute("disabled", "true");
+		timer = playMidi(midiurls[0]);
+		playBtn.setAttribute("disabled", "true");
 		stopbtn.setAttribute("disabled", "false");
 	}
 });
-stopbtn.addEventListener("click", () => {
+stopbtn.addEventListener("click", (e) => {
 	playing = false;
 	stopbtn.setAttribute("disabled", "true");
 	playBtn.setAttribute("disabled", "false");
 });
-async function loadMidi(url: string) {
+
+async function loadMidi(url) {
 	const { durationTicks, header, tracks } = await Midi.fromUrl(url);
 }
 async function playMidi(url) {
 	const { durationTicks, header, tracks } = await Midi.fromUrl(url);
-
 	let t = 1;
 	while (t < durationTicks && playing) {
 		let output = "";
 		const _t = header.secondsToTicks(t / 1000);
+		const ratio = t / _t;
 		for (let i = 0; i < tracks.length; i++) {
 			const track = tracks[i];
-			while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 230) {
+			while (track.notes && track.notes[0] && track.notes[0].ticks < _t) {
 				const note = track.notes.shift();
 				const z = _pdta.findPreset(
 					track.instrument.number,
@@ -88,9 +103,9 @@ async function playMidi(url) {
 					note.velocity * 127
 				);
 
-				if (z && z[0]) {
+				if (z && z[z.length - 1]) {
 					proc.port.postMessage({
-						zone: z[0].serialize(),
+						zone: z[z.length - 1].serialize(),
 						note: {
 							midi: note.midi,
 							velocity: note.velocity * 127,
@@ -99,12 +114,17 @@ async function playMidi(url) {
 							channelId: track.channel,
 						},
 					});
-					console.log(z[0]);
+					//	console.log(z[0]);
 				}
 			}
 			t += 200;
-			// await new Promise((r) => setTimeout(r, 200));
-			//	if (output) pre.innerHTML = output;
+			await new Promise((r) => setTimeout(r, 200));
+			if (output) div.innerHTML = output;
 		}
 	}
 }
+
+window.onhashchange = () => {
+	midiurls[0] = "https://www.grepawk.com/ssr-bach/midi/" + location.hash.substr(1);
+	playMidi(midiurls[0]);
+};

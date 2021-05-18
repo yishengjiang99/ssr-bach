@@ -1,7 +1,7 @@
 import { readAB } from "./aba.js";
-import { SFZone, Shdr } from "./Zone.js";
+import { SFZone } from "./Zone.js";
 import { PDTA } from "./pdta.js";
-
+import { Shdr } from "./sf.types.js";
 interface SFBKRet {
 	pdta: PDTA;
 	sdtaWait: Promise<Float32Array>;

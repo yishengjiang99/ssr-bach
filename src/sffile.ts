@@ -1,5 +1,6 @@
 import { readAB } from "./aba.js";
 import { PDTA } from "./pdta.js";
+import { reader } from "./reader.js";
 import { SFZone } from "./Zone.js";
 
 export class SF2File {
@@ -11,8 +12,13 @@ export class SF2File {
 		iterator: any;
 	};
 	static fromURL: (url: string) => Promise<SF2File>;
-	constructor(ab: ArrayBuffer | Uint8Array) {
-		const r = readAB(ab);
+	constructor(ab: ArrayBuffer | Uint8Array | string) {
+		let r;
+		if (typeof ab == "string") {
+			r = reader(ab);
+		} else {
+			r = readAB(ab);
+		}
 		console.assert(r.read32String() == "RIFF");
 		let size: number = r.get32();
 		console.assert(r.read32String() == "sfbk");

@@ -111,7 +111,7 @@ export async function init(
 			.get("pitchShift")!
 			.setValueAtTime(Math.pow(2, (key * 100 - z.pitch) / 1200), ctx.currentTime + 0.1);
 		pendingRelease[channel].push(onRelease as ReleaseTrig);
-		return z;
+		return [z];
 	}
 	function keyOff(channel: number, key: number) {
 		if (pendingRelease[channel][0]) {

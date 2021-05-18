@@ -2,37 +2,34 @@ export interface IGetSample {
 	data: Float32Array;
 	audioBufferSrc: (ctx: AudioContext) => AudioBufferSourceNode;
 	loop: number[];
-	shift: Generator<number, void, unknown>;
+	shift: (pitchRatio: number, lenght: number) => Generator<number, any, unknown>;
 }
 
-export function getSample(shr: any, sdta: Float32Array): AudioBufferSourceNode {
+export function getSample(shr: any, sdtafl: Float32Array): IGetSample {
 	const { start, end } = shr;
-	const data = sdta.subarray(start, end);
+	const data = sdtafl.subarray(start, end);
 
 	const loop = [shr.startLoop - shr.start, shr.endLoop - shr.start];
-	function* shift(pitchRatio = 1) {
+	function* shift(pitchRatio = 1, length = 48000) {
 		let pos = 0;
-		while (true) {
+		while (length-- >= 0) {
 			pos = pos + pitchRatio;
 			if (pos >= loop[1]) pos = loop[0];
 			yield data[pos];
 		}
+		return null;
 	}
 	return {
-		loop,
-		audioBufferSrc: (ctx) => {
-			const myArrayBuffer = ctx.createBuffer(1, 3 * ctx.sampleRate, ctx.sampleRate);
-			myArrayBuffer.copyToChannel(data, 0);
-			// ab.copyToChannel(sample, 0); // (0) = sample;
-			return new AudioBufferSourceNode(ctx, {
-				buffer: myArrayBuffer,
-				loop: true,
-
-				loopEnd: loop[0],
-				loopStart: loop[1],
-			});
-		},
-		shift: shift(),
 		data,
+		loop,
+		shift,
+		audioBufferSrc: (ctx) =>
+			new AudioBufferSourceNode(ctx, {
+				buffer: new AudioBuffer({
+					numberOfChannels: 1,
+					length: 48000,
+					sampleRate: ctx.sampleRate,
+				}),
+			}),
 	};
 }

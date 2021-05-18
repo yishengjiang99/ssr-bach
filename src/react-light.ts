@@ -1,4 +1,3 @@
-import { generatorNames, keys88 } from "./sf.types.js";
 import { std_inst_names } from "./utilv1.js";
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */

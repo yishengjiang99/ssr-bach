@@ -21,6 +21,18 @@
   },
   "homepage": "https://github.com/yishengjiang99/ssr-bach#readme",
   "dependencies": {
-    "parse-sf2": "^2.1.1"
+    "@types/mocha": "^8.2.2",
+    "babel-loader": "^8.2.2",
+    "grepupload": "^1.1.10",
+    "midiread": "^2.0.2",
+    "mkdiv": "^1.0.1",
+    "mocha": "^8.4.0",
+    "parse-sf2": "^2.1.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.13.16",
+    "@babel/core": "^7.14.2",
+    "@babel/preset-env": "^7.14.2",
+    "@babel/preset-typescript": "^7.13.0"
   }
 }
