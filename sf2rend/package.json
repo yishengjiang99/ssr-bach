@@ -1,0 +1,17 @@
+{
+	"name": "sf2rend",
+	"version": "1.0.0",
+	"description": "",
+	"main": "ctxemwtf.js",
+	"scripts": {
+		"dev": "emcc -fsanitize=undefined -g4 ctx.c -o build/ctx.wasm --no-entry && node make",
+		"build": "wa-compile -O ctx.c -o build/ctx.wasm && node make",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "Yisheng Jiang",
+	"license": "ISC",
+	"dependencies": {
+		"parse-sf2": "^2.1.2"
+	}
+}
