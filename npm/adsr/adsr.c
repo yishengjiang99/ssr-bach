@@ -9,15 +9,15 @@ typedef struct
 	float att_rate, decay_rate, release_rate;
 } adsr_t;
 #define fmax(a, b) a > b ? a : b
-
+extern void console_log(const char *str, short v);
 adsr_t *newEnvelope(void *ptr, short centAtt, short centDecay, short centRelease, short sustain, int sampleRate)
 {
 	adsr_t *env = (adsr_t *)ptr;
-
-	env->att_steps = powf(2.0f, centAtt * 1.0f / 1200.0f) * sampleRate;
+	console_log("st cent", centAtt);
+	env->att_steps = powf(2.0f, (centAtt * 1.0f) / 1200.0f) * sampleRate;
 	env->decay_steps = powf(2.0f, centDecay * 1.0f / 1200.0f) * sampleRate;
 	env->release_steps = powf(2.0f, centRelease * 1.0f / 1200.0f) * sampleRate;
-
+	console_log("asteps", (short)env->att_steps);
 	if (env->att_steps < 12)
 	{
 		env->att_steps = 0;
@@ -33,6 +33,7 @@ adsr_t *newEnvelope(void *ptr, short centAtt, short centDecay, short centRelease
 }
 float envShift(adsr_t *env)
 {
+	console_log("shifted", env->att_steps);
 	if (env->att_steps > 0)
 	{
 		env->att_steps--;

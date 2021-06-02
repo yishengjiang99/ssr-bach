@@ -26,18 +26,33 @@
     </div>
     <script type="module">
           import {envelope} from "./index.js";
-const expect=chai.expect;
-mocha.setup('bdd');
-      describe('envelope', () => {
-        it('instantiates', () => {
           const envv=envelope(-1200,-1200,0,800,48000);
-          console.log(envv.info());
-          expect(envv.info().att_steps).to.eq(Math.pow(2, -1200/1200)*48000);
-          expect(envv.info().decay_steps).to.eq(Math.pow(2, -1200/1200)*48000);
+          envv.shift();
+while(envv.releaseSteps>0){
+  envv.shift();
+  console.log(envv.info().db_attenuate)
+}
+// }
+// done();
+// const expect=chai.expect;
+// mocha.setup('bdd');
+//       describe('envelope', () => {
+//         it('instantiates', () => {
+//           const envv=envelope(-1200,-1200,0,800,48000);
+//           expect(envv.info().att_steps).to.eq(Math.pow(2, -1200/1200)*48000);
+//           //expect(envv.info().decay_steps).to.eq(Math.pow(2, -1200/1200)*48000);
 
-        });
-      });
-      mocha.run();
+//         })
+//         it('runs',(done)=>{
+//           envv.shift();
+// while(envv.releaseSteps>0){
+//   envv.shift();
+//   console.log(envv.info().db_attenuate)
+// }
+// done();
+//         })
+//       });
+//       mocha.run();
     </script>
   </body>
 </html>

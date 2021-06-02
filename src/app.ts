@@ -1,6 +1,6 @@
-import { h, mlist, pdtaView } from "./dist/react-light.js";
-import { SF2File } from "./dist/index.js";
-//	const maindiv = document.querySelector("main").appendChild(mlist());
+import { SF2File } from "../npm/parse-sf2/dist/index.js";
+import { readMidi } from "../midiread/esm/midiread.js";
+import { fetchAwaitBuffer } from "./react-light.js";
 
 let timer, _pdta, proc, ctx;
 let playing = false;
@@ -26,7 +26,8 @@ ch.port1.onmessage = (e) => {
 		},
 	} = e;
 
-	if (n && d) {
+	if (n && d)
+	{
 		prog.setAttribute("max", d + ""); // = d;
 		prog.setAttribute("value", n + "");
 	}
@@ -46,7 +47,8 @@ async function init() {
 	playBtn.removeAttribute("disabled");
 }
 playBtn.addEventListener("click", async (e) => {
-	if (!ctx) {
+	if (!ctx)
+	{
 		loghtml("starting.");
 		ctx = new AudioContext();
 		await ctx.audioWorklet.addModule("dist/rend-proc.js");
@@ -61,7 +63,7 @@ playBtn.addEventListener("click", async (e) => {
 		const procreadyWait = new Promise((resolve) => {
 			proc.port.onmessage = (e) => {
 				console.log(e);
-				resolve();
+				resolve(proc);
 			};
 		});
 		proc.port.postMessage({ samples: sdta.floatArr });
@@ -83,45 +85,30 @@ stopbtn.addEventListener("click", (e) => {
 });
 
 async function loadMidi(url) {
-	const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+	readMidi(new Uint8Array(await fetchAwaitBuffer(url)));
 }
 async function playMidi(url) {
-	const { durationTicks, header, tracks } = await Midi.fromUrl(url);
-	let t = 1;
-	while (t < durationTicks && playing) {
-		let output = "";
-		const _t = header.secondsToTicks(t / 1000);
-		const ratio = t / _t;
-		for (let i = 0; i < tracks.length; i++) {
-			const track = tracks[i];
-			while (track.notes && track.notes[0] && track.notes[0].ticks < _t) {
-				const note = track.notes.shift();
-				const z = _pdta.findPreset(
-					track.instrument.number,
-					track.instrument.percussion ? 128 : 0,
-					note.midi,
-					note.velocity * 127
-				);
+	const reader = readMidi(new Uint8Array(await fetchAwaitBuffer(url)));
+	const track = {};
+	const programs = [];
 
-				if (z && z[z.length - 1]) {
-					proc.port.postMessage({
-						zone: z[z.length - 1].serialize(),
-						note: {
-							midi: note.midi,
-							velocity: note.velocity * 127,
-							start: note.time,
-							durationTime: note.durationTime,
-							channelId: track.channel,
-						},
-					});
-					//	console.log(z[0]);
-				}
-			}
-			t += 200;
-			await new Promise((r) => setTimeout(r, 200));
-			if (output) div.innerHTML = output;
+	reader.callback = (cmd, obj, time) => {
+		switch (cmd)
+		{
+			case "noteOff":
+
+			case "noteOn":
+				const z = _pdta.findPreset(track, obj.channel == 9 ? 128 : 0, obj.note, obj.vel);
+				proc.port.postMessage({ zone: z, note: obj }); //, note.velocity * 127);
+				break;
+
+			case "Program":
+				programs[obj.channel] = obj.program;
+				break;
 		}
-	}
+	};
+	reader.start();
+
 }
 
 window.onhashchange = () => {

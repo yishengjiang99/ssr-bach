@@ -1,26 +1,514 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<script>
-
-		</script>
-		<script src="lib/miditone.js"></script>
+<script src="lib/miditone.js"></script>
 	</head>
 
 	<body style="display: grid; place-items: center">
 		<span id="prog"><label></label><progress value="0" max="0"></progress></span>
 		<main>
-			<table>
-				<tr><td>title</td><td>btns</td></tr>
-
-			</table>
 			<pre></pre>
 			<button disabled>start</button>
 			<button disabled>stop</button>
 		</main>
+		<script
+			schema="https://github.com/guest271314/AudioWorkletStream/blob/shared-memory-audio-worklet-stream/index.html"
+			type="template/javascript"
+			id="workletcode"
+		>
+			/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+			const dbfs = 960;
+			class LUT {
+			  static init() {
+			    if (LUT.absTC.length > 0) return;
+			    for (let n = 0; n < 20000; n += 1)
+			      LUT.absTC[n] = Math.pow(2.0, (n - 12000.0) / 1200.0);
+			    LUT.cent2amp = [];
+			    for (let i = 0; i <= dbfs; i++) {
+			      LUT.cent2amp[i] = Math.pow(10, i / -200.0);
+			    }
+			    LUT.velCB = new Array(128);
+			    LUT.velCB[0] = 0.0;
+			    LUT.velCB[127] = 1.0;
+			    for (let i = 1; i < 127; i++) {
+			      LUT.velCB[i] = (-200.0 / dbfs) * Math.log((i * i) / (127 * 127));
+			    }
+			    for (let n = 0; n < 2400; n++) {
+			      LUT.relPC[n] = Math.pow(2.0, (n - 1200.0) / 1200.0);
+			    }
+			    for (let n = 0; n < 128; n++) {
+			      LUT.frqST[n] = 440 * Math.pow(2, (n - 69) / 12.0);
+			    }
+			    LUT.midiCB[0] = 0;
+			    LUT.midiCB[127] = 1.0;
+			    for (let n = 1; n < 128; n++) {
+			      LUT.midiCB[n] = -200.0 * Math.log(n / 127);
+			    }
+			  }
+			  static centtime2sec(ct) {
+			    if (ct < -12000) return 0.001;
+			    if (ct > 8000) return 30;
+			    ct = ct + 12000;
+			    return LUT.absTC[~~ct];
+			  }
+			  static midi2cb(midi) {
+			    if (midi > 127 || midi < 0) throw 'out of range ';
+			    return LUT.midiCB[~~midi];
+			  }
+			  static getAmp(cb) {
+			    cb = ~~cb;
+			    if (cb <= 0) return 1;
+			    if (cb >= dbfs) return 0;
+			    return LUT.cent2amp[cb];
+			  }
+			}
+			LUT.relPC = [];
+			LUT.frqST = [];
+			LUT.midiCB = [];
+			LUT.velCB = [];
+			LUT.cent2amp = [];
+			LUT.absTC = [];
+			LUT.init();
+			function cent2hz(centiHz) {
+			  return 8.176 * Math.pow(2, centiHz / 1200.0);
+			}
+			function timecent2sec(timecent) {
+			  return Math.pow(2, timecent / 1200.0);
+			}
+			function centidb2gain(centibel) {
+			  return Math.pow(10, centibel / 200);
+			}
+			class LFO {
+			  constructor(delay, freq, effects, sampleRate = 48000) {
+			    this.sampleRate = 48000;
+			    this.amount = 0;
+			    this.cycles = 0;
+			    this.sampleRate = sampleRate;
+			    this.delta = (4.0 * cent2hz(freq)) / sampleRate; //covering distance of 1/4 4 times per cycle..
+			    this.delay = delay < -12000 ? 0 : Math.pow(2, delay / 1200) * sampleRate;
+			    this.effects = effects;
+			  }
+			  static fromJSON(str) {
+			    const obj = JSON.parse(str);
+			    return new LFO(obj.delay, obj.freq, obj.effects);
+			  }
+			  shift(steps = 1) {
+			    while (steps-- > 0) {
+			      if (this.delay-- > 0) continue;
+			      this.amount += this.delta;
+			      if (this.amount >= 1 || this.amount <= -1) {
+			        this.delta = -1 * this.delta;
+			        this.cycles++;
+			      }
+			    }
+			    return this.amount;
+			  }
+			  get val() {
+			    return this.amount;
+			  }
+			  get volCB() {
+			    return (this.effects.volume * this.amount) / 10;
+			  }
+			  get pitchCent() {
+			    return this.effects.pitch * this.amount;
+			  }
+			}
+			const stagesEnum = {
+			  delay: 0,
+			  attack: 1,
+			  hold: 2,
+			  decay: 3,
+			  release: 4,
+			  done: 5,
+			};
+			class Envelope {
+			  constructor(phases, sustainCB, sampleRate = 48000) {
+			    this.state = {
+			      stage: 0,
+			      stageStep: 0,
+			    };
+			    this.stages = [];
+			    this.keyOff = false;
+			    this.releaseTimeout = 99999;
+			    if (phases[4]) {
+			      const [delay, attack, hold, decay, release] = phases;
+			      return new Envelope(
+			        { delay, attack, hold, decay, release },
+			        sustainCB,
+			        sampleRate
+			      );
+			    }
+			    const { delay, attack, hold, decay, release } = phases;
+			    this.stages = [delay, attack, hold, decay, release]
+			      .map((centime) => LUT.centtime2sec(centime) * sampleRate)
+			      .map((t) => Math.max(1, t));
+			    const normalizedSustain = 1 - sustainCB / 1000;
+			    this.amts = [0, 0, 1, 1, normalizedSustain, 0];
+			    this.deltas = [
+			      0,
+			      1 / this.stages[1],
+			      0,
+			      normalizedSustain / this.stages[3],
+			      -1 / this.stages[4],
+			      0,
+			    ];
+			    this.egval = 0;
+			  }
+			  get done() {
+			    return this.egval < -10 || this.state.stage == 5;
+			  }
+			  get val() {
+			    return this.egval;
+			  }
+			  shift(steps) {
+			    this.releaseTimeout -= steps;
+			    if (this.releaseTimeout <= 128) {
+			      this.triggerRelease();
+			    }
+			    const { stage, stageStep } = this.state;
+			    if (stage === 5) return 0;
+			    const stepsremining = this.stages[stage] - stageStep - steps;
+			    if (stepsremining < 0) {
+			      this.state.stage++;
+			      this.state.stageStep = -1 * stepsremining;
+			      this.egval =
+			        this.amts[this.state.stage] +
+			        this.deltas[this.state.stage] * this.state.stageStep;
+			    } else {
+			      this.state.stageStep += steps;
+			      this.egval += steps * this.deltas[this.state.stage];
+			    }
+			  }
+			  get ampCB() {
+			    return (1 - this.egval) * dbfs;
+			  }
+			  get gain() {
+			    return Math.pow(10, this.ampCB / -200.0);
+			  }
+			  get modCenTune() {
+			    return this.effects.pitch * this.egval;
+			  }
+			  get stage() {
+			    return this.state.stage;
+			  }
+			  *iterator() {
+			    if (this.done) return 0;
+			    else yield this.val;
+			  }
+			  triggerRelease(timeout = 0) {
+			    if (timeout && timeout > 0) this.releaseTimeout = timeout;
+			    else if (this.state.stage < stagesEnum.release) {
+			      this.state.stage = stagesEnum.release;
+			      this.state.stageStep = 0;
+			      this.stages[stagesEnum.release] =
+			        this.egval / this.deltas[stagesEnum.release];
+			    }
+			  }
+			}
+			class Runtime {
+			  constructor(zone, note, sr = 48000) {
+			    this.zone = zone;
+			    this.staticLevels = {
+			      gainCB: zone.attenuate + LUT.velCB[note.velocity],
+			      pitch:
+			        note.key * 100 -
+			        zone.tuning -
+			        (zone.rootkey > -1 ? zone.rootkey : zone.sample.originalPitch) * 100 +
+			        Math.log2(zone.sample.sampleRate) * 1200 -
+			        Math.log2(sr) * 1200,
+			      filter: zone.lpf.cutoff,
+			      pan: {
+			        left: 0.5 - zone.pan / 1000,
+			        right: 0.5 + zone.pan / 1000,
+			      },
+			    };
 
-		<script type="module" src='./dist/app.js'>
-		
+			    zone.modEnv.phases.attack =
+			      (zone.modEnv.phases.attack * (145 - note.velocity)) / 144.0;
+			    this.iterator = zone.sample.start;
+			    const ampVol = new Envelope(zone.volEnv.phases, zone.volEnv.sustain);
+			    const modVol = new Envelope(zone.modEnv.phases, zone.modEnv.sustain);
+			    this.length =
+			      ampVol.stages[0] + ampVol.stages[1] + ampVol.stages[2] + ampVol.stages[3];
+			    this.sample = zone.sample;
+			    modVol.effects = zone.modEnv.effects;
+			    const modLFO = new LFO(
+			      zone.modLFO.delay,
+			      zone.modLFO.freq,
+			      zone.modLFO.effects
+			    );
+			    const vibrLFO = new LFO(
+			      zone.modLFO.delay,
+			      zone.modLFO.freq,
+			      zone.modLFO.effects
+			    );
+			    this.run = (steps) => {
+			      modVol.shift(steps);
+			      ampVol.shift(steps);
+			      modLFO.shift(steps);
+			      vibrLFO.shift(steps);
+			      const arates = {
+			        volume: LUT.getAmp(
+			          this.staticLevels.gainCB +
+			            ampVol.ampCB +
+			            (modVol.egval * modVol.effects.volume) / 10
+			        ),
+			        pitch: Math.pow(
+			          2,
+			          (this.staticLevels.pitch - vibrLFO.pitchCent) / 1200
+			        ),
+			        filter: 1,
+			      };
+			      return arates;
+			    };
+			    this.mods = { ampVol, modVol, modLFO, vibrLFO };
+			  }
+			  get smpl() {
+			    return this.sample;
+			  }
+			}
+
+			export {
+			  Envelope,
+			  LFO,
+			  LUT,
+			  Runtime,
+			  cent2hz,
+			  centidb2gain,
+			  dbfs,
+			  stagesEnum,
+			  timecent2sec,
+			};
+
+			      const sampleRate = 48000;
+			      //@ts-ignore
+			      class RenderProcessor extends AudioWorkletProcessor {
+			          constructor(options) {
+			              super();
+			              this.staging = [];
+			              this.production = new Array(16);
+			              this.port.onmessage = (e) => {
+			                  const { samples, zone, note } = e.data;
+			                  if (samples) {
+			                      this.samples = new Float32Array(samples);
+			                      this.startTime = globalThis.currentTime;
+			                      this.port.postMessage({ ready: 1 });
+			                  }
+			                  if (zone && note) {
+			                    const sampleData=({start,end})=>this.samples.subarray(start,end);
+			                      const { start, channelId } = note;
+			                      const rt = new Runtime(zone, {
+			                          key: note.midi,
+			                          velocity: note.velocity,
+			                          channel: channelId,
+			                      });
+			                      this.staging.push({
+			                          channelId,
+			                          note,
+			                          rt,
+			                          sampleData: this.samples.subarray(zone.sample.start,zone.sample.end),
+			                          shift: 0.0,
+			                          get startFrame() {
+			                              if (this.startTime == null)
+			                                  return false;
+			                              return (start - this.startTime) / sampleRate;
+			                          },
+			                      });
+
+			                  }
+			              };
+			          }
+			          process(inputs, outputs, parameters) {
+			              while (this.staging[0]?.startFrame < globalThis.currentFrame + 128) {
+			                  const v = this.staging.shift();
+			                  v.preroll = ~~(v.startFrame - globalThis.currentFrame);
+			                  this.production[v.channelId] = v;
+			              }
+			              for (let vid = 0; vid < 17; vid++) {
+			                  if (!this.production[vid])
+			                      continue;
+			                  const v = this.production[vid];
+			                  let { preroll } = v;
+			                  //    const rootkey =v.rt.zone.rootKey >-1 ?v.rt.zone.rootKey :v.rt.zone.sample.originalPitch;
+			                  const { pitch, volume } = v.rt.run(128);
+			                  const pan = v.rt.staticLevels.pan;
+			                  let iterator = v.rt.iterator;
+			                  const looper = v.rt.sample.end - v.rt.sample.start;
+			                  for (let offset = 0; offset < 128; offset++) {
+			                      let newval;
+			                      if (preroll-- > 0) {
+			                          newval = 0;
+			                          continue;
+			                      }
+			                      else {
+			                          newval = this.samples[iterator];
+			                      }
+			                      newval = newval * volume;
+			                      outputs[0][0][offset] += newval * pan.left;
+			                      outputs[0][1][offset] += newval * pan.right;
+			                      v.shift = v.shift + pitch;
+			                      while (v.shift >= 1) {
+			                        iterator++;
+			                          v.shift--;
+			                      }
+			                      if (iterator >= v.rt.sample.endLoop) {
+			                        iterator = iterator- looper;
+			                      }
+			                  }
+			                  v.rt.iterator=iterator;
+			              }
+			              return true;
+			          }
+			      }
+			      // @ts-ignore
+			      registerProcessor('rend-proc', RenderProcessor);
+		</script>
+		<script type="module">
+			import { h, mlist ,mk_link} from "./dist/react-light.js";
+			import { SF2File } from "./node_modules/parse-sf2/dist/sffile.js";
+
+
+			let timer, _pdta, proc, ctx;
+			let playing = false;
+			let midiurls = [];
+			const workletcode = URL.createObjectURL(
+				new Blob([document.getElementById("workletcode").textContent], {
+					type: "text/javascript",
+				})
+			);
+			const [playBtn, stopbtn] = document.querySelectorAll("button");
+
+			const ch = new MessageChannel();
+			const cosole = document.querySelector("pre");
+			const div = document.querySelector("pre");
+			const logs = [];
+
+			const loghtml = (...entry) => {
+				logs.push(entry.join("\t"));
+				cosole.innerHTML = logs.join("\n");
+				if (logs.length > 90) logs.shift();
+			};
+			const prog = document.querySelector("#prog progress");
+			ch.port1.onmessage = (e) => {
+				const {
+					data: {
+						prog: [n, d],
+						msg,
+					},
+				} = e;
+
+				if (n && d) {
+					prog.max = d;
+					prog.value = n;
+				}
+			};
+			const sfurls = ["GeneralUserGS.sf2"];
+
+			queueMicrotask(init);
+			let sdta;
+			async function init() {
+				loghtml("loading.");
+				midiurls = await mlist();
+				const listhtml=h("ul");
+				midiurls.forEach(url=>{
+					listhtml.appendChild(h("li",{},mk_link(url, playMidi)))
+				})
+				document.querySelector("main").append(listhtml);
+
+			loghtml("loading.");
+
+				const sffile = await SF2File.fromURL("GeneralUserGS.sf2");
+				sdta = sffile.sdta;
+				_pdta = sffile.pdta;
+				loghtml("loaded");
+				playBtn.removeAttribute("disabled");
+			}
+			playBtn.addEventListener("click", async (e) => {
+				if (!ctx) {
+					loghtml("starting.");
+					ctx = new AudioContext();
+					await ctx.audioWorklet.addModule(workletcode);
+					proc = new AudioWorkletNode(ctx, "rend-proc", {
+						outputChannelCount: [2],
+					});
+					loghtml("got proc.");
+
+					proc.onprocessorerror = (e) => {
+						console.trace();
+					};
+					const procreadyWait = new Promise((resolve) => {
+						proc.port.onmessage = (e) => {
+							console.log(e);
+							resolve();
+						};
+					});
+
+					proc.port.postMessage({ samples: sdta.floatArr });
+			
+					loghtml("posting samp");
+					await procreadyWait;
+					await ctx.resume();
+					proc.connect(ctx.destination);
+					playing = true;
+					loghtml("posting samp");
+					timer = playMidi(midiurls[0]);
+					e.target.setAttribute("disabled", "true");
+					stopbtn.setAttribute("disabled", "false");
+				}
+			});
+			stopbtn.addEventListener("click", (e) => {
+				playing = false;
+				e.target.setAttribute("disabled", "true");
+				playBtn.setAttribute("disabled", "false");
+			});
+let timerr;
+			async function playMidi(url) {
+				const { durationTicks, header, tracks } = await Midi.fromUrl(url);
+				let t = 1;
+				if(timerr){
+					clearTimeout(timerr);
+				}
+				while (t < durationTicks && playing) {
+					let output = "";
+					const _t = header.secondsToTicks(t / 1000);
+					const ratio = t / _t;
+					for (let i = 0; i < tracks.length; i++) {
+						const track = tracks[i];
+						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 230) {
+							const note = track.notes.shift();
+							const z = _pdta.findPreset(
+								track.instrument.number,
+								track.instrument.percussion ? 128 : 0,
+								note.midi,
+								note.velocity * 127
+							);
+
+							if (z && z[0]) {
+								proc.port.postMessage({
+									zone: z[0].serialize(),
+									note: {
+										midi: note.midi,
+										velocity: note.velocity * 127,
+										start: note.time,
+										durationTime: note.durationTime,
+										channelId: track.channel,
+									},
+								});
+								console.log(z[0]);
+							}
+						}
+						t += 200;
+						await new Promise((r) => timerr=setTimeout(r, 200));
+						if (output) pre.innerHTML = output;
+					}
+				}
+			}
+			window.onhashchange = () => {
+				midiurls[0] = "https://www.grepawk.com/ssr-bach/midi/" + location.hash.substr(1);
+				playMidi(midiurls[0]);
+			};
+	//		document.body.append(mlist());
+
 		</script>
 	</body>
 </html>
