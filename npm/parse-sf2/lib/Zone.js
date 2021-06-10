@@ -1,9 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SFZone = exports.centidb2gain = exports.timecent2sec = exports.cent2hz = exports.SFGenerator = void 0;
-const sf_types_js_1 = require("./sf.types.js");
+import { sf_gen_id, LOOPMODES } from "./sf.types.js";
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-class SFGenerator {
+export class SFGenerator {
     constructor(_operator, int16) {
         this._operator = _operator;
         this.int16 = int16;
@@ -18,10 +15,10 @@ class SFGenerator {
         return this._operator;
     }
     get range() {
-        return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0xff };
+        return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0x7f };
     }
     get u16() {
-        return this.int16 & 0x0ff0; // | (this.hi << 8);
+        return this.int16 & 0x7fff; // | (this.hi << 8);
     }
     get s16() {
         return this.int16;
@@ -30,25 +27,21 @@ class SFGenerator {
         this.int16 += val;
     }
 }
-exports.SFGenerator = SFGenerator;
-function cent2hz(centiHz) {
+export function cent2hz(centiHz) {
     return 8.176 * Math.pow(2, centiHz / 1200.0);
 }
-exports.cent2hz = cent2hz;
-function timecent2sec(timecent) {
+export function timecent2sec(timecent) {
     return Math.pow(2, timecent / 1200.0);
 }
-exports.timecent2sec = timecent2sec;
-function centidb2gain(centibel) {
+export function centidb2gain(centibel) {
     return Math.pow(10, centibel / 200);
 }
-exports.centidb2gain = centidb2gain;
-class SFZone {
+export class SFZone {
     constructor(ids) {
         this.keyRange = { lo: -1, hi: 129 };
         this.velRange = { lo: -1, hi: 129 };
         this._shdr = {
-            name: 'init',
+            name: "init",
             start: 0,
             end: 0,
             startLoop: 0,
@@ -72,7 +65,7 @@ class SFZone {
         this.instrumentID = -1;
         this._rootkey = -1;
         this.tuning = 0;
-        this.sampleMode = sf_types_js_1.LOOPMODES.CONTINUOUS_LOOP;
+        this.sampleMode = LOOPMODES.CONTINUOUS_LOOP;
         this.sampleID = -1;
         this.generators = [];
         if (ids) {
@@ -123,13 +116,11 @@ class SFZone {
         this._volEnv = value;
     }
     get scaleTuning() {
-        return this.generators[sf_types_js_1.sf_gen_id.scaleTuning]
-            ? this.generators[sf_types_js_1.sf_gen_id.scaleTuning].s16
-            : 0;
+        return this.generators[sf_gen_id.scaleTuning] ? this.generators[sf_gen_id.scaleTuning].s16 : 0;
     }
     get keynumToVolEnvDecay() {
-        return this.generators[sf_types_js_1.sf_gen_id.keynumToVolEnvDecay]
-            ? this.generators[sf_types_js_1.sf_gen_id.keynumToVolEnvDecay].s16
+        return this.generators[sf_gen_id.keynumToVolEnvDecay]
+            ? this.generators[sf_gen_id.keynumToVolEnvDecay].s16
             : 0;
     }
     get rootkey() {
@@ -268,14 +259,14 @@ class SFZone {
                 this.volEnv.phases.delay = gen.s16;
                 break;
             case attackVolEnv /*This is the time, in absolute timecents, from the end of the Volume
-            Envelope Delay Time until the point at which the Volume Envelope
-            value reaches its peak. Note that the attack is “convex”; the curve is
-            nominally such that when applied to the decibel volume parameter, the
-            result is linear in amplitude. A value of 0 indicates a 1 second attack
-            time. A negative value indicates a time less than one second; a positive
-            value a time longer than one second. The most negative number (-
-            32768) conventionally indicates instantaneous attack. For example, an
-            attack time of 10 msec would be 1200log2(.01) = -7973.*/:
+      Envelope Delay Time until the point at which the Volume Envelope
+      value reaches its peak. Note that the attack is “convex”; the curve is
+      nominally such that when applied to the decibel volume parameter, the
+      result is linear in amplitude. A value of 0 indicates a 1 second attack
+      time. A negative value indicates a time less than one second; a positive
+      value a time longer than one second. The most negative number (-
+      32768) conventionally indicates instantaneous attack. For example, an
+      attack time of 10 msec would be 1200log2(.01) = -7973.*/:
                 this.volEnv.phases.attack = gen.s16;
                 break;
             case holdVolEnv:
@@ -286,7 +277,7 @@ class SFZone {
                 this.volEnv.phases.decay = gen.s16; //timecent2sec(gen.s16);
                 break;
             /** \']
-            
+          
             http://www.synthfont.com/SFSPEC21.PDF  is the decrease in level, expressed in centibels, to which the
             Volume Envelope value ramps during the decay phase. For the Volume
             Envelope, the sustain level is best expressed in centibels of attenuation
@@ -295,22 +286,22 @@ class SFZone {
             positive value indicates a decay to the corresponding level. Values less
             than zero are to be interpreted as zero; conventionally 1000 indicates
             full attenuation. For example, a sustain level which corresponds to an
-      absolute value 12dB below of peak would be 120. */
+absolute value 12dB below of peak would be 120. */
             case sustainVolEnv:
                 this.volEnv.sustain = gen.s16;
                 this.volEnv.default = false;
                 break;
             /*This is the time, in absolute timecents, for a 100% change in the
-      Volume Envelope value during release phase. For the Volume
-      Envelope, the release phase linearly ramps toward zero from the current
-      level, causing a constant dB change for each time unit. If the current
-      level were full scale, the Volume Envelope Release Time would be the
-      time spent in release phase until 100dB attenuation were reached. A
-      value of 0 indicates a 1-second decay time for a release from full level.
-      SoundFont 2.01 Technical Specification - Page 45 - 08/05/98 12:43 PM
-      A negative value indicates a time less than one second; a positive value
-      a time longer than one second.  http://www.synthfont.com/SFSPEC21.PDF For example, . For example, a release time of 10 msec
-      would be 1200log2(.01) = -7973. */
+Volume Envelope value during release phase. For the Volume
+Envelope, the release phase linearly ramps toward zero from the current
+level, causing a constant dB change for each time unit. If the current
+level were full scale, the Volume Envelope Release Time would be the
+time spent in release phase until 100dB attenuation were reached. A
+value of 0 indicates a 1-second decay time for a release from full level.
+SoundFont 2.01 Technical Specification - Page 45 - 08/05/98 12:43 PM
+A negative value indicates a time less than one second; a positive value
+a time longer than one second.  http://www.synthfont.com/SFSPEC21.PDF For example, . For example, a release time of 10 msec
+would be 1200log2(.01) = -7973. */
             case releaseVolEnv:
                 this.volEnv.phases.release = gen.s16; //timecent2sec(gen.s16);
                 break;
@@ -375,14 +366,13 @@ class SFZone {
             case endOper:
                 break;
             default:
-                throw 'unexpected operator';
+                throw "unexpected operator";
         }
         gen.from = from || -1;
         if (from != -1)
             this.generators.push(gen);
     }
 }
-exports.SFZone = SFZone;
 SFZone.defaultEnv = {
     default: true,
     phases: {
@@ -400,4 +390,4 @@ SFZone.defaultLFO = {
     freq: 1,
     effects: { pitch: 0, filter: 0, volume: 0 },
 };
-const { startAddrsOffset, endAddrsOffset, startloopAddrsOffset, endloopAddrsOffset, startAddrsCoarseOffset, modLfoToPitch, vibLfoToPitch, modEnvToPitch, initialFilterFc, initialFilterQ, modLfoToFilterFc, modEnvToFilterFc, endAddrsCoarseOffset, modLfoToVolume, unused1, chorusEffectsSend, reverbEffectsSend, pan, unused2, unused3, unused4, delayModLFO, freqModLFO, delayVibLFO, freqVibLFO, delayModEnv, attackModEnv, holdModEnv, decayModEnv, sustainModEnv, releaseModEnv, keynumToModEnvHold, keynumToModEnvDecay, delayVolEnv, attackVolEnv, holdVolEnv, decayVolEnv, sustainVolEnv, releaseVolEnv, keynumToVolEnvHold, keynumToVolEnvDecay, instrument, reserved1, keyRange, velRange, startloopAddrsCoarse, keynum, velocity, initialAttenuation, reserved2, endloopAddrsCoarse, coarseTune, fineTune, sampleID, sampleModes, reserved3, scaleTuning, exclusiveClass, overridingRootKey, unused5, endOper, } = sf_types_js_1.sf_gen_id;
+const { startAddrsOffset, endAddrsOffset, startloopAddrsOffset, endloopAddrsOffset, startAddrsCoarseOffset, modLfoToPitch, vibLfoToPitch, modEnvToPitch, initialFilterFc, initialFilterQ, modLfoToFilterFc, modEnvToFilterFc, endAddrsCoarseOffset, modLfoToVolume, unused1, chorusEffectsSend, reverbEffectsSend, pan, unused2, unused3, unused4, delayModLFO, freqModLFO, delayVibLFO, freqVibLFO, delayModEnv, attackModEnv, holdModEnv, decayModEnv, sustainModEnv, releaseModEnv, keynumToModEnvHold, keynumToModEnvDecay, delayVolEnv, attackVolEnv, holdVolEnv, decayVolEnv, sustainVolEnv, releaseVolEnv, keynumToVolEnvHold, keynumToVolEnvDecay, instrument, reserved1, keyRange, velRange, startloopAddrsCoarse, keynum, velocity, initialAttenuation, reserved2, endloopAddrsCoarse, coarseTune, fineTune, sampleID, sampleModes, reserved3, scaleTuning, exclusiveClass, overridingRootKey, unused5, endOper, } = sf_gen_id;

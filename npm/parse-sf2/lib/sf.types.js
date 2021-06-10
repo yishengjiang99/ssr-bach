@@ -1,19 +1,16 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.generatorNames = exports.LOOPMODES = exports.mergeTypes = exports.sf_gen_id = exports.ch_state = void 0;
-var ch_state;
+export var ch_state;
 (function (ch_state) {
     ch_state[ch_state["attack"] = 0] = "attack";
     ch_state[ch_state["hold"] = 1] = "hold";
     ch_state[ch_state["decay"] = 2] = "decay";
     ch_state[ch_state["releasing"] = 3] = "releasing";
-})(ch_state = exports.ch_state || (exports.ch_state = {}));
+})(ch_state || (ch_state = {}));
 const defaultLFO = {
     delay: 0,
     freq: 1,
     effects: { pitch: 0, filter: 0, volume: 0 },
 };
-var sf_gen_id;
+export var sf_gen_id;
 (function (sf_gen_id) {
     sf_gen_id[sf_gen_id["startAddrsOffset"] = 0] = "startAddrsOffset";
     sf_gen_id[sf_gen_id["endAddrsOffset"] = 1] = "endAddrsOffset";
@@ -76,22 +73,22 @@ var sf_gen_id;
     sf_gen_id[sf_gen_id["overridingRootKey"] = 58] = "overridingRootKey";
     sf_gen_id[sf_gen_id["unused5"] = 59] = "unused5";
     sf_gen_id[sf_gen_id["endOper"] = 60] = "endOper";
-})(sf_gen_id = exports.sf_gen_id || (exports.sf_gen_id = {}));
-var mergeTypes;
+})(sf_gen_id || (sf_gen_id = {}));
+export var mergeTypes;
 (function (mergeTypes) {
     mergeTypes[mergeTypes["SET_INST_DEFAULT"] = 0] = "SET_INST_DEFAULT";
     mergeTypes[mergeTypes["SET_INST"] = 1] = "SET_INST";
     mergeTypes[mergeTypes["SET_PBAG"] = 2] = "SET_PBAG";
     mergeTypes[mergeTypes["SET_PBAGDEFAULT"] = 3] = "SET_PBAGDEFAULT";
-})(mergeTypes = exports.mergeTypes || (exports.mergeTypes = {}));
-var LOOPMODES;
+})(mergeTypes || (mergeTypes = {}));
+export var LOOPMODES;
 (function (LOOPMODES) {
     LOOPMODES[LOOPMODES["NO_LOOP"] = 0] = "NO_LOOP";
     LOOPMODES[LOOPMODES["CONTINUOUS_LOOP"] = 1] = "CONTINUOUS_LOOP";
     LOOPMODES[LOOPMODES["NO_LOOP_EQ"] = 2] = "NO_LOOP_EQ";
     LOOPMODES[LOOPMODES["LOOP_DURATION_PRESS"] = 3] = "LOOP_DURATION_PRESS";
-})(LOOPMODES = exports.LOOPMODES || (exports.LOOPMODES = {}));
-exports.generatorNames = `#define SFGEN_startAddrsOffset         0
+})(LOOPMODES || (LOOPMODES = {}));
+export const generatorNames = `#define SFGEN_startAddrsOffset         0
 #define SFGEN_endAddrsOffset           1
 #define SFGEN_startloopAddrsOffset     2
 #define SFGEN_endloopAddrsOffset       3

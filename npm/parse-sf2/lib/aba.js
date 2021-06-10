@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.readAB = void 0;
-function readAB(arb) {
+export function readAB(arb) {
     const u8b = new Uint8Array(arb);
     let _offset = 0;
     function get8() {
@@ -68,7 +65,6 @@ function readAB(arb) {
         },
     };
 }
-exports.readAB = readAB;
 // const r = readAB([1, 2, 3, 4, 4, 4, 4, 5, 5, 2, 3, 3, 4]);
 // r.get16();
 // r.get8();

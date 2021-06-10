@@ -1,11 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SF2File = void 0;
-const aba_js_1 = require("./aba.js");
-const pdta_js_1 = require("./pdta.js");
-class SF2File {
+import { readAB } from "./aba.js";
+import { PDTA } from "./pdta.js";
+export class SF2File {
     constructor(ab) {
-        const r = aba_js_1.readAB(ab);
+        const r = readAB(ab);
         console.assert(r.read32String() == "RIFF");
         let size = r.get32();
         console.assert(r.read32String() == "sfbk");
@@ -17,7 +14,7 @@ class SF2File {
             const section = r.read32String();
             size = size - sectionSize;
             if (section === "pdta") {
-                this.pdta = new pdta_js_1.PDTA(r);
+                this.pdta = new PDTA(r);
             }
             else if (section === "sdta") {
                 console.assert(r.read32String() == "smpl");
@@ -66,7 +63,6 @@ class SF2File {
         } while (size > 0);
     }
 }
-exports.SF2File = SF2File;
 SF2File.fromURL = async (url) => {
     return new SF2File(await (await fetch(url)).arrayBuffer());
 };

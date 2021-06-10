@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SampleData = void 0;
 //@ts-ignore
-class SampleData {
+export class SampleData {
     constructor(rawData) {
         this.uint8s = rawData;
         this.floatArr = new SharedArrayBuffer(rawData.byteLength * 2);
@@ -36,4 +33,3 @@ class SampleData {
         return shift();
     }
 }
-exports.SampleData = SampleData;

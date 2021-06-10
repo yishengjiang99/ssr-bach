@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.sfbkstream = void 0;
-const aba_js_1 = require("./aba.js");
-async function sfbkstream(url) {
+import { readAB } from './aba.js';
+export async function sfbkstream(url) {
     const ab = await (await fetch(url, { headers: { Range: 'bytes=0-6400' } })).arrayBuffer();
     const [preample, r] = skipToSDTA(ab);
     const sdtaSize = r.get32();
@@ -25,10 +22,9 @@ async function sfbkstream(url) {
         pdtaBuffer: new Uint8Array(await (await fetch(url, pdtaHeader)).arrayBuffer()),
     };
 }
-exports.sfbkstream = sfbkstream;
 function skipToSDTA(ab) {
     const infosection = new Uint8Array(ab);
-    const r = aba_js_1.readAB(infosection);
+    const r = readAB(infosection);
     const [riff, filesize, sig, list] = [
         r.readNString(4),
         r.get32(),

@@ -1,8 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PDTA = void 0;
-const Zone_js_1 = require("./Zone.js");
-class PDTA {
+import { SFZone, SFGenerator } from './Zone.js';
+export class PDTA {
     constructor(r) {
         this.phdr = [];
         this.pbag = [];
@@ -27,15 +24,15 @@ class PDTA {
                 return [];
             const presetDefault = pbag[phd.pbagIndex];
             const pbagEnd = phdr[i + 1].pbagIndex;
-            return pbag
+            const arrs = pbag
                 .slice(phd.pbagIndex, pbagEnd)
                 .filter((pbg) => pbg.pzone.instrumentID >= 0)
                 .filter((pbg) => keyVelInRange(pbg.pzone, key, vel))
                 .map((pbg) => {
                 const { defaultBg, izones } = this.findInstrument(pbg.pzone.instrumentID, key, vel);
                 return izones.map((iz) => makeRuntime(iz, defaultBg, pbg, presetDefault.pzone, shdr[iz.sampleID]));
-            })
-                .flat();
+            });
+            return arrs.reduce((acc, val) => acc.concat(val));
         };
         this.findInstrument = (instId, key = -1, vel = -1) => {
             const [ibag, iheaders] = [this.ibag, this.iheaders];
@@ -89,7 +86,7 @@ class PDTA {
                         this.pbag.push({
                             pgen_id: r.get16(),
                             pmod_id: r.get16(),
-                            pzone: new Zone_js_1.SFZone({ pbagId: i }),
+                            pzone: new SFZone({ pbagId: i }),
                         });
                     }
                     break;
@@ -99,7 +96,7 @@ class PDTA {
                         const opid = r.get8();
                         r.get8();
                         const v = r.getS16();
-                        const pg = new Zone_js_1.SFGenerator(opid, v);
+                        const pg = new SFGenerator(opid, v);
                         this.pgen.push(pg);
                         if (pg.operator == 60)
                             break;
@@ -145,12 +142,12 @@ class PDTA {
                         this.ibag.push({
                             igen_id: r.get16(),
                             imod_id: r.get16(),
-                            izone: new Zone_js_1.SFZone({ ibagId: i }),
+                            izone: new SFZone({ ibagId: i }),
                         });
                         this.psh(ibginst, i, pbagLength);
                     }
                     //.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
-                    this.ibag.push({ igen_id: -1, imod_id: 0, izone: new Zone_js_1.SFZone() });
+                    this.ibag.push({ igen_id: -1, imod_id: 0, izone: new SFZone() });
                     break;
                 }
                 case 'igen': {
@@ -160,7 +157,7 @@ class PDTA {
                         if (opid == -1)
                             break;
                         const v = r.getS16();
-                        const gen = new Zone_js_1.SFGenerator(opid, v);
+                        const gen = new SFGenerator(opid, v);
                         this.igen.push(gen);
                         if (gen.operator === 60)
                             break;
@@ -205,26 +202,26 @@ class PDTA {
         } while (n++ <= 9);
     }
     addPbagToPreset(pbagId, phdrId) {
+        var _a, _b;
         if (this.pbag[pbagId].pzone.instrumentID == -1) {
             if (this.phdr[phdrId].defaultBag == -1)
                 this.phdr[phdrId].defaultBag = pbagId;
         }
         else {
-            this.phdr[phdrId]?.pbags.push(pbagId);
-            this.phdr[phdrId]?.insts.push(this.pbag[pbagId].pzone.instrumentID);
+            (_a = this.phdr[phdrId]) === null || _a === void 0 ? void 0 : _a.pbags.push(pbagId);
+            (_b = this.phdr[phdrId]) === null || _b === void 0 ? void 0 : _b.insts.push(this.pbag[pbagId].pzone.instrumentID);
         }
     }
     psh(ibginst, i, pbagLength) {
-        this.iheaders[ibginst].ibags &&
-            this.iheaders[ibginst].ibags?.push(i / pbagLength);
+        var _a;
+        this.iheaders[ibginst].ibags && ((_a = this.iheaders[ibginst].ibags) === null || _a === void 0 ? void 0 : _a.push(i / pbagLength));
     }
     getIbagZone(ibagId) {
         return this.ibag[ibagId] && this.ibag[ibagId].izone;
     }
 }
-exports.PDTA = PDTA;
 function makeRuntime(izone, instDefault, pbg, defaultPbag, shr) {
-    const output = new Zone_js_1.SFZone();
+    const output = new SFZone();
     for (let i = 0; i < 60; i++) {
         if (izone.generators[i]) {
             output.setVal(izone.generators[i]);

@@ -19,20 +19,24 @@ export class SF2File {
 		console.assert(r.read32String() == "LIST");
 		size -= 64;
 		const sections: any = {};
-		do {
+		do
+		{
 			const sectionSize = r.get32();
 			const section = r.read32String();
 			size = size - sectionSize;
-			if (section === "pdta") {
+			if (section === "pdta")
+			{
 				this.pdta = new PDTA(r);
-			} else if (section === "sdta") {
+			} else if (section === "sdta")
+			{
 				console.assert(r.read32String() == "smpl");
 				const nsamples = (sectionSize - 4) / 2;
 				const uint8s = r.readN(sectionSize - 4);
 				const floatArr = new SharedArrayBuffer(uint8s.byteLength * 2);
 				const dv2 = new DataView(floatArr);
 				const dv = new DataView(uint8s.buffer);
-				for (let i = 0; i < dv.byteLength / 2 - 1; i++) {
+				for (let i = 0; i < dv.byteLength / 2 - 1; i++)
+				{
 					dv2.setFloat32(i * 4, dv.getInt16(2 * i, true) / 0x7fff, true);
 				}
 				function iterate(zone: SFZone, key: number, outputSampleRate: number, length = 48000 * 2) {
@@ -47,10 +51,12 @@ export class SF2File {
 						let pos = 0x00;
 						let n = 0;
 						let shift = 0.0;
-						while (n++ < length) {
+						while (n++ < length)
+						{
 							yield data[pos];
 							shift = shift + pitchRatio;
-							while (shift >= 1) {
+							while (shift >= 1)
+							{
 								shift--;
 								pos++;
 							}
@@ -66,7 +72,8 @@ export class SF2File {
 					floatArr: floatArr,
 					iterator: iterate,
 				};
-			} else {
+			} else
+			{
 				r.skip(sectionSize);
 			}
 		} while (size > 0);

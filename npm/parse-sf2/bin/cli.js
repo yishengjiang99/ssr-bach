@@ -3,7 +3,7 @@ const Fs = require("fs");
 const Path = require("path");
 const Readable = require("stream").Readable;
 const libroot = Path.resolve(__dirname, "../lib");
-const { SF2File } = require(Path.resolve(libroot, "sffile.js"));
+const {SF2File} = require(Path.resolve(libroot, "sffile.js"));
 
 const fname =
   process.argv[2] || Path.resolve(__dirname, "../GeneralUserGS.sf2");
@@ -78,14 +78,14 @@ function downloadPreset(pid, bankid) {
       rootKey,
       modEnv,
       keyRange,
-      velRange: { lo, hi },
+      velRange: {lo, hi},
     } = z.serialize();
     const fff = require("fs").createWriteStream(
       `${dirname}/${name}_${keyRange.lo}_${keyRange.hi}_${lo}_${hi}.wav`
     );
     fff.write(WAVheader(4 * end - start * 4, 2), "binary");
     fff.end(Buffer.from(sffile.sdta.floatArr).slice(start * 4, 4 * end));
-    meta.push({ ...z.serialize(), file: fff.path });
+    meta.push({...z.serialize(), file: fff.path});
     //  Fs.closeSync(`${dirname}/meta.json`);
   }
   Fs.writeFileSync(`${dirname}/meta.json`, JSON.stringify(meta, null, "\t"));
@@ -95,7 +95,7 @@ function WAVheader(n, channel) {
   const buffer = new Uint8Array(44);
   const view = new DataView(buffer.buffer);
   function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
+    for (let i = 0;i < string.length;i++) {
       view.setUint8(offset + i, string.charCodeAt(i));
     }
   }

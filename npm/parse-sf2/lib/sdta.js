@@ -1,12 +1,9 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.streamSF2File = void 0;
-const sfbkstream_js_1 = require("./sfbkstream.js");
-const pdta_js_1 = require("./pdta.js");
-const aba_js_1 = require("./aba.js");
-async function streamSF2File(file) {
-    const { pdtaBuffer, sdtaStream, nsamples, infos } = await sfbkstream_js_1.sfbkstream(file);
-    const pdta = new pdta_js_1.PDTA(aba_js_1.readAB(pdtaBuffer));
+import { sfbkstream } from './sfbkstream.js';
+import { PDTA } from './pdta.js';
+import { readAB } from './aba.js';
+export async function streamSF2File(file) {
+    const { pdtaBuffer, sdtaStream, nsamples, infos } = await sfbkstream(file);
+    const pdta = new PDTA(readAB(pdtaBuffer));
     const samplesData = pdta.shdr.map((sh, idx) => ({
         ...sh,
         sid: idx,
@@ -54,4 +51,3 @@ async function streamSF2File(file) {
         }
     }
 }
-exports.streamSF2File = streamSF2File;

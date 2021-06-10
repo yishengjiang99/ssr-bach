@@ -29,8 +29,10 @@ export class PDTA {
     const [phdr, pbag, shdr] = [this.phdr, this.pbag, this.shdr];
     let phd,
       i = 0;
-    for (i = 0; i < phdr.length - 1; i++) {
-      if (phdr[i].presetId != pid || phdr[i].bankId != bank_id) {
+    for (i = 0; i < phdr.length - 1; i++)
+    {
+      if (phdr[i].presetId != pid || phdr[i].bankId != bank_id)
+      {
         continue;
       }
       phd = phdr[i];
@@ -39,7 +41,7 @@ export class PDTA {
     if (!phd) return [];
     const presetDefault = pbag[phd.pbagIndex];
     const pbagEnd = phdr[i + 1].pbagIndex;
-    return pbag
+    const arrs: SFZone[][] = pbag
       .slice(phd.pbagIndex, pbagEnd)
       .filter((pbg) => pbg.pzone.instrumentID >= 0)
       .filter((pbg) => keyVelInRange(pbg.pzone, key, vel))
@@ -58,8 +60,9 @@ export class PDTA {
             shdr[iz.sampleID]
           )
         );
-      })
-      .flat();
+      });
+    return arrs.reduce((acc, val) => acc.concat(val)) as SFZone[];
+
   };
 
   findInstrument: (
@@ -90,7 +93,8 @@ export class PDTA {
 
   constructor(r: IReadAB) {
     let n = 0;
-    do {
+    do
+    {
       const ShdrLength = 46;
       const imodLength = 10;
       const phdrLength = 38;
@@ -102,9 +106,11 @@ export class PDTA {
       const sectionName = r.read32String();
       const sectionSize = r.get32();
       console.log(sectionName, sectionSize);
-      switch (sectionName) {
+      switch (sectionName)
+      {
         case 'phdr':
-          for (let i = 0; i < sectionSize; i += phdrLength) {
+          for (let i = 0; i < sectionSize; i += phdrLength)
+          {
             const phdrItem = {
               name: r.readNString(20),
               presetId: r.get16(),
@@ -125,7 +131,8 @@ export class PDTA {
           }
           break;
         case 'pbag':
-          for (let i = 0; i < sectionSize; i += pbagLength) {
+          for (let i = 0; i < sectionSize; i += pbagLength)
+          {
             this.pbag.push({
               pgen_id: r.get16(),
               pmod_id: r.get16(),
@@ -138,7 +145,8 @@ export class PDTA {
           let pgenId = 0,
             pbagId = 0,
             phdrId = 0;
-          for (; pgenId < sectionSize / pgenLength; pgenId++) {
+          for (; pgenId < sectionSize / pgenLength; pgenId++)
+          {
             const opid = r.get8();
             r.get8();
 
@@ -150,8 +158,10 @@ export class PDTA {
             if (
               this.pbag[pbagId + 1] &&
               pgenId >= this.pbag[pbagId + 1].pgen_id - 1
-            ) {
-              if (pbagId >= this.phdr[phdrId + 1].pbagIndex) {
+            )
+            {
+              if (pbagId >= this.phdr[phdrId + 1].pbagIndex)
+              {
                 phdrId++;
               }
               this.addPbagToPreset(pbagId, phdrId);
@@ -161,7 +171,8 @@ export class PDTA {
           break;
         }
         case 'pmod':
-          for (let i = 0; i < sectionSize; i += pmodLength) {
+          for (let i = 0; i < sectionSize; i += pmodLength)
+          {
             this.pmod.push({
               src: r.get16(),
               dest: r.get16(),
@@ -172,7 +183,8 @@ export class PDTA {
           }
           break;
         case 'inst':
-          for (let i = 0; i < sectionSize; i += instLength) {
+          for (let i = 0; i < sectionSize; i += instLength)
+          {
             this.iheaders.push({
               name: r.readNString(20),
               iBagIndex: r.get16(),
@@ -183,7 +195,8 @@ export class PDTA {
           break;
         case 'ibag': {
           let ibginst = 0;
-          for (let i = 0; i < sectionSize; i += pbagLength) {
+          for (let i = 0; i < sectionSize; i += pbagLength)
+          {
             if (
               this.iheaders[ibginst + 1] &&
               i >= this.iheaders[ibginst + 1].iBagIndex
@@ -204,7 +217,8 @@ export class PDTA {
         }
         case 'igen': {
           let ibagId = 0;
-          for (let igenId = 0; igenId < sectionSize / igenLength; igenId++) {
+          for (let igenId = 0; igenId < sectionSize / igenLength; igenId++)
+          {
             const opid = r.get8() | (r.get8() << 8);
             if (opid == -1) break;
             const v = r.getS16();
@@ -213,14 +227,16 @@ export class PDTA {
             if (gen.operator === 60) break;
             this.ibag[ibagId].izone.applyGenVal(gen);
 
-            if (igenId >= this.ibag[ibagId + 1].igen_id - 1) {
+            if (igenId >= this.ibag[ibagId + 1].igen_id - 1)
+            {
               ibagId++;
             }
           }
           break;
         }
         case 'imod':
-          for (let i = 0; i < sectionSize; i += imodLength) {
+          for (let i = 0; i < sectionSize; i += imodLength)
+          {
             this.imod.push({
               src: r.get16(),
               dest: r.get16(),
@@ -236,7 +252,8 @@ export class PDTA {
             let i = 0;
             i < sectionSize;
             i += ShdrLength ///20 + 4 * 5 + 1 + 1 + 4)
-          ) {
+          )
+          {
             this.shdr.push({
               name: r.readNString(20),
               start: r.get32(),
@@ -258,10 +275,12 @@ export class PDTA {
   }
 
   private addPbagToPreset(pbagId: number, phdrId: number) {
-    if (this.pbag[pbagId].pzone.instrumentID == -1) {
+    if (this.pbag[pbagId].pzone.instrumentID == -1)
+    {
       if (this.phdr[phdrId].defaultBag == -1)
         this.phdr[phdrId].defaultBag = pbagId;
-    } else {
+    } else
+    {
       this.phdr[phdrId]?.pbags.push(pbagId);
       this.phdr[phdrId]?.insts.push(this.pbag[pbagId].pzone.instrumentID);
     }
@@ -290,15 +309,20 @@ function makeRuntime(
 ): SFZone {
   const output = new SFZone();
 
-  for (let i = 0; i < 60; i++) {
-    if (izone.generators[i]) {
+  for (let i = 0; i < 60; i++)
+  {
+    if (izone.generators[i])
+    {
       output.setVal(izone.generators[i]);
-    } else if (instDefault && instDefault.generators[i]) {
+    } else if (instDefault && instDefault.generators[i])
+    {
       output.setVal(instDefault.generators[i]);
     }
-    if (pbg.pzone.generators[i]) {
+    if (pbg.pzone.generators[i])
+    {
       output.increOrSet(pbg.pzone.generators[i]);
-    } else if (defaultPbag && defaultPbag.generators[i]) {
+    } else if (defaultPbag && defaultPbag.generators[i])
+    {
       output.increOrSet(defaultPbag.generators[i]);
     }
   }

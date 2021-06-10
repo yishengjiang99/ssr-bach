@@ -5,7 +5,7 @@ export class SFGenerator {
 	from = 0;
 	ibagId = -1;
 	pbagId = -1;
-	constructor(private _operator: sf_gen_id, private int16: number) {}
+	constructor(private _operator: sf_gen_id, private int16: number) { }
 	add(modgen: SFGenerator) {
 		this.int16 += modgen.int16;
 	}
@@ -13,10 +13,10 @@ export class SFGenerator {
 		return this._operator;
 	}
 	get range(): GenRange {
-		return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0xff };
+		return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0x7f };
 	}
 	get u16() {
-		return this.int16 & 0x0ff0; // | (this.hi << 8);
+		return this.int16 & 0x7fff;// | (this.hi << 8);
 	}
 	get s16() {
 		return this.int16;
@@ -80,7 +80,8 @@ export class SFZone {
 
 	sampleOffsets: number[] = [0, 0, 0, 0];
 	constructor(ids?: { pbagId?: number; ibagId?: number }) {
-		if (ids) {
+		if (ids)
+		{
 			if (ids.pbagId) this.pbagId = ids.pbagId;
 			if (ids.ibagId) this.ibagId = ids.ibagId;
 		}
@@ -88,7 +89,8 @@ export class SFZone {
 
 	_modLFO: LFOParams = SFZone.defaultLFO;
 	public get modLFO() {
-		if (this._modLFO) {
+		if (this._modLFO)
+		{
 			this._modLFO = SFZone.defaultLFO;
 		}
 		return this._modLFO;
@@ -112,7 +114,8 @@ export class SFZone {
 	}
 	private _volEnv: EnvParams = SFZone.defaultEnv;
 	public get volEnv() {
-		if (!this._modEnv) {
+		if (!this._modEnv)
+		{
 			this._modEnv = SFZone.defaultEnv;
 		}
 		return this._volEnv;
@@ -164,7 +167,8 @@ export class SFZone {
 		};
 	}
 	mergeWith(zoneb: SFZone, from = 0) {
-		for (const g of Object.values(zoneb.generators)) {
+		for (const g of Object.values(zoneb.generators))
+		{
 			this.applyGenVal(g, from);
 		}
 	}
@@ -179,7 +183,8 @@ export class SFZone {
 		this.generators.forEach((g) => this.applyGenVal(g, -1));
 	}
 	applyGenVal(gen: SFGenerator, from?: number): void {
-		switch (gen.operator) {
+		switch (gen.operator)
+		{
 			case startAddrsOffset:
 				this.sampleOffsets[0] += gen.s16;
 
@@ -311,15 +316,15 @@ export class SFZone {
 				break;
 
 			/** \']
-      
-      http://www.synthfont.com/SFSPEC21.PDF  is the decrease in level, expressed in centibels, to which the
-      Volume Envelope value ramps during the decay phase. For the Volume
-      Envelope, the sustain level is best expressed in centibels of attenuation
-      from full scale. A value of 0 indicates the sustain level is full level; this
-      implies a zero duration of decay phase regardless of decay time. A
-      positive value indicates a decay to the corresponding level. Values less
-      than zero are to be interpreted as zero; conventionally 1000 indicates
-      full attenuation. For example, a sustain level which corresponds to an
+		  
+			http://www.synthfont.com/SFSPEC21.PDF  is the decrease in level, expressed in centibels, to which the
+			Volume Envelope value ramps during the decay phase. For the Volume
+			Envelope, the sustain level is best expressed in centibels of attenuation
+			from full scale. A value of 0 indicates the sustain level is full level; this
+			implies a zero duration of decay phase regardless of decay time. A
+			positive value indicates a decay to the corresponding level. Values less
+			than zero are to be interpreted as zero; conventionally 1000 indicates
+			full attenuation. For example, a sustain level which corresponds to an
 absolute value 12dB below of peak would be 120. */
 			case sustainVolEnv:
 				this.volEnv.sustain = gen.s16;
@@ -386,7 +391,8 @@ would be 1200log2(.01) = -7973. */
 
 			case sampleID:
 				//onsole.log('apply sample ' + gen.s16 + 'cur ');
-				if (this.sampleID != -1) {
+				if (this.sampleID != -1)
+				{
 					//throw 'applying to existing sample id';
 				}
 				this.sampleID = gen.s16;
