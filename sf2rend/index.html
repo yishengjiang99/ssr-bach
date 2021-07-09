@@ -1,17 +1,79 @@
 <!DOCTYPE html>
-<style>td {
-  height: 100px;
-}</style>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"/>
-<script src="https://www.grepawk.com/nco/libs/qwerty-hancock.js"></script>
-<input type="text" placeholder="&#xF002; Search" style="font-family:Arial, FontAwesome" />
-<body>
-	<div style="display:grid; grid-template-columns: 1fr 1fr; grid-template-rows:1fr 1fr">
-		<pre id='stdout' style="width:40em;height:500px;overflow-y:scroll"> </pre>
-		<pre id='sfdiv'>statediv</pre>
-		<div id='table'></div>
-		<div id='keyboard'></div>
-</div>
-		<script type='module' src='index.js'></script>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+	<style>
+		legend {
+			background-color: #000;
+			color: #fff;
+			padding: 3px 6px;
+		}
+	
+		.output {
+			font: 1rem 'Fira Sans', sans-serif;
+		}
+		
+		input {
+		height:1em;
+		}
+	
+		main>div {
+			display: grid;
+			grid-row-start: span;
+			grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+		}
+	
+	</style>
 
+	<script src='libs.js'></script>
+</head>
+
+<body>
+	<header><div id=table></div></header>
+	<main>
+		<div class="track">
+			<div><label>track 1</label><input type="checkbox"> </div>
+			<span>
+				<meter value=0 min=0 max=127 step=1></meter>
+				<meter value=0 min=0 max=127 step=1></meter>
+			</span>
+			<span>
+				<input type="range" value=0 min=0 max=127 step=1></input>
+				<input type="range" value=0 min=0 max=127 step=1></input>
+			</span>		
+		</div>
+	</main>
+	<footer>
+		<div id='statediv'></div>
+	</footer>
+	<script type='module' src=index.js></script>
+
+	<script>
+	const a=document.querySelector('main');
+	console.log(a)
+		for(let i=1;i<16;i++){
+			a.append(document.querySelector(".track").cloneNode(true));		
+		}
+	const comms = logdiv({ containerID: "stdout" });
+window.stdout=comms.stdout;
+window.stderr=comms.stderr;
+stdout("pgload");
+const [filelist, inputlist, outputlist] = [
+	mkdiv("span", { id: "filelist" }, ["FileSources:"]),
+	mkdiv("span", { id: "outputlist" }, ["Send To:"]),
+	mkdiv("span", { id: "inputlist" }, ["Playback from:"]),
+];
+window.statediv = document.querySelector("#sfdiv");
+document
+	.querySelector("#table")
+	.append(
+		mkdiv("table", { border: 1, valign: "top" }, [
+			mkdiv("tr", {}, [filelist, inputlist, outputlist]),
+		])
+	);
+	</script>
 </body>
+</html>

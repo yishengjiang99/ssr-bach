@@ -25,7 +25,7 @@ wasmloaded.then(async (Module) => {
 	const a = Module._malloc(pdtaBuffer.byteLength);
 	Module.HEAPU8.set(pdtaBuffer, a);
 	Module.ccall("loadpdta", null, ["number"], [a], null);
-	onmessage = ({ data: { setProgram, noteOn } }) => {
+	onmessage = ({ data: { setProgram, noteOn, readable } }) => {
 		if (setProgram) {
 			const { channel, pid } = setProgram;
 			channels[channel] = loadPreset(pid, channel == 9 ? 128 : 0);
@@ -35,6 +35,9 @@ wasmloaded.then(async (Module) => {
 			const { channel, pid } = setProgram;
 			channels[channel] = loadPreset(pid, channel == 9 ? 128 : 0);
 			postMessage({ preset: 1 });
+		}
+		if(readable){
+			
 		}
 	};
 	postMessage({ ready: 1 });

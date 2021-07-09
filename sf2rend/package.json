@@ -5,8 +5,8 @@
 	"main": "ctxemwtf.js",
 	"scripts": {
 		"dev": "emcc -fsanitize=undefined -g4 ctx.c -o build/ctx.wasm --no-entry && node make",
-		"build": "wa-compile -O ctx.c -o build/ctx.wasm && node make",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"build": "make",
+		"test": "chrome-cli open https://dsp.grepawk.com/ssr-bach/sf2rend/test.html"
 	},
 	"keywords": [],
 	"author": "Yisheng Jiang",

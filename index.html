@@ -311,7 +311,7 @@
 			                          get startFrame() {
 			                              if (this.startTime == null)
 			                                  return false;
-			                              return (start - this.startTime) / sampleRate;
+			                              return (start - this.startTime)
 			                          },
 			                      });
 
@@ -352,7 +352,7 @@
 			                          v.shift--;
 			                      }
 			                      if (iterator >= v.rt.sample.endLoop) {
-			                        iterator = iterator- looper;
+			                        iterator = iterator- looper+1;
 			                      }
 			                  }
 			                  v.rt.iterator=iterator;
@@ -474,7 +474,7 @@ let timerr;
 					const ratio = t / _t;
 					for (let i = 0; i < tracks.length; i++) {
 						const track = tracks[i];
-						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 230) {
+						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 112) {
 							const note = track.notes.shift();
 							const z = _pdta.findPreset(
 								track.instrument.number,
@@ -494,7 +494,6 @@ let timerr;
 										channelId: track.channel,
 									},
 								});
-								console.log(z[0]);
 							}
 						}
 						t += 200;

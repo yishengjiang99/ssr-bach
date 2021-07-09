@@ -1,54 +1,46 @@
-import { load_proc_controller } from "./proccontroller.js";
-import { logdiv, mkdiv } from "https://unpkg.com/mkdiv@2.0.1/src/index.js";
-const { stdout, stderr } = logdiv({ containerID: "stdout" });
-stdout("pgload");
-const [filelist, inputlist, outputlist] = [
-	mkdiv("td", { id: "filelist" }, ["FileSources:"]),
-	mkdiv("td", { id: "outputlist" }, ["Send To:"]),
-	mkdiv("td", { id: "inputlist" }, ["Playback from:"]),
-];
-const statediv = document.querySelector("#sfdiv");
-document
-	.querySelector("#table")
-	.append(
-		mkdiv("table", { border: 1, valign: "top" }, [
-			mkdiv("tr", {}, [filelist, inputlist, outputlist]),
-		])
-	);
-let audioCtx, proc, pdta, midiWritePort, audioThreadWritePort;
+import {readMidi,midilist} from './midi.js';
+let ctx, proc, pdta, midiWritePort, audioThreadWritePort;
+let worker;
+const { pdtaBuffer, sdtaStream, nsamples,infos } = await sfbkstream("file.sf2");
 
-(async function gratuitous_functionname_for_async_await() {
+document.body.append(mkdiv('a',{target:'_blank',
+href:URL.createObjectURL(new Blob(infos.map(({section,text})=>`${section}:${text}`),{type:"text/plain"}))},'license/about sf2file'));
+
+
+async function startCtx() {
 	try {
-		audioCtx = new AudioContext();
-	} catch (e) {
-		if (audioCtx && audioCtx.state == "suspended") {
-			/* ignore */
-		} else {
-			throw e;
-		}
-	}
-	const ret = await load_proc_controller(audioCtx, "sm.sf2", stdout, stderr);
-	proc = ret.proc;
-	pdta = ret.pdta;
-	stdout("proc load");
-	audioThreadWritePort = new TransformStream();
-	proc.port.postMessage(audioThreadWritePort.readable, [audioThreadWritePort.readable]);
-	audioThreadWriter = audioThreadWritePort.writable.getWriter();
+		ctx = new AudioContext(1,4096,4096);
+		await ctx.audioworklet.addModule("./rendctx.js");
+		proc = new AudioWorkletNode(ctx, "rend-proc", {
+		 outputChannelCount: [2],
+	 });
 
-	proc.onmessage = ({ stateBuffer }) => {
-		stdout("statebuffer got");
-	};
+	} catch (e) {
+			// if (ctx && ctx.state == "suspended") {
+			// 	/* ignore */
+			// } else {
+			// 	throw e;
+			// }
+	}
+
+}
+startCtx().then(()=>{
+	stdout("proc load");
+	worker = new Worker("sf2d.js");
+
+	worker.postMessage({pdtaBuffer},[]);
+	 audioThreadWritePort = new TransformStream();
+	 worker.postMessage(audioThreadWritePort.readable, [audioThreadWritePort.readable]);
+	const audioThreadWriter = audioThreadWritePort.writable.getWriter();
+
+
 	const midistream = bindMidiAccess(proc);
-	statediv.append(
-		mkdiv(
-			"select",
-			{},
-			pdta.phdr
-				.slice(0, 10)
-				.map((ph) => mkdiv("option", { value: [ph.pid | ph.bank_id] }, [ph.name]))
-		)
-	);
-})();
+
+}).catch(e=>{
+	alert(e.message);	throw e;
+})
+
+	
 function bindMidiAccess(proc) {
 	navigator.requestMIDIAccess().then(
 		(midiAccess) => {
@@ -97,29 +89,16 @@ function bindMidiAccess(proc) {
 		}
 	);
 }
-var keyboard = new QwertyHancock({
-	id: "keyboard",
-	width: 500,
-	height: 150,
-	octaves: 2,
-	startNote: "A3",
-	whiteNotesColour: "white",
-	blackNotesColour: "black",
-	hoverColour: "#f3e939",
-});
-const keys = ["a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j"];
-function noteOn(note, vel) {
-	if (midiinput) {
-		midiinput.send;
-	}
+
+let checkboxes=Array.from(document.querySelectorAll("input[type='checkbox']"));
+let meters=Array.from(document.querySelectorAll("meter"));let labels=Array.from(document.querySelectorAll("label"));
+
+let sliders=Array.from(document.querySelectorAll("input[type='range"));
+let dy= new Array(17).fill(0);
+function animloop(){
+  dy.map((vel,ch)=>{
+    if(vel!=0) meters[ch*2+1].value = Math.min(parseInt(meters[ch*2+1].value) +dy, 127);
+  })
+
+  requestAnimationFrame(animloop)
 }
-keyboard.keyDown = function (note, Hertz) {
-	// Your code here
-
-	noteOn((Math.log(Hertz / 440.0) / Math.log(2)) * 12 + 60);
-};
-
-keyboard.keyUp = function (note, Hertz) {
-	// Your code here
-	noteOff((Math.log(Hertz / 440.0) / Math.log(2)) * 12 + 60);
-};

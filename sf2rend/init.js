@@ -1,31 +1,7 @@
 const samples_per_frame = 128;
 const bytesPerFrameOutput = samples_per_frame * 2 * Float32Array.BYTES_PER_ELEMENT;
-const memory = new WebAssembly.Memory({
-	initial: 150,
-	maximum: 150,
-});
-let heap = new Uint8Array(memory.buffer);
-let brk = 10000;
-const sbrk = function (size) {
-	const old = brk;
-	brk += size;
-	if (brk > heap.length) {
-		memory.grow(Math.ceil((brk - heap.length) / 65536));
-		heap = new Uint8Array(memory.buffer);
-	}
-	return old;
-};
 
-let brk = 10000;
-const sbrk = function (size) {
-	const old = brk;
-	brk += size;
-	if (brk > heap.length) {
-		memory.grow(Math.ceil((brk - heap.length) / 65536));
-		heap = new Uint8Array(memory.buffer);
-	}
-	return old;
-};
+
 const {
 	exports: { apply_zone, ctx_size, init_ctx, render, set_sample_data, set_sample_list, get_output },
 } = new WebAssembly.Instance(new WebAssembly.Module(wasmBinary), {
