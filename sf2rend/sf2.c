@@ -100,8 +100,8 @@ int main()
 		{
 			pbag *pg = pbags + j;
 
-			while (pg !=)
-				pgen_t *lastg = pgens + pg[j + 1].pgen_id;
+                        while (pg != 60){}
+                          pgen_t *lastg = pgens + pg[j + 1].pgen_id;
 			int pgenId = pg->pgen_id;
 			int lastPgenId = j < npbags - 1 ? pbags[j + 1].pgen_id : npgens - 1;
 			short pgset[60] = {-1};
@@ -109,11 +109,11 @@ int main()
 			{
 				pgen_t *g = pgens + k;
 
-				if (g->operator== 41)
+				if (g->genid== 41)
 				{
 					instID = g->val.uAmount;
 				}
-				pgset[g->operator] = g->val.shAmount;
+				pgset[g->genid] = g->val.shAmount;
 			}
 		}
 	}
@@ -146,11 +146,11 @@ zone_t *get_sf(int pid, int bkid, int key, int vel)
 			{
 				pgen_t *g = pgens + k;
 
-				if (g->operator== 41)
+				if (g->genid== 41)
 				{
 					instID = g->val.uAmount;
 				}
-				pgset[g->operator] = g->val.shAmount;
+				pgset[g->genid] = g->val.shAmount;
 			}
 			if (instID == -1)
 			{
@@ -168,15 +168,15 @@ zone_t *get_sf(int pid, int bkid, int key, int vel)
 					short igset[60] = {-1};
 					ibag *ibgg = ibags + ibg;
 					pgen_t *lastig = ibg < nibags - 1 ? igens + (ibgg + 1)->igen_id : igens + nigens - 1;
-					for (pgen_t *g = igens + ibgg->igen_id; g->operator!= 60 && g != lastig; g++)
+					for (pgen_t *g = igens + ibgg->igen_id; g->genid!= 60 && g != lastig; g++)
 					{
 
-						if (vel > -1 && g->operator== 44 &&(g->val.ranges.lo > vel || g->val.ranges.hi < vel))
+						if (vel > -1 && g->genid== 44 &&(g->val.ranges.lo > vel || g->val.ranges.hi < vel))
 							break;
-						if (key > -1 && g->operator== 43 &&(g->val.ranges.lo > key || g->val.ranges.hi < key))
+						if (key > -1 && g->genid== 43 &&(g->val.ranges.lo > key || g->val.ranges.hi < key))
 							break;
-						igset[g->operator]=g->val.shAmount;
-						if (g->operator== 53)
+						igset[g->genid]=g->val.shAmount;
+						if (g->genid== 53)
 						{
 							lastSampId = g->val.shAmount; // | (ig->val.ranges.hi << 8);
 						}
