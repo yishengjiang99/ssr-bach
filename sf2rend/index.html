@@ -5,11 +5,66 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Document</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+
 	<style>
+		body{
+			height: 100vh;
+			background-color: #37373d;color:white;
+		}
+		.wrapper {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+		main{
+			--code-toolbarHoverBackground: rgba(90, 93, 94, 0.31);
+    --notebook-focused-cell-border-color: #007fd4;
+    --notebook-inactive-focused-cell-border-color: #37373d;
+    --notebook-selected-cell-border-color: #37373d;
+    --sash-size: 4px;
+    --sash-hover-size: 4px;
+    -webkit-user-select: none;
+    font-size: 13px;
+    line-height: 1.4em;
+    forced-color-adjust: none;
+    color: #cccccc;
+    font-family: -apple-system,BlinkMacSystemFont,sans-serif;
+    --monaco-monospace-font: "SF Mono",Monaco,Menlo,Courier,monospace;
+    white-space: normal;
+    position: absolute;
+
+    left: 319px;
+  
+		}
+		    aside{
+					--code-toolbarHoverBackground: rgba(90, 93, 94, 0.31);
+					--notebook-focused-cell-border-color: #007fd4;
+					--notebook-inactive-focused-cell-border-color: #37373d;
+					--notebook-selected-cell-border-color: #37373d;
+					--sash-size: 4px;
+					--sash-hover-size: 4px;
+					-webkit-user-select: none;
+					font-size: 13px;
+					line-height: 1.4em;
+					forced-color-adjust: none;
+					color: #cccccc;
+					font-family: -apple-system,BlinkMacSystemFont,sans-serif;
+					--monaco-monospace-font: "SF Mono",Monaco,Menlo,Courier,monospace;
+					white-space: normal;
+					position: absolute;
+			height:90vh;
+					left: 48px;
+					width: 271px;
+					overflow-y: scroll;
+				}
 		legend {
 			background-color: #000;
 			color: #fff;
 			padding: 3px 6px;
+		}
+		footer{
+			bottom:0px;position:absolute;
 		}
 	
 		.output {
@@ -31,49 +86,56 @@
 	<script src='libs.js'></script>
 </head>
 
-<body>
-	<header><div id=table></div></header>
+<body class='wrapper'>
+	<header></header>
+	<div class=container>	<aside></aside>
+
 	<main>
-		<div class="track">
-			<div><label>track 1</label><input type="checkbox"> </div>
-			<span>
-				<meter value=0 min=0 max=127 step=1></meter>
-				<meter value=0 min=0 max=127 step=1></meter>
-			</span>
-			<span>
-				<input type="range" value=0 min=0 max=127 step=1></input>
-				<input type="range" value=0 min=0 max=127 step=1></input>
-			</span>		
-		</div>
-	</main>
-	<footer>
-		<div id='statediv'></div>
+
+	
+
+	</main></div>
+	<footer class="sticky">
+		<pre id=stdout></pre>
+
 	</footer>
+
+	<template id="track">
+		<div><label>track 1</label><input type="checkbox"> </div>
+		<span>
+			<meter value=0 min=0 max=127 step=1></meter>
+			<meter value=0 min=0 max=127 step=1></meter>
+		</span>
+		<span>
+			<input type="range" value=0 min=0 max=127 step=1></input>
+			<input type="range" value=0 min=0 max=127 step=1></input>
+		</span>		
+	</div>
+
+</template>
 	<script type='module' src=index.js></script>
 
 	<script>
-	const a=document.querySelector('main');
+	const a=document.querySelector('div.container');
 	console.log(a)
-		for(let i=1;i<16;i++){
-			a.append(document.querySelector(".track").cloneNode(true));		
-		}
+		for(let i=1;i<19;i++){
+			a.innerHTML+=`	
+			<div><label>track ${i}</label><input type="checkbox"> </div>
+		<span>
+			<meter value=0 min=0 max=127 step=1></meter>
+			<meter value=0 min=0 max=127 step=1></meter>
+		</span>
+		<span>
+			<input type="range" value=0 min=0 max=127 step=1></input>
+			<input type="range" value=0 min=0 max=127 step=1></input>
+		</span>		
+	</div>`;
+}
 	const comms = logdiv({ containerID: "stdout" });
 window.stdout=comms.stdout;
 window.stderr=comms.stderr;
 stdout("pgload");
-const [filelist, inputlist, outputlist] = [
-	mkdiv("span", { id: "filelist" }, ["FileSources:"]),
-	mkdiv("span", { id: "outputlist" }, ["Send To:"]),
-	mkdiv("span", { id: "inputlist" }, ["Playback from:"]),
-];
-window.statediv = document.querySelector("#sfdiv");
-document
-	.querySelector("#table")
-	.append(
-		mkdiv("table", { border: 1, valign: "top" }, [
-			mkdiv("tr", {}, [filelist, inputlist, outputlist]),
-		])
-	);
+
 	</script>
 </body>
 </html>

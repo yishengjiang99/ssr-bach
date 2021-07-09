@@ -3,6 +3,7 @@ import { parseMidi } from "./libparsemidi.js";
 const ttye = (str) => (document.querySelector("pre").innerHTML += str + "\r\n");
 
 function* midiEventGenerator(tracks, header) {
+	document.querySelector("pre").innerHTML = "";
 	//emit meta events to prepare for playback
 	let metaBatch = [];
 	for (const events of tracks) {
@@ -23,46 +24,30 @@ function* midiEventGenerator(tracks, header) {
 				tracks.slice(i, 1);
 				continue;
 			}
-			if (trackTime[i] + tracks[i][0].deltaTime <= playbackTime + header.ticksPerBeat * 4) {
-				trackTime[i] += tracks[i][0].deltaTime;
-				batch.push({ trackTime: trackTime[i], ...tracks[i].shift() });
+			const deltaT = tracks[i][0].deltaTime || tracks[i][0][3];
+			if (trackTime[i] + deltaT <= playbackTime + header.ticksPerBeat * 4) {
+				trackTime[i] += deltaT;
+				batch.push(tracks[i].shift());
 			}
 		}
 		if (tracks.length) playbackTime += yield batch;
 		else return batch;
 	}
 }
-
+export const filehost = "https://grep32bit.blob.core.windows.net/midi/";
 export async function readMidi(url, port) {
-	const { tracks, header } = await fetch(filehost + document.location.hash.substr(1))
+	const { tracks, header } = await fetch(url)
 		.then((res) => res.arrayBuffer())
 		.then((ab) => parseMidi(new Uint8Array(ab)));
 	let bpm = header.ticksPerBeat;
 	const gen = midiEventGenerator(tracks, header);
-
-	function channelMsg({
-		channel,
-		type,
-		trackTime,
-		noteNumber,
-		velocity,
-		programNumber,
-		controllerType,
-		value,
-	}) {
-		if (type == "programChange" && programNumber) {
-			sfWorker.postMessage({ setPid: { channel, pid: programNumber } });
-		} else if (type == "noteOn" && noteNumber) {
-			//console.log(channel, type, trackTime,noteNumber,velocity,programNumber,controllerType,value)
-			sfWorker.postMessage({ noteOn: { channel, note: noteNumber } });
-		}
-	}
+	return [gen, header];
 }
 export function midilist() {
 	// import { readMidi } from "midiread";
 	// import * as webmidi from "webmidi";
 	var url = "https://grep32bit.blob.core.windows.net/midi?resttype=container&comp=list";
-	var main = document.querySelector("main");
+	var aside = document.querySelector("aside");
 	var xhr = new XMLHttpRequest();
 	xhr.open("GET", url);
 	xhr.responseType = "document";
@@ -97,16 +82,14 @@ export function midilist() {
 		function fetchmidi() {}
 
 		ff.forEach(function (a) {
-			document.body.innerHTML +=
+			aside.innerHTML +=
 				"<li>" +
 				a.get("Name") +
 				" (" +
 				a.get("Size") +
-				") - <a onclick=fetchmidi('" +
+				") - <a class='midilink' src='" +
 				a.get("Url") +
-				"'), '" +
-				a.get("Name") +
-				"') href='midi.html#" +
+				"' href='#" +
 				encodeURI(a.get("Url").split("/").reverse().shift()) +
 				"'>Play</a></li>";
 		});

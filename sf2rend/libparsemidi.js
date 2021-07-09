@@ -192,43 +192,50 @@ function parseTrack(data) {
       var eventType = eventTypeByte >> 4
       event.channel = eventTypeByte & 0x0f
       switch (eventType) {
-        case 0x08:
-          event.type = 'noteOff'
-          event.noteNumber = param1
-          event.velocity = p.readUInt8()
-          return event
-        case 0x09:
-          var velocity = p.readUInt8()
-          event.type = velocity === 0 ? 'noteOff' : 'noteOn'
-          event.noteNumber = param1
-          event.velocity = velocity
-          if (velocity === 0) event.byte9 = true
-          return event
-        case 0x0a:
-          event.type = 'noteAftertouch'
-          event.noteNumber = param1
-          event.amount = p.readUInt8()
-          return event
-        case 0x0b:
-          event.type = 'controller'
-          event.controllerType = param1
-          event.value = p.readUInt8()
-          return event
-        case 0x0c:
-          event.type = 'programChange'
-          event.programNumber = param1
-          return event
-        case 0x0d:
-          event.type = 'channelAftertouch'
-          event.amount = param1
-          return event
-        case 0x0e:
-          event.type = 'pitchBend'
-          event.value = (param1 + (p.readUInt8() << 7)) - 0x2000
-          return event
-        default:
-          throw "Unrecognised MIDI event type: " + eventType
-      }
+				case 0x08:
+				// event.type = 'noteOff'
+				// event.noteNumber = param1
+				// event.velocity = p.readUInt8()
+				// return [eventTypeByte, param1, p.readUInt8()];
+				// return event
+				case 0x09:
+				// var velocity = p.readUInt8()
+				// event.type = velocity === 0 ? 'noteOff' : 'noteOn'
+				// event.noteNumber = param1
+				// event.velocity = velocity
+				// if (velocity === 0) event.byte9 = true
+				// return event
+				case 0x0a:
+				// event.type = 'noteAftertouch'
+				// event.noteNumber = param1
+				// event.amount = p.readUInt8()
+				// return event
+				case 0x0b:
+					// event.type = 'controller'
+					// event.controllerType = param1
+					// event.value = p.readUInt8()
+					// return event
+					return [eventTypeByte, param1, p.readUInt8(), event.deltaTime];
+					break;
+				case 0x0c:
+				// event.type = "programChange";
+				// [eventTypeByte, param1, 0, event.deltaTime];
+				// return event;
+				case 0x0d:
+					// event.type = "channelAftertouch";
+					// event.amount = param1;
+					// [eventTypeByte, param1, 0, event.deltaTime];
+
+					return [eventTypeByte, param1, 0, event.deltaTime];
+					break;
+				case 0x0e:
+					// event.type = "pitchBend";
+					// event.value = param1 + (p.readUInt8() << 7) - 0x2000;
+					return [eventTypeByte, param1, p.readUInt8() << (7 - 0x2000), event.deltaTime];
+				//return [eventTypeByte, param1, p.readUInt8() << (7 - 0x2000), event.deltaTime];
+				default:
+					throw "Unrecognised MIDI event type: " + eventType;
+			}
     }
   }
 }

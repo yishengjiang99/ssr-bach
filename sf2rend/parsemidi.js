@@ -189,6 +189,11 @@ function parseTrack(data) {
 			}
 			var eventType = eventTypeByte >> 4;
 			event.channel = eventTypeByte & 0x0f;
+			if(eventType!=0x05 && eventType !=0x06){
+				return const eventinfo=[eventTypeByte,param1,p.getUint8(),{time:tracks[event.channel].time}];
+			}
+			const eventinfo=[eventTypeByte,param1,p.getUint8()];
+			if(eventType!=0x)
 			switch (eventType) {
 				case 0x08:
 					event.type = "noteOff";
