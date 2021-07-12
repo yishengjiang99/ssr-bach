@@ -218,10 +218,10 @@ function parseTrack(data) {
 					return [eventTypeByte, param1, p.readUInt8(), event.deltaTime];
 					break;
 				case 0x0c:
-				event.type = "programChange";
-				[eventTypeByte, param1, 0, event.deltaTime];
-        return {type:event.type, channel:event.channel,value:param1};
-				return event;
+          event.type = "programChange";
+          [eventTypeByte, param1, 0, event.deltaTime];
+          return {type:event.type, channel:event.channel,value:param1, deltaTime: event.deltaTime};
+          return event;
 				case 0x0d:
 					// event.type = "channelAftertouch";
 					// event.amount = param1;
