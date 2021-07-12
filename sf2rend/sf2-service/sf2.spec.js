@@ -14,30 +14,21 @@ describe("sf2d.js", () => {
 		});
 		expect(true);
 	}).timeout(200000);
-	it("loads rogra", async () => {
-		worker.postMessage({ setProgram: { channel: 1, pid: 2 } });
 
+	it("loads note", async () => {
+		worker = new Worker("sf2d.js");
+
+		// await
+		await new Promise((res, reject) => {
+			worker.onmessage = ({ data: { ready } }) => (ready == 1 ? res(true) : reject());
+		});
+		worker.postMessage({ setProgram: { channel: 0, pid: 0 } });
 		await new Promise((r) => {
 			worker.onmessage = ({ data: { preset } }) => {
 				expect(preset).gt(0);
 				r(preset);
 			};
 		});
-	}).timeout(200000);
-	it("loads note", async () => {
-		// worker = new Worker("sf2d.js");
-
-		// // await
-		// await new Promise((res, reject) => {
-		// 	worker.onmessage = ({ data: { ready } }) => (ready == 1 ? res(true) : reject());
-		// });
-		// worker.postMessage({ setProgram: { channel: 1, pid: 2 } });
-		// await new Promise((r) => {
-		// 	worker.onmessage = ({ data: { preset } }) => {
-		// 		expect(preset).gt(0);
-		// 		r(preset);
-		// 	};
-		// });
 		worker.postMessage({ noteOn: { channel: 1, key: 33, vel: 88 } });
 		worker.postMessage({ noteOn: { channel: 1, key: 53, vel: 88 } });
 		worker.postMessage({ noteOn: { channel: 1, key: 32, vel: 88 } });
@@ -61,7 +52,7 @@ describe("sf2d.js", () => {
 		worker.postMessage({ noteOn: { channel: 1, key: 55, vel: 55 } });
 
 		expect(true);
-	});
+	}).timeout(200000);
 });
 
 mocha.run();

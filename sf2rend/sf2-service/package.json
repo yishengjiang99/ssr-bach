@@ -1,0 +1,14 @@
+{
+	"name": "sf2-service",
+	"version": "1.0.0",
+	"description": "",
+	"main": "libs.js",
+	"scripts": {
+		"build": "make",
+		"test": "make check",
+		"postinstall": "curl -O 'https://grep32bit.blob.core.windows.net/sf2/GeneralUserGS.sf2' file.sf2"
+	},
+	"keywords": [],
+	"author": "Yisheng Jiang",
+	"license": "ISC"
+}

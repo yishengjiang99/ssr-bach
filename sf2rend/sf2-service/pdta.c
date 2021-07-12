@@ -34,7 +34,6 @@ void loadpdta(void *pdtabuffer) {
       presets[phdrs[i].pid | phdrs[i].bankId] =
           findPresetZones(i, findPresetZonesCount(i));
     }
-    //  presets[i] = findPresetZones(i, findPresetZonesCount(i));
   }
 }
 
@@ -227,5 +226,6 @@ void filterForZone(zone_t *from, uint8_t key, uint8_t vel, zone_t *zf) {
 }
 
 void *shdrref() { return shdrs; }
+void *presetRef() { return presets; }
 
 // int main(int argc, char **argv) { printf("r"); }

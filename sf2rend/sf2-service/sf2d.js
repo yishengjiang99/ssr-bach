@@ -1,8 +1,10 @@
-importScripts(self.location.origin + "/libs.js");
-importScripts(self.location.origin + "/zoneProxy.js");
+//self.location.href.split("/").reverse().shift().reverse()
+const pwd = self.location.href.substr(0, self.location.href.lastIndexOf("/"));
+importScripts(pwd + "/libs.js");
+importScripts(pwd + "/zoneProxy.js");
 const url = self.location.hash.length
 	? decodeURIComponent(self.location.hash.substr(1))
-	: "/GeneralUserGS.sf2";
+	: "GeneralUserGS.sf2";
 const nchannels = 16,
 	bytesPerChannelZone = 60,
 	sampleRefs = 400;
@@ -25,11 +27,14 @@ const srb = new SharedArrayBuffer(
 );
 
 function sharedRegistar(srb, floatrb) {
-	const sampleRegistar = new Uint32Array(srb.buffer, nchannels * bytesPerChannelZone, 400);
-	const channelZones = new Int16Array(srb.buffer, 0, nchannels, 60);
+	const sampleRegistar = new Uint32Array(srb, nchannels * bytesPerChannelZone, 400);
+	const channelZones = new Int16Array(srb, 0, nchannels * 60);
 	return {
 		zoneInfo: (channelId) =>
 			newSFZone(new Int16Array(srb.buffer, channelId * bytesPerChannelZone, 60)),
+		setZoneInfo: (channelId, attrs) => {
+			channelZones.set(attrs, channelId * 60);
+		},
 		getSampleRef: (sampleId) => sampleRegistar[sampleId],
 		getSample: (sampleId) => {
 			sampleId < sampleRefs - 1
@@ -40,19 +45,27 @@ function sharedRegistar(srb, floatrb) {
 	};
 }
 
+const registar = sharedRegistar(srb);
 const zones = new Int16Array(srb);
 const sampleData = {};
-const dup2 = new TransformStream();
+let output;
+//const dup2writer = dup2.writable.getWriter();
+
 wasmloaded.then(async (Module) => {
 	const { pdtaBuffer, sdtaStart } = await pdtaLoaded;
 	const a = Module._malloc(pdtaBuffer.byteLength);
 	Module.HEAPU8.set(pdtaBuffer, a);
 	Module.ccall("loadpdta", null, ["number"], [a], null);
 	const shdrref = Module.ccall("shdrref", "number", [], [], null);
-
+	// const presetRef = Module.ccall("presetRef", "number,", [], [], null);
+	// function presetZoneRef(pid, bankId) {
+	// 	const refIndex = presetRef + (pid | bankId);
+	// 	const zoneRef = Module.HEAPU32[refIndex];
+	// 	return zoneRef;
+	// }
 	function getShdr(samleId) {
-		const hdrRef = shdrref + samleId * 48;
-		const dv = Module.HEAPU8.buffer.slice(hdrRef, hdrRef + 48);
+		const hdrRef = shdrref + samleId * 46;
+		const dv = Module.HEAPU8.buffer.slice(hdrRef, hdrRef + 46);
 		const [start, end, startloop, endloop, sampleRate] = new Uint32Array(dv, 20, 5);
 		const [originalPitch, pitchCorrection] = new Uint8Array(dv, 20 + 5 * 4, 2);
 		return [start, end, startloop, endloop, sampleRate, originalPitch, pitchCorrection];
@@ -61,32 +74,46 @@ wasmloaded.then(async (Module) => {
 	onmessage = async ({ data: { setProgram, noteOn, readable, sharePort } }) => {
 		if (setProgram) {
 			const { channel, pid } = setProgram;
-			const ref = loadPreset(pid, channel == 9 ? 128 : 0);
-			const npresets = Module.HEAPU32[ref >> 2];
-			const zref = Module.HEAPU32[(ref >> 2) + 1];
-			channels[channel] = ref;
-			for (let i = 0; i < npresets; i++) {
-				let zptr = zref + i * 120;
-				const zone = Module.HEAP16.subarray(zptr / 2, zptr / 2 + 60);
-				const z = newSFZone(zone);
-				const sample = getShdr(z.SampleId);
-				debugger;
-				if (!sampleData[z.SampleId]) {
-					sampleData[z.SampleId] = await resolvePCM(
-						url,
-						`bytes=${sdtaStart + sample[0] * 2}-${sdtaStart + sample[1] * 2 + 1}`
-					);
+			const bankId = channel == 9 ? 128 : 0;
+			let zref = loadPreset(pid, bankId);
+			channels[channel] = zref;
+			const dup2 = new TransformStream();
+			(async function download() {
+				for await (const download of (async function* _() {
+					while (true) {
+						const zone = Module.HEAP16.subarray(zref / 2, zref / 2 + 60);
+						const z = newSFZone(zone);
+						if (z.SampleId == -1) break;
+						if (!sampleData[z.SampleId]) {
+							console.log(z.SampleId);
+							const sample = getShdr(z.SampleId);
+							const start = sdtaStart + sample[0] * 2;
+							const end = sdtaStart + sample[1] * 2 + 1;
+							yield fetch(url, {
+								headers: {
+									Range: `bytes=` + start + `-` + end,
+								},
+							})
+								.then((res) => res.body.pipeTo(dup2.writable, { preventClose: true }))
+								.catch((e) => console.trace());
+						}
+						zref += 60;
+					}
+				})()) {
 				}
-			}
-
-			postMessage({ preset: channels[channel] });
+			})();
+			if (outlet) outlet.postMessage({ wavetable: dup2.readable }, [dup2.readable]);
+			//	postMessage({ preset: channels[channel] });
 		}
 		if (noteOn) {
 			const { channel, key, vel } = noteOn;
+
 			const zone = filterPresetZones(channel, key, vel);
+			registar.setZoneInfo(channel, zone);
 		}
 		if (sharePort) {
-			sharePort.postMessage({ dl_table_stream: dup2.readable }, [dup2.readable]);
+			outlet = sharePort;
+			sharePort.postMessage({srb:srb});
 		}
 	};
 
@@ -104,7 +131,8 @@ function filterPresetZones(channel, key, vel) {
 	);
 
 	const zone = Module.HEAP16.subarray(zptr / 2, zptr / 2 + 60);
-	zones.set(zone, 60 * channel); //.subarray(zptr, zptr + 120);
+	registar.setZoneInfo(channel, zone);
+	//zones.set(zone, 60 * channel); //.subarray(zptr, zptr + 120);
 	Module._free(zptr);
 
 	return newSFZone(zone);
@@ -116,17 +144,3 @@ function loadPreset(pid, bank_id) {
 }
 
 importScripts("pdta.js");
-
-async function resolvePCM(url, range) {
-	const rangeHeaders = {
-		headers: {
-			Range: range,
-		},
-	};
-	const pcm = new Int16Array(await (await fetch(url, rangeHeaders)).arrayBuffer());
-	const fl32s = new Float32Array(pcm.length);
-	for (let i = 0; i < pcm.length; i++) {
-		fl32s[i] = pcm[i] / 0xffff;
-	}
-	return fl32s;
-}

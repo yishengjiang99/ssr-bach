@@ -1834,6 +1834,9 @@ var _filterForZone = Module["_filterForZone"] = createExportWrapper("filterForZo
 var _shdrref = Module["_shdrref"] = createExportWrapper("shdrref");
 
 /** @type {function(...*):?} */
+var _presetRef = Module["_presetRef"] = createExportWrapper("presetRef");
+
+/** @type {function(...*):?} */
 var ___errno_location = Module["___errno_location"] = createExportWrapper("__errno_location");
 
 /** @type {function(...*):?} */
