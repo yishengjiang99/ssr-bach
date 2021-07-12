@@ -1,17 +1,14 @@
 importScripts(self.location.origin + "/libs.js");
 importScripts(self.location.origin + "/zoneProxy.js");
-
+const url = self.location.hash.length
+	? decodeURIComponent(self.location.hash.substr(1))
+	: "/GeneralUserGS.sf2";
+const nchannels = 16,
+	bytesPerChannelZone = 60,
+	sampleRefs = 400;
 var Module = {
 	print: function (str) {
-		const [cmd, ...args] = str.split(":");
-		switch (cmd) {
-			case "fetch":
-				const [start, end] = args.split("-");
-				break;
-			default:
-				console.log(cmd, args);
-				break;
-		}
+		postMessage(str);
 	},
 };
 const wasmloaded = new Promise((resolve) => {
@@ -20,13 +17,32 @@ const wasmloaded = new Promise((resolve) => {
 	};
 });
 const pdtaLoaded = new Promise((resolve) => {
-	sfbkstream("file.sf2").then(resolve);
+	sfbkstream(url).then(resolve);
 });
 const channels = new Array(17);
-const srb = new SharedArrayBuffer(120 * 17);
+const srb = new SharedArrayBuffer(
+	nchannels * bytesPerChannelZone + sampleRefs * Uint32Array.BYTES_PER_ELEMENT
+);
+
+function sharedRegistar(srb, floatrb) {
+	const sampleRegistar = new Uint32Array(srb.buffer, nchannels * bytesPerChannelZone, 400);
+	const channelZones = new Int16Array(srb.buffer, 0, nchannels, 60);
+	return {
+		zoneInfo: (channelId) =>
+			newSFZone(new Int16Array(srb.buffer, channelId * bytesPerChannelZone, 60)),
+		getSampleRef: (sampleId) => sampleRegistar[sampleId],
+		getSample: (sampleId) => {
+			sampleId < sampleRefs - 1
+				? floatrb.subarray(sampleRegistar[sampleId], sampleRegistar[sampleId + 1])
+				: floatrb.subarray(sampleRegistar[sampleId]);
+		},
+		setSampleRef: (sampleId, ref) => (sampleRegistar[sampleId] = ref),
+	};
+}
 
 const zones = new Int16Array(srb);
 const sampleData = {};
+const dup2 = new TransformStream();
 wasmloaded.then(async (Module) => {
 	const { pdtaBuffer, sdtaStart } = await pdtaLoaded;
 	const a = Module._malloc(pdtaBuffer.byteLength);
@@ -49,18 +65,15 @@ wasmloaded.then(async (Module) => {
 			const npresets = Module.HEAPU32[ref >> 2];
 			const zref = Module.HEAPU32[(ref >> 2) + 1];
 			channels[channel] = ref;
-			console.log(Module.HEAP16.subarray(ref / 2, ref / 2 + 1000));
 			for (let i = 0; i < npresets; i++) {
 				let zptr = zref + i * 120;
 				const zone = Module.HEAP16.subarray(zptr / 2, zptr / 2 + 60);
 				const z = newSFZone(zone);
 				const sample = getShdr(z.SampleId);
-				console.log(sample);
-				console.log("pres", z);
-
+				debugger;
 				if (!sampleData[z.SampleId]) {
 					sampleData[z.SampleId] = await resolvePCM(
-						"file.sf2",
+						url,
 						`bytes=${sdtaStart + sample[0] * 2}-${sdtaStart + sample[1] * 2 + 1}`
 					);
 				}
@@ -71,20 +84,22 @@ wasmloaded.then(async (Module) => {
 		if (noteOn) {
 			const { channel, key, vel } = noteOn;
 			const zone = filterPresetZones(channel, key, vel);
-			console.log("key ", key, "vel", vel, zone);
-			console.log(zone.SampleId, sampleData);
+		}
+		if (sharePort) {
+			sharePort.postMessage({ dl_table_stream: dup2.readable }, [dup2.readable]);
 		}
 	};
 
 	postMessage({ srb: srb, ready: 1 });
 });
+
 function filterPresetZones(channel, key, vel) {
 	const zptr = Module._malloc(120);
 	Module.ccall(
 		"filterForZone",
 		null,
-		["number", "number", "number", "number"],
-		[channels[channel] + 4, key, vel, zptr],
+		["number", "u8", "u8", "number"],
+		[channels[channel], key, vel, zptr],
 		null
 	);
 
@@ -96,7 +111,7 @@ function filterPresetZones(channel, key, vel) {
 }
 function loadPreset(pid, bank_id) {
 	let z;
-	const pptr = Module.ccall("findByPid", "number", ["number", "number"], [pid, bank_id], null);
+	const pptr = Module.ccall("findByPid", "number", ["u16", "u16"], [pid, bank_id], null);
 	return pptr;
 }
 

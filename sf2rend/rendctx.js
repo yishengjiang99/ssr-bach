@@ -1,78 +1,95 @@
-// prettier-ignore
-  export const wasmBinary = new Uint8Array([
-    0,97,115,109,1,0,0,0,1,190,128,128,128,0,11,96,1,127,0,96,1,125,1,125,96,2,125,125,1,125,96,6,127,127,127,127,127,127,1,127,96,1,127,1,125,96,3,127,127,127,0,96,2,127,127,0,96,5,127,127,127,127,127,0,96,0,1,127,96,1,127,1,127,96,0,0,2,179,128,128,128,0,4,3,101,110,118,5,101,120,112,50,102,0,1,3,101,110,118,6,112,101,114,114,111,114,0,0,3,101,110,118,4,112,111,119,102,0,2,3,101,110,118,6,109,101,109,111,114,121,2,0,1,3,140,128,128,128,0,11,6,5,0,3,6,10,9,4,8,7,0,4,132,128,128,128,0,1,112,0,0,7,144,129,128,128,0,11,11,110,101,119,69,110,118,101,108,111,112,101,0,6,8,101,110,118,83,104,105,102,116,0,10,11,97,100,115,114,82,101,108,101,97,115,101,0,13,15,115,101,116,95,115,97,109,112,108,101,95,100,97,116,97,0,4,15,115,101,116,95,115,97,109,112,108,101,95,108,105,115,116,0,3,10,97,112,112,108,121,95,122,111,110,101,0,12,8,99,116,120,95,115,105,122,101,0,11,10,103,101,116,95,111,117,116,112,117,116,0,9,8,105,110,105,116,95,99,116,120,0,7,6,114,101,110,100,101,114,0,5,8,105,110,105,116,76,85,84,115,0,8,9,129,128,128,128,0,0,10,229,141,128,128,0,11,138,128,128,128,0,0,32,0,32,1,54,2,140,4,11,138,128,128,128,0,0,32,0,32,1,54,2,144,4,11,129,133,128,128,0,2,13,127,3,125,2,64,32,0,65,144,4,106,33,7,65,0,33,3,3,64,32,0,32,3,65,52,108,106,34,1,65,192,5,106,47,1,0,4,64,65,1,32,1,65,160,5,106,34,8,40,2,0,107,32,1,65,156,5,106,40,2,0,106,33,9,32,1,65,172,5,106,33,10,32,1,65,176,5,106,33,11,32,1,65,180,5,106,33,12,32,1,65,184,5,106,33,13,32,1,65,168,5,106,34,4,42,2,0,33,14,32,1,65,164,5,106,34,5,40,2,0,33,1,65,0,33,6,3,64,32,7,40,2,0,32,1,65,2,116,106,34,1,42,2,4,32,1,42,2,0,34,15,147,32,14,148,33,16,2,127,2,125,32,13,40,2,0,34,1,40,2,0,34,2,4,64,32,1,32,2,65,127,106,54,2,0,32,1,42,2,20,32,1,42,2,16,146,12,1,11,32,1,40,2,4,34,2,4,64,32,1,65,4,106,32,2,65,127,106,54,2,0,32,1,42,2,24,67,0,0,128,63,32,1,42,2,16,147,67,0,0,112,68,148,148,34,14,67,0,0,112,68,148,32,14,147,12,1,11,32,1,40,2,8,34,2,69,4,64,32,1,42,2,16,33,14,32,1,65,16,106,12,2,11,32,1,65,8,106,32,2,65,127,106,54,2,0,32,1,42,2,28,32,1,42,2,16,146,11,33,14,32,1,32,14,56,2,16,32,1,65,16,106,11,33,2,32,15,32,16,146,33,16,67,0,0,112,68,33,15,2,64,32,14,67,0,0,112,68,94,69,4,64,67,0,0,0,0,33,15,32,14,67,0,0,0,0,96,32,14,32,14,92,114,13,1,11,32,2,32,15,56,2,0,32,15,33,14,11,32,0,32,6,65,3,116,106,34,1,65,12,106,34,2,32,2,42,2,0,32,16,32,14,168,34,2,65,0,32,2,65,0,74,27,34,2,65,192,7,32,2,65,192,7,72,27,65,2,116,65,192,0,106,42,2,0,148,34,14,32,12,42,2,0,148,146,56,2,0,32,1,65,16,106,34,1,32,1,42,2,0,32,14,32,11,42,2,0,148,146,56,2,0,32,4,32,10,42,2,0,32,4,42,2,0,146,34,14,56,2,0,32,5,40,2,0,33,1,32,14,67,0,0,128,63,93,32,14,32,14,92,114,69,4,64,3,64,32,1,65,1,106,33,1,32,14,67,0,0,128,191,146,34,14,67,0,0,128,63,93,32,14,32,14,92,114,69,13,0,11,32,5,32,1,54,2,0,32,4,32,14,56,2,0,11,32,1,32,8,40,2,0,34,2,79,4,64,3,64,32,1,32,9,106,34,1,32,2,79,13,0,11,32,5,32,1,54,2,0,11,32,6,65,1,106,34,6,65,128,1,71,13,0,11,11,32,3,65,1,106,34,3,65,32,71,13,0,11,11,11,188,129,128,128,0,1,2,125,2,127,32,0,32,2,178,67,0,0,150,68,149,16,0,34,7,32,5,178,34,6,148,169,54,2,4,32,0,32,1,178,67,0,0,150,68,149,16,0,32,6,148,169,34,1,54,2,0,32,0,32,3,178,67,0,0,150,68,149,16,0,32,6,148,169,34,3,54,2,8,2,125,32,1,65,12,73,4,64,32,0,65,0,54,2,16,32,0,65,0,54,2,0,67,0,0,0,0,12,1,11,32,1,179,11,33,6,32,0,32,4,54,2,12,32,0,67,0,0,112,196,32,6,149,56,2,20,32,0,65,16,106,65,128,128,192,163,4,54,2,0,32,0,67,0,0,112,68,32,3,179,149,56,2,28,32,0,32,7,67,0,0,32,65,32,4,178,67,0,0,72,195,149,16,2,148,140,56,2,24,32,0,11,11,157,128,128,128,0,0,2,64,32,0,65,1,54,2,8,32,0,66,128,247,2,55,2,0,32,0,32,1,54,2,144,4,11,11,208,128,128,128,0,2,1,127,1,124,2,64,68,0,0,0,0,0,0,0,0,33,1,65,132,83,33,0,3,64,32,0,65,188,45,106,67,0,0,32,65,32,1,68,0,0,0,0,0,0,105,192,163,182,16,2,56,2,0,32,1,68,0,0,0,0,0,0,240,63,160,33,1,32,0,65,4,106,34,0,13,0,11,11,11,135,128,128,128,0,0,32,0,65,12,106,11,248,129,128,128,0,2,1,127,2,125,2,125,2,127,32,0,40,2,0,34,1,4,64,32,0,32,1,65,127,106,54,2,0,32,0,32,0,42,2,20,32,0,42,2,16,146,34,2,56,2,16,32,0,65,16,106,12,1,11,32,0,40,2,4,34,1,4,64,32,0,65,4,106,32,1,65,127,106,54,2,0,32,0,32,0,42,2,24,67,0,0,128,63,32,0,42,2,16,147,67,0,0,112,68,148,148,34,2,67,0,0,112,68,148,32,2,147,34,2,56,2,16,32,0,65,16,106,12,1,11,32,0,40,2,8,34,1,4,64,32,0,65,8,106,32,1,65,127,106,54,2,0,32,0,32,0,42,2,28,32,0,42,2,16,146,34,2,56,2,16,32,0,65,16,106,12,1,11,32,0,42,2,16,33,2,32,0,65,16,106,11,33,1,67,0,0,112,68,33,3,2,64,32,2,67,0,0,112,68,94,69,4,64,67,0,0,0,0,33,3,32,2,67,0,0,0,0,96,32,2,32,2,92,114,13,1,11,32,1,32,3,56,2,0,32,3,33,2,11,32,2,11,11,133,128,128,128,0,0,65,148,18,11,226,131,128,128,0,2,1,127,2,125,2,64,32,0,65,148,5,106,34,3,32,2,65,1,116,32,3,32,2,65,232,0,108,106,40,2,36,40,2,0,69,114,65,52,108,106,34,3,40,2,40,33,2,32,3,40,2,36,33,3,32,0,40,2,140,4,32,1,46,1,106,65,48,108,106,69,4,64,65,16,16,1,11,32,3,32,1,46,1,68,178,67,0,0,150,68,149,16,0,67,0,128,59,71,148,169,34,4,54,2,0,32,3,32,1,46,1,76,178,67,0,0,150,68,149,16,0,34,6,67,0,128,59,71,148,169,54,2,4,32,3,32,1,46,1,72,178,67,0,0,150,68,149,16,0,67,0,128,59,71,148,169,34,5,54,2,8,32,1,46,1,74,33,0,2,125,32,4,65,12,73,4,64,32,3,65,0,54,2,16,32,3,65,0,54,2,0,67,0,0,0,0,12,1,11,32,4,179,11,33,7,32,3,32,0,54,2,12,32,3,67,0,0,112,196,32,7,149,56,2,20,32,3,65,16,106,65,128,128,192,163,4,54,2,0,32,3,67,0,0,112,68,32,5,179,149,56,2,28,32,3,32,6,67,0,0,32,65,32,0,178,67,0,0,72,195,149,16,2,148,140,56,2,24,32,2,32,1,46,1,52,178,67,0,0,150,68,149,16,0,67,0,128,59,71,148,169,34,3,54,2,0,32,2,32,1,46,1,60,178,67,0,0,150,68,149,16,0,34,6,67,0,128,59,71,148,169,54,2,4,32,2,32,1,46,1,56,178,67,0,0,150,68,149,16,0,67,0,128,59,71,148,169,34,0,54,2,8,32,1,46,1,58,33,1,2,125,32,3,65,12,73,4,64,32,2,65,0,54,2,16,32,2,65,0,54,2,0,67,0,0,0,0,12,1,11,32,3,179,11,33,7,32,2,32,1,54,2,12,32,2,67,0,0,112,196,32,7,149,56,2,20,32,2,65,16,106,65,128,128,192,163,4,54,2,0,32,2,67,0,0,112,68,32,0,179,149,56,2,28,32,2,32,6,67,0,0,32,65,32,1,178,67,0,0,72,195,149,16,2,148,140,56,2,24,11,11,137,128,128,128,0,0,32,0,66,0,55,2,0,11,11,177,128,128,128,0,2,0,65,4,11,2,80,54,0,65,16,11,36,99,97,110,110,111,116,32,108,111,99,97,116,105,111,110,32,115,97,109,112,108,101,32,111,114,32,118,111,105,99,101,32,115,108,111,116
-  ]);
-  const samples_per_frame = 128;
-const bytesPerFrameOutput = samples_per_frame * 2 * Float32Array.BYTES_PER_ELEMENT;
-const memory = new WebAssembly.Memory({
-	initial: 150,
-	maximum: 150,
-});
-let heap = new Uint8Array(memory.buffer);
-let brk = 10000;
-const sbrk = function (size) {
-	const old = brk;
-	brk += size;
-	if (brk > heap.length) {
-		memory.grow(Math.ceil((brk - heap.length) / 65536));
-		heap = new Uint8Array(memory.buffer);
-	}
-	return old;
-};
-const {
-	exports: { apply_zone, ctx_size, init_ctx, render, set_sample_data, set_sample_list, get_output },
-} = new WebAssembly.Instance(new WebAssembly.Module(wasmBinary), {
-	env: {
-		malloc: sbrk,
-		memory,
-		powf: Math.pow,
-		sqrtf: Math.sqrt,
-		exp2f: (x) => Math.pow(2, x),
-		perror: (x) => alert(x),
-	},
-});
-const structSize = ctx_size();
-const rendctx = sbrk(structSize);
-const outputBuffer = get_output(rendctx);
-init_ctx(rendctx);
-let zoneInput = sbrk(60 * Int16Array.BYTES_PER_ELEMENT);
-const inputZoneBuffer = new Int16Array(heap, zoneInput, 60 * Int16Array.BYTES_PER_ELEMENT);
-
-function initsdta(sdtaStream, nsamples) {
-	const pointr = sbrk(nsamples * Float32Array.BYTES_PER_ELEMENT);
-	let offset = pointr;
-	while (true) {
-		const { done, value } = reader.read();
-		if (done) break;
-		const dv = new DataView(value.buffer);
-		for (let i = 0; i < value.byteLength - 2; i += 2)
-			heap[offset++] = dv.getInt16(2 * i, true) / 0x7fff;
-	}
-	return pointr;
-}
-
-function msgHandler(e) {
-	const { sdtaStream, nSamples, zone, note } = e.data;
-	if (sdtaStream && nSamples) {
-		initsdta(sdtaStream, nSamples);
-	}
-	if (zone && note) {
-		heap.set(heap, zoneInput, zone.generators);
-		apply_zone(rendCtx, zoneInput, note.channel, note.key, note.velocity);
-	}
-}
+const heap = new WebAssembly.Memory({ initial: 10, maximum: 10, shared: true });
 class RenderProcessor extends AudioWorkletProcessor {
-	constructor() {
-		super();
-		this.port.onmessageerror = console.log;
-		this.port.onmessage = msgHandler.bind(this);
-	}
-	process(input, outputs) {
-		render(rendctx);
-		const flrr = new Float32Array(heap.buffer, rendctx);
-		for (let j = 0; j < 128; j++) {
-			outputs[0][0][j] = flrr.getFloat32(j * 4, true); //[i];
-		}
-	}
+    port;
+    constructor() {
+        super();
+        // this.port.onmessageerror = console.log;
+        this.port.onmessage = this.msgHandler.bind(this);
+        this.port.start();
+    }
+    msgHandler({ data: { midistream, sf2config }, }) {
+        const r = midistream.getReader();
+        r.read().then(function process({ done, value }) {
+            if (done)
+                return;
+            if (value) {
+                console.log(value);
+            }
+        });
+    }
+    process(input, outputs) {
+        render(rendctx);
+        const flrr = new Float32Array(heap.buffer, rendctx);
+        for (let j = 0; j < 128; j++) {
+            outputs[0][0][j] = flrr.getFloat32(j * 4, true); //[i];
+        }
+    }
 }
 registerProcessor("rend-proc", RenderProcessor);
+/**
+ * Copyright 2018 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+import Module from "./rend.wasmmodule.js";
+import { RENDER_QUANTUM_FRAMES, MAX_CHANNEL_COUNT, HeapAudioBuffer } from "./wasm-audio-helper.js";
+/**
+ * A simple demonstration of WASM-powered AudioWorkletProcessor.
+ *
+ * @class WASMWorkletProcessor
+ * @extends AudioWorkletProcessor
+ */
+class WASMWorkletProcessor extends AudioWorkletProcessor {
+    /**
+     * @constructor
+     */
+    constructor() {
+        super();
+        // Allocate the buffer for the heap access. Start with stereo, but it can
+        // be expanded up to 32 channels.
+        this._heapInputBuffer = new HeapAudioBuffer(Module, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
+        this._heapOutputBuffer = new HeapAudioBuffer(Module, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
+        Module._init();
+    }
+    /**
+     * System-invoked process callback function.
+     * @param  {Array} inputs Incoming audio stream.
+     * @param  {Array} outputs Outgoing audio stream.
+     * @param  {Object} parameters AudioParam data.
+     * @return {Boolean} Active source flag.
+     */
+    process(inputs, outputs, parameters) {
+        // Use the 1st input and output only to make the example simpler. |input|
+        // and |output| here have the similar structure with the AudioBuffer
+        // interface. (i.e. An array of Float32Array)
+        let input = inputs[0];
+        let output = outputs[0];
+        // For this given render quantum, the channel count of the node is fixed
+        // and identical for the input and the output.
+        let channelCount = input.length;
+        // Prepare HeapAudioBuffer for the channel count change in the current
+        // render quantum.
+        this._heapInputBuffer.adaptChannel(channelCount);
+        this._heapOutputBuffer.adaptChannel(channelCount);
+        // Copy-in, process and copy-out.
+        for (let channel = 0; channel < channelCount; ++channel) {
+            this._heapInputBuffer.getChannelData(channel).set(input[channel]);
+        }
+        Module._process(this._heapInputBuffer.getHeapAddress(), this._heapOutputBuffer.getHeapAddress(), channelCount);
+        for (let channel = 0; channel < channelCount; ++channel) {
+            output[channel].set(this._heapOutputBuffer.getChannelData(channel));
+        }
+        return true;
+    }
+}
+registerProcessor("wasm-worklet-processor", WASMWorkletProcessor);

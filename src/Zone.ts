@@ -16,7 +16,7 @@ export class SFGenerator {
 		return { lo: this.int16 & 0x7f, hi: (this.int16 >> 8) & 0xff };
 	}
 	get u16() {
-		return this.int16 & 0x0ff0; // | (this.hi << 8);
+		return this.int16; // | (this.hi << 8);
 	}
 	get s16() {
 		return this.int16;

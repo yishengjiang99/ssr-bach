@@ -88,7 +88,7 @@
 
             const dv = new DataView(value.buffer);
             for (let i = 0; i < value.byteLength / 2 - 1; i++) {
-              floatss[offset++] = dv.getInt16(2 * i, true) / 0x7fff; // / 0x7fff;
+              floatss[offset++] = dv.getInt16(2 * i, true) / 0xffff; // / 0x7fff;
               if (offset >= floatss.length) {
                 if (sampleOffset >= samples.length) return;
                 [floatss, nsample] = createSamplebuffer();

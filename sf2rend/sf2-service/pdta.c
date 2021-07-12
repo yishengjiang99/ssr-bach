@@ -1,16 +1,15 @@
 #include <emscripten.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-EMSCRIPTEN_KEEPALIVE
-void sayHi() { printf("Hi!\n"); }
 #include "sf2.h"
-extern float powf(float b, float exp);
-extern float sqrtf(float x);
+
+zone_t *root;
+zone_t *presets[0xff];
 
 void loadpdta(void *pdtabuffer) {
   section_header *sh;
+
 #define read(section)                         \
   sh = (section_header *)pdtabuffer;          \
   pdtabuffer += 8;                            \
@@ -27,20 +26,26 @@ void loadpdta(void *pdtabuffer) {
   read(imod);
   read(igen);
   read(shdr);
-  presetZones = (PresetZones *)malloc(nphdrs * sizeof(PresetZones));
+
   for (int i = 0; i < nphdrs; i++) {
-    *(presetZones + i) = findPresetZones(i, findPresetZonesCount(i));
+    if (phdrs[i].bankId == 0) {
+      presets[phdrs[i].pid] = findPresetZones(i, findPresetZonesCount(i));
+    } else if (phdrs[i].bankId == 128) {
+      presets[phdrs[i].pid | phdrs[i].bankId] =
+          findPresetZones(i, findPresetZonesCount(i));
+    }
+    //  presets[i] = findPresetZones(i, findPresetZonesCount(i));
   }
 }
 
-PresetZones *findByPid(int pid, int bkid) {
+zone_t *findByPid(int pid, int bkid) {
   for (int i = 0; i < nphdrs - 1; i++) {
     if (phdrs[i].pid == pid && phdrs[i].bankId == bkid) {
-      return presetZones + pid;
+      return presets[i];
     }
   }
 
-  return presetZones;
+  return presets[0];
 }
 void sanitizedInsert(short *attrs, int i, pgen_t *g) {
   switch (i % 60) {
@@ -95,7 +100,7 @@ int findPresetZonesCount(int i) {
   }
   return nregions;
 }
-PresetZones findPresetZones(int i, int nregions) {
+zone_t *findPresetZones(int i, int nregions) {
   short defvals[60] = defattrs;
 
   enum {
@@ -104,7 +109,8 @@ PresetZones findPresetZones(int i, int nregions) {
     default_ibagcache_idex = 120,
     ibg_attr_cache_index = 180
   };
-  zone_t *zones = (zone_t *)malloc(nregions * sizeof(zone_t));
+  zone_t *zones = (zone_t *)malloc((nregions + 1) * sizeof(zone_t));
+  zone_t *dummy;
   int found = 0;
   short attrs[240] = {0};
   int instID = -1;
@@ -203,18 +209,20 @@ PresetZones findPresetZones(int i, int nregions) {
       }
     }
   }
-  return (PresetZones){found, zones};
+  dummy = zones + found;
+  dummy->SampleId = -1;
+  return zones;
 }
-void filterForZone(zone_t *from, int key, int vel, zone_t *zf) {
+void filterForZone(zone_t *from, uint8_t key, uint8_t vel, zone_t *zf) {
   for (zone_t *z = from; z; z++) {
-    if (z == 0) break;
-    if (vel > -1 && (z->VelRange.lo > vel || z->VelRange.hi < vel)) continue;
-    if (key > -1 && (z->KeyRange.lo > key || z->KeyRange.hi < key)) continue;
+    if (z == 0 || z->SampleId == (short)-1) break;
+    if (vel > 0 && (z->VelRange.lo > vel || z->VelRange.hi < vel)) continue;
+    if (key > 0 && (z->KeyRange.lo > key || z->KeyRange.hi < key)) continue;
     memcpy(zf, z, sizeof(zone_t));
     return;
   }
-  if (vel > 0) return filterForZone(from, key, -1, zf);
-  if (key > 0) return filterForZone(from, -1, vel, zf);
+  if (vel > 0) return filterForZone(from, key, 0, zf);
+  if (key > 0) return filterForZone(from, 0, vel, zf);
   return;
 }
 

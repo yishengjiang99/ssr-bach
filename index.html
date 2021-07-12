@@ -255,7 +255,7 @@
 			        ),
 			        pitch: Math.pow(
 			          2,
-			          (this.staticLevels.pitch - vibrLFO.pitchCent) / 1200
+			          (this.staticLevels.pitch + vibrLFO.pitchCent/100) / 1200
 			        ),
 			        filter: 1,
 			      };
@@ -426,7 +426,7 @@
 			playBtn.addEventListener("click", async (e) => {
 				if (!ctx) {
 					loghtml("starting.");
-					ctx = new AudioContext();
+					ctx = new AudioContext({ctx:22100});
 					await ctx.audioWorklet.addModule(workletcode);
 					proc = new AudioWorkletNode(ctx, "rend-proc", {
 						outputChannelCount: [2],
@@ -461,7 +461,7 @@
 				e.target.setAttribute("disabled", "true");
 				playBtn.setAttribute("disabled", "false");
 			});
-let timerr;
+			let timerr;
 			async function playMidi(url) {
 				const { durationTicks, header, tracks } = await Midi.fromUrl(url);
 				let t = 1;
@@ -474,7 +474,7 @@ let timerr;
 					const ratio = t / _t;
 					for (let i = 0; i < tracks.length; i++) {
 						const track = tracks[i];
-						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 112) {
+						while (track.notes && track.notes[0] && track.notes[0].ticks < _t + 122) {
 							const note = track.notes.shift();
 							const z = _pdta.findPreset(
 								track.instrument.number,

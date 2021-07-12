@@ -7,16 +7,10 @@ typedef unsigned short uint16_t;
 typedef int int32_t;
 typedef short int16_t;
 
-typedef uint32_t DWORD;  // uint32_t;
-typedef DWORD FOURCC;
 typedef struct {
   uint8_t lo, hi;
 } rangesType;  //  Four-character code
-typedef struct {
-  FOURCC ckID;   //  A chunk ID identifies the type of data within the chunk.
-  DWORD ckSize;  // The size of the chunk data in bytes, excluding any pad byte.
-  char *ckDATA;  // The actual data plus a pad byte if req'd to word align.
-} RIFFCHUNKS;
+
 typedef union {
   rangesType ranges;
   short shAmount;
@@ -138,19 +132,15 @@ typedef struct {
       CoarseTune, FineTune, SampleId, SampleModes, Reserved3, ScaleTune,
       ExclusiveClass, OverrideRootKey, Dummy;
 } zone_t;
-typedef struct {
-  int npresets;
-  zone_t *zones;
-} PresetZones;
 
-PresetZones *presetZones;
-PresetZones *findByPid(int pid, int bkid);
+zone_t *presetZones;
+zone_t *findByPid(int pid, int bkid);
 
-PresetZones findPresetZones(int i, int nregions);
-PresetZones *findPresetByName(const char *name);
+zone_t *findPresetZones(int i, int nregions);
+zone_t *findPresetByName(const char *name);
 int findPresetZonesCount(int i);
 
-void filterForZone(zone_t *pset, int key, int vel, zone_t *z);
+void filterForZone(zone_t *pset, uint8_t key, uint8_t vel, zone_t *z);
 
 enum grntypes {
   StartAddrOfs,

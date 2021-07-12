@@ -5,7 +5,6 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Document</title>
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
 
 	<style>
 		body{
@@ -18,12 +17,7 @@
     grid-template-rows: auto 1fr auto;
 }
 		main{
-			--code-toolbarHoverBackground: rgba(90, 93, 94, 0.31);
-    --notebook-focused-cell-border-color: #007fd4;
-    --notebook-inactive-focused-cell-border-color: #37373d;
-    --notebook-selected-cell-border-color: #37373d;
-    --sash-size: 4px;
-    --sash-hover-size: 4px;
+
     -webkit-user-select: none;
     font-size: 13px;
     line-height: 1.4em;
@@ -88,8 +82,8 @@
 
 <body class='wrapper'>
 	<header></header>
-	<div class=container>	<aside></aside>
-
+	<div class=container>	<aside><div id=rx1></div></aside>
+		
 	<main>
 
 	
@@ -113,29 +107,36 @@
 	</div>
 
 </template>
-	<script type='module' src=index.js></script>
 
 	<script>
-	const a=document.querySelector('div.container');
-	console.log(a)
-		for(let i=1;i<19;i++){
+	const a=document.querySelector('main');
+	
+		for(let i=0;i<16;i++){
 			a.innerHTML+=`	
-			<div><label>track ${i}</label><input type="checkbox"> </div>
+			<div>
+				<label>track ${i}</label><input type="checkbox"> 
 		<span>
 			<meter value=0 min=0 max=127 step=1></meter>
-			<meter value=0 min=0 max=127 step=1></meter>
+			<meter value=0 min=-127 max=127 step=1></meter>
 		</span>
 		<span>
-			<input type="range" value=0 min=0 max=127 step=1></input>
+			<input type="range" value=0 min=-127 max=127 step=1></input>
 			<input type="range" value=0 min=0 max=127 step=1></input>
 		</span>		
 	</div>`;
 }
-	const comms = logdiv({ containerID: "stdout" });
-window.stdout=comms.stdout;
+	const comms = logdiv("pre","#rx1");
+	window.stdout=comms.stdout;
 window.stderr=comms.stderr;
+
 stdout("pgload");
 
-	</script>
+var Module={
+	print:(str)=>{
+		return `wow str`;
+	}
+} 
+	</script>	<script type='module' src=index.js></script>
+
 </body>
 </html>
