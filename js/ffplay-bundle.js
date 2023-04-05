@@ -153,7 +153,6 @@ class FF32Play extends EventTarget {
       sampleRate: 48000,
       latencyHint: 'playback',
     });
-    this.ctx = new AudioContext();
     this.ctx.audioWorklet.addModule(procURL).then(() => {
       this.worklet = new AudioWorkletNode(this.ctx, 'playback-processor', {
         outputChannelCount: [2],

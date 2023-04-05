@@ -62,6 +62,9 @@ export function timecent2sec(timecent) {
 export function centidb2gain(centibel) {
   return Math.pow(10, centibel / 200);
 }
+export function timecent2nsamples(timecent) {
+  return timecent <= -12000 ? 0 : timecent2sec(timecent) * 48000;
+}
 export enum LOOPMODES {
   NO_LOOP,
   CONTINUOUS_LOOP,

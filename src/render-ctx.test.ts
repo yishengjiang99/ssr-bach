@@ -8,7 +8,7 @@ test('renderctx', (t) => {
   ctx.keyOn(55, 13, 0);
   t.assert(ctx.voices[0].mods.ampVol.done == false);
   t.assert(ctx.voices[0].iterator >= 0);
-  t.assert(ctx.voices[0].staticLevels.pitch != NaN);
+  t.assert(ctx.voices[0].staticLevels.pitch != 0);
   t.assert(ctx.voices[0].iterator == ctx.voices[0].smpl.start);
   const b = ctx.render(5);
 
@@ -33,5 +33,5 @@ test('sf runtime', (t) => {
   const sff = new SF2File('file.sf2');
   const rctx = sff.rend_ctx;
   const v = rctx.keyOn(35, 45, 0);
-  t.assert(v.staticLevels.pitch != NaN);
+  t.assert(v.staticLevels.pitch != 0);
 });

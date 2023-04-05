@@ -6,7 +6,7 @@ type LFOParams = typeof SFZone.defaultLFO;
 export class SFZone {
   keyRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
   velRange: { lo: number; hi: number } = { lo: -1, hi: 129 };
-  sampleOffsets: Partial<Shdr> = {
+  sampleOffsets: any = {
     start: 0,
     end: 0,
     startLoop: 0,
@@ -64,7 +64,7 @@ export class SFZone {
   sampleMode: LOOPMODES = LOOPMODES.CONTINUOUS_LOOP;
   sampleID: number = -1;
   generators: SFGenerator[] = [];
-  private shdr: Shdr = null;
+  private shdr: Shdr;
 
   set sample(shdr: Shdr) {
     this.shdr = shdr;

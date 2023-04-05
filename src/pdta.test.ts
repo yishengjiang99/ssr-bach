@@ -10,10 +10,11 @@ test('pdta', (t) => {
   t.assert(pdta.phdr instanceof Array);
   const presets = pdta.findPreset(0);
   t.assert(presets[0].sample.name != null); // [0][0].name !== null);
+  console.log(presets[0].sample.name);
   presets.map((z) => {
     t.assert(z.sampleOffsets != null);
     t.assert(z.sampleOffsets.start >= 0);
-    t.assert(z.pitch != NaN);
+    t.assert(z.pitch != 0);
   });
   t.truthy(pdta.findPreset(44));
   const r = reader('./file.sf2');

@@ -13,7 +13,7 @@ import { createWriteStream } from 'fs';
 
 export class SF2File {
   pdta: PDTA;
-  sdta: { nsamples: number; data: Buffer; bit16s: Buffer };
+  sdta: { nsamples: number; data: Float32Array; bit16s: Int16Array };
   rend_ctx: RenderCtx;
   path: string;
   static fromURL(url: string, cb) {
@@ -41,17 +41,15 @@ export class SF2File {
       } else if (section === 'sdta') {
         assert(r.read32String(), 'smpl');
         const nsamples = (sectionSize - 4) / 2;
-        const bit16s = r.readN(sectionSize - 4);
-        const ob: Buffer = Buffer.alloc(nsamples * 4);
-        const s16tof32 = (i16) => i16 / 0xffff;
+        const bit16s = new Int16Array(r.readN(sectionSize - 4).buffer);
+        const fll = new Float32Array(nsamples);
         for (let i = 0; i < nsamples; i++) {
-          const n = bit16s.readInt16LE(i * 2);
-          ob.writeFloatLE(s16tof32(n), i * 4);
+          fll[i] = bit16s[i] / 0x7fff;
         }
         this.sdta = {
           nsamples: nsamples,
-          data: ob,
-          bit16s: bit16s,
+          data: fll,
+          bit16s,
         };
       } else {
         r.skip(sectionSize);
@@ -87,5 +85,3 @@ export class SF2File {
     this.rend_ctx.keyOn(key, vel, 0);
   }
 }
-// const f = new SF2File('sf2/file.sf2');
-// console.log(f.rend_ctx);

@@ -17,5 +17,5 @@ test('sffile is read', (t) => {
 test('floats are parsed correctly is read', (t) => {
   const sf = new SF2File('file.sf2');
   t.truthy(sf.sdta.nsamples);
-  t.is(sf.sdta.data.byteLength, 4 * sf.sdta.nsamples);
+  t.is(sf.sdta.data.length, sf.sdta.nsamples);
 });

@@ -7,7 +7,7 @@ import { loop } from './Utils';
 export class RenderCtx {
   sampleRate: number = 48000;
   voices: Runtime[] = [];
-  outputCard: Buffer = Buffer.alloc(1024);
+  outputCard = new Float32Array(256);
   programs: { presetId: number; bankId: number }[];
   constructor(private sff: SF2File) {
     LUT.init();
@@ -44,7 +44,7 @@ export class RenderCtx {
     this._chanVols = value;
   }
 
-  keyOn(key, vel, channelId = 0) {
+  public keyOn(key, vel, channelId = 0) {
     const { presetId, bankId } = this.programs[channelId];
     const zones = this.sff.findPreset({
       bankId,
@@ -62,50 +62,38 @@ export class RenderCtx {
       },
       this
     );
-
+    console.log(key);
     return this.voices[channelId];
   }
 
-  keyOff(channelId) {
+  public keyOff(channelId) {
     this.voices[channelId]?.mods.ampVol.triggerRelease();
   }
-  _render(voice: Runtime, outputArr: Buffer, blockLength) {
-    const input: Buffer = this.sff.sdta.data;
+  _render(voice: Runtime, outputArr: Float32Array, blockLength) {
+    const input: Float32Array = this.sff.sdta.data;
     const looper = voice.sample.endLoop - voice.sample.startLoop;
     let shift = 0.0;
     let iterator = voice.iterator || voice.sample.start;
 
     const { volume, pitch, filter } = voice.run(blockLength);
+    console.log(iterator, volume, pitch);
+
     for (let offset = 0; offset < blockLength; offset++) {
-      const outputByteOffset = offset * Float32Array.BYTES_PER_ELEMENT * 2;
-      let currentVal = outputArr.readFloatLE(outputByteOffset);
-      if (isNaN(currentVal)) currentVal = 0.0;
       let newVal;
       if (offset > 1) {
-        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) =>
-          input.readFloatLE((iterator + i) * 4)
-        );
+        const [vm1, v0, v1, v2] = [-1, 0, 1, 2].map((i) => input[iterator + i]);
         newVal = hermite4(shift, vm1, v0, v1, v2);
       } else {
-        newVal = input.readFloatLE(iterator * 4);
+        newVal = input[iterator];
       }
 
-      let sum = currentVal + newVal * volume;
-
-      outputArr.writeFloatLE(
-        sum * voice.staticLevels.pan.left,
-        outputByteOffset
-      );
-      outputArr.writeFloatLE(
-        sum * voice.staticLevels.pan.right,
-        outputByteOffset + 4
-      );
+      outputArr[offset] += newVal;
       if (process.env.debug) {
         console.log(
           offset,
           `\n iter: ${iterator}`,
           `\n modvols:v${volume}\np:${pitch}\n`,
-          currentVal,
+          newVal,
           newVal
         );
       }
@@ -125,19 +113,16 @@ export class RenderCtx {
     voice.iterator = iterator;
   }
   output: Writable;
-  render = (blockSize) => {
-    const ob = Buffer.alloc(blockSize * Float32Array.BYTES_PER_ELEMENT * 2);
-    loop(blockSize * 2, (n) =>
-      ob.writeFloatLE(0, n * Float32Array.BYTES_PER_ELEMENT)
-    );
+  render(blockSize): Float32Array {
+    this.outputCard.fill(0);
     this.voices
       .filter((v) => v.length && v.length > 0)
-      .map((voice) => {
-        this._render(voice, ob, blockSize);
+      .forEach((voice) => {
+        this._render(voice, this.outputCard, blockSize);
       });
-    if (this.output) this.output.write(ob);
-    else return ob;
-  };
+    if (this.output) this.output.write(new Uint8Array(this.outputCard).buffer);
+    return this.outputCard;
+  }
 }
 export function hermite4(frac_pos, xm1, x0, x1, x2) {
   const c = (x1 - xm1) * 0.5;

@@ -12,7 +12,7 @@ function ZoneUI({ zone, setPane2Txt }) {
               else return val;
             });
             setPane2Txt(newLocal);
-            start(`/sample/${zone.keyRange.lo}/${zone.velRange.hi}`, (update) =>
+            fetch(`/sample/${zone.keyRange.lo}/${zone.velRange.hi}`, (update) =>
               setDetails(update)
             );
           }}

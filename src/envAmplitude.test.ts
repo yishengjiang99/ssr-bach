@@ -16,7 +16,7 @@ test('full attenuate during decay', (t) => {
   t.assert(g.deltas.every((d) => d != Infinity));
   t.assert(g.deltas.every((d) => d != Infinity));
   Array.from(g.iterator()).map((v: number) => {
-    t.assert(v != NaN);
+    t.assert(!isNaN(v));
   });
 });
 test('piano', (t) => {

@@ -26,9 +26,10 @@ const t1 = async () => {
   //const ffffp = ffp();
   sf.rend_ctx.sampleRate = voice.zone.sample.sampleRate;
   voice.run(1);
-  const fd = createWriteStream('file.pcm'); //openSync('file.pcm', 'w');
+  //  const fd = createWriteStream('file.pcm'); //openSync('file.pcm', 'w');
+  const fd = ffp();
   loop(120, async () => {
-    fd.write(sf.rend_ctx.render(128));
+    fd.write(new Uint8Array(sf.rend_ctx.render(128).buffer));
     await sleep(3.5);
   });
 };
@@ -40,11 +41,13 @@ const t2 = () => {
 
   while (n > 0) {
     const fl = ctx.render(1024);
+    console.log(new Float32Array(new Uint8Array(fl.buffer).buffer));
+    console.log(new Float32Array(new Uint8Array(fl)));
 
     n -= 1024;
   }
 };
-t2();
+t1();
 
 function ffpiano() {
   const sff = new SF2File('file.sf2');

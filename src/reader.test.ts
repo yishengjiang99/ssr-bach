@@ -1,10 +1,11 @@
 import test from 'ava';
 import { reader } from './reader';
 import { openSync, writeFileSync } from 'fs';
+import assert from 'assert';
 test('reader.seekToString', (t) => {
   writeFileSync('test111.txt', 'abcdefghijk');
   const r = reader('./test111.txt');
   t.truthy(r);
-  r.seekToString('def');
-  t.assert(r.getOffset() == 5);
+
+  t.assert(r.seekToString('def') == 3);
 });

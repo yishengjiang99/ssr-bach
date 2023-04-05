@@ -1,4 +1,9 @@
-import { cent2hz, centTone, ModEffects } from './runtime.types';
+import {
+  cent2hz,
+  centTone,
+  ModEffects,
+  timecent2nsamples,
+} from './runtime.types';
 
 export class LFO {
   sampleRate: number = 48000;
@@ -15,7 +20,7 @@ export class LFO {
   ) {
     this.sampleRate = sampleRate;
     this.delta = (4.0 * cent2hz(freq)) / sampleRate; //covering distance of 1/4 4 times per cycle..
-    this.delay = delay < -12000 ? 0 : Math.pow(2, delay / 1200) * sampleRate;
+    this.delay = timecent2nsamples(delay);
     this.effects = effects;
   }
   static fromJSON(str: string) {
@@ -33,6 +38,7 @@ export class LFO {
     }
     return this.amount;
   }
+
   get val() {
     return this.amount;
   }

@@ -1,10 +1,15 @@
-import * as sfTypes from './sf.types';
 import { Reader } from './reader';
 import { SFGenerator } from './generator';
 import { SFZone } from './Zone';
 import { IBag, InstrHeader, Mod, Pbag, Phdr, Shdr } from './pdta.types';
-import { match } from 'node:assert';
-
+const ShdrLength = 46;
+const imodLength = 10;
+const phdrLength = 38;
+const pbagLength = 4;
+const pgenLength = 4;
+const igenLength = 4;
+const pmodLength = 10;
+const instLength = 22;
 export class PDTA {
   phdr: Phdr[] = [];
   pbag: Pbag[] = [];
@@ -19,14 +24,6 @@ export class PDTA {
   constructor(r: Reader) {
     let n = 0;
     do {
-      const ShdrLength = 46;
-      const imodLength = 10;
-      const phdrLength = 38;
-      const pbagLength = 4;
-      const pgenLength = 4,
-        igenLength = 4;
-      const pmodLength = 10;
-      const instLength = 22;
       const sectionName = r.read32String();
       const sectionSize = r.get32();
       switch (sectionName) {

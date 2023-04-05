@@ -34,12 +34,7 @@ export class Runtime {
       gainCB:
         zone.attenuate + LUT.midiCB[note.velocity] * LUT.midiCB[note.velocity],
 
-      pitch:
-        note.key * 100 -
-        zone.tuning -
-        (zone.rootkey > -1 ? zone.rootkey : zone.sample.originalPitch) * 100 +
-        Math.log2(zone.sample.sampleRate) * 1200 -
-        Math.log2(ctx.sampleRate) * 1200,
+      pitch: (note.key - 60) / 12,
       filter: zone.lpf.cutoff,
       pan: {
         left: 0.5 - zone.pan / 1000,
@@ -77,7 +72,7 @@ export class Runtime {
               modVol.modCenTune +
               vibrLFO.amount * vibrLFO.effects.pitch +
               modLFO.amount * vibrLFO.effects.pitch +
-              1200
+              12
             )
           ],
         filter: cent2hz(

@@ -34,4 +34,3 @@ function loadsf(url) {
     })
     .catch((e) => showerror(e));
 }
-ack;

@@ -29,17 +29,20 @@ export function reader(path: string, opts: number = 0): Reader {
   function seekToString(str) {
     let m = 0;
     const size = fstat().size;
+    const str_len = str.length;
     while (offset < size) {
-      const c = getc();
-      if (c == str.charCodeAt(m)) {
+      if (getc() == str.charCodeAt(m)) {
         m++;
-        if (m == str.length) return offset;
-        else {
-          console.log(m);
-        }
+      } else {
+        m = 0;
+      }
+      console.log(m, offset);
+
+      if (m >= str_len) {
+        return offset - str_len;
       }
     }
-    return false;
+    return -1;
   }
   const getc = function (): number {
     const buffer: Buffer = Buffer.alloc(4);
@@ -79,7 +82,7 @@ export function reader(path: string, opts: number = 0): Reader {
     return statSync(path);
   }
 
-  let skipped = [];
+  let skipped = Array<number>();
   function skip(n: number) {
     skipped.push(offset);
     offset += n;

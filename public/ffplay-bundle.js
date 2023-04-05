@@ -70,7 +70,8 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       }
     }
     this.rms = Math.sqrt(sum / 256);
-    this.report();
+    console.log(this.rms);
+
     return true;
   }
 }
@@ -153,7 +154,6 @@ class FF32Play extends EventTarget {
       sampleRate: 48000,
       latencyHint: 'playback',
     });
-    this.ctx = new AudioContext();
     this.ctx.audioWorklet.addModule(procURL).then(() => {
       this.worklet = new AudioWorkletNode(this.ctx, 'playback-processor', {
         outputChannelCount: [2],
@@ -168,13 +168,7 @@ class FF32Play extends EventTarget {
     });
   }
   async queue(url) {
-    this.addEventListener(
-      'loaded',
-      () => {
-        this.worker.postMessage({ url });
-      },
-      { once: true }
-    );
+    this.worker.postMessage({ url });
   }
   next() {
     this.worker.postMessage({ cmd: 'ff' });
