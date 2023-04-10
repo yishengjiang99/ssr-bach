@@ -73,7 +73,6 @@ export class SF2File {
 
     for (let idx = 0; idx < std_inst_names.length; idx++) {
       if (std_inst_names[idx].includes(instrument)) {
-        console.log('playing ' + std_inst_names[idx]);
         found = 1;
         this.rend_ctx.programs[0] = { presetId: idx, bankId: 0 };
         break;

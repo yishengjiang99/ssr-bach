@@ -317,7 +317,7 @@ would be 1200log2(.01) = -7973. */
   static defaultEnv = {
     default: true,
     phases: {
-      decay: -1000,
+      decay: -600,
       attack: -12000,
       delay: -12000,
       release: -3000,

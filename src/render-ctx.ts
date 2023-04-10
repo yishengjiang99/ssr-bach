@@ -45,6 +45,7 @@ export class RenderCtx {
   }
 
   public keyOn(key, vel, channelId = 0) {
+    console.log(key, 'k');
     const { presetId, bankId } = this.programs[channelId];
     const zones = this.sff.findPreset({
       bankId,
@@ -56,7 +57,7 @@ export class RenderCtx {
     this.voices[channelId] = new Runtime(
       zones[0],
       {
-        key: key,
+        note: key,
         velocity: vel,
         channel: channelId,
       },
@@ -76,7 +77,6 @@ export class RenderCtx {
     let iterator = voice.iterator || voice.sample.start;
 
     const { volume, pitch, filter } = voice.run(blockLength);
-    console.log(iterator, volume, pitch);
 
     for (let offset = 0; offset < blockLength; offset++) {
       let newVal;
@@ -87,7 +87,9 @@ export class RenderCtx {
         newVal = input[iterator];
       }
 
-      outputArr[offset] += newVal;
+      outputArr[offset * 2] += newVal;
+      outputArr[offset * 2 + 1] += newVal;
+
       if (process.env.debug) {
         console.log(
           offset,
@@ -113,15 +115,15 @@ export class RenderCtx {
     voice.iterator = iterator;
   }
   output: Writable;
-  render(blockSize): Float32Array {
-    this.outputCard.fill(0);
+  render(length): Uint8Array {
+    const outputArr = new Float32Array(length * 2);
     this.voices
       .filter((v) => v.length && v.length > 0)
       .forEach((voice) => {
-        this._render(voice, this.outputCard, blockSize);
+        this._render(voice, outputArr, length);
       });
-    if (this.output) this.output.write(new Uint8Array(this.outputCard).buffer);
-    return this.outputCard;
+    if (this.output) this.output.write(new Uint8Array(outputArr.buffer));
+    return new Uint8Array(outputArr.buffer);
   }
 }
 export function hermite4(frac_pos, xm1, x0, x1, x2) {

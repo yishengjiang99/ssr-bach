@@ -41,13 +41,12 @@ const t2 = () => {
 
   while (n > 0) {
     const fl = ctx.render(1024);
-    console.log(new Float32Array(new Uint8Array(fl.buffer).buffer));
-    console.log(new Float32Array(new Uint8Array(fl)));
+    console.log(new Float32Array(fl.buffer));
 
     n -= 1024;
   }
 };
-t1();
+t2();
 
 function ffpiano() {
   const sff = new SF2File('file.sf2');
@@ -59,8 +58,11 @@ function ffpiano() {
     'ffplay -i pipe:0 -ac 2 -ar 12000 -f s16le'
   );
   proc.stdin.write(
-    sff.sdta.bit16s.slice(voice.smpl.start * 2, voice.smpl.end * 2)
+    new Uint8Array(
+      sff.sdta.bit16s.buffer.slice(voice.smpl.start * 2, voice.smpl.end * 2)
+    )
   );
+  proc.stdout.end();
   proc.stdin.end();
 }
 //t3();
@@ -132,7 +134,7 @@ function testtunning() {
   const vol = sff.findPreset({ bankId: 0, presetId: 0, key: 33, vel: 44 });
   const r = new Runtime(
     vol[0],
-    { key: 86, velocity: 44, channel: 0 },
+    { note: 86, velocity: 44, channel: 0 },
     sff.rend_ctx
   );
   console.log(vol[0], r.mods);
@@ -141,13 +143,13 @@ function testtunning() {
   let n = 48000;
   while (n > 0) {
     console.log(r.run(128).volume);
-    // console.log(
-    //   r.mods.modLFO.cycles,
-    //   r.mods.modVol.deltas,
-    //   r.mods.vibrLFO.delta,
-    //   r.mods.ampVol.state,
-    //   r.mods.modVol.state
-    // );
+    console.log(
+      r.mods.modLFO.cycles,
+      r.mods.modVol.deltas,
+      r.mods.vibrLFO.delta,
+      r.mods.ampVol.state,
+      r.mods.modVol.state
+    );
     n -= 128;
   }
 

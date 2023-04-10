@@ -100,7 +100,12 @@
       }
       const [sfselect, midselect] = document.body.querySelectorAll('select');
       const lists = document.querySelectorAll('ul');
-                    document.onclick = () => window.ffp = window.ffp || new FF32Play();
+                          document.onclick = () => {
+                            window.ffp = window.ffp || new FF32Play();
+                            window.ffp.addEventListener("progress", console.log);
+                          }
+                        
+
       fetch('/lists', { headers: { accept: 'application/json' } })
         .then((res) => res.json())
         .then(({ mfiles, sffiles, pdta: { phdr } }) => {

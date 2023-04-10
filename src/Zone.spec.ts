@@ -20,7 +20,6 @@ const sample = [
 test('mk envelope', (t) => {
   const zone: SFZone = new SFZone();
 
-  console.log(zone);
   zone.applyGenVal(new SFGenerator(sf_gen_id.attackVolEnv, -1200));
   t.truthy(zone.volEnv);
   t.assert(zone.volEnv.phases.attack == -1200);

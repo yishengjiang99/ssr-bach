@@ -1,7 +1,6 @@
 import { SF2File } from './sffile';
 
 import { RenderCtx } from './render-ctx';
-import { sleep } from './utilv1';
 import { createReadStream } from 'fs';
 const grepupload_1 = require('grepupload');
 const express = require('express');
@@ -14,6 +13,7 @@ export async function init() {
   const rend = new RenderCtx(file);
   const { phdr, iheaders, shdr } = file.pdta;
   const mfiles = midis.map((m) => m.name);
+
   router.get('/presets/:pid', (req, res) => {
     const psets = file.pdta.findPreset(
       phdr[req.params.pid].presetId,
@@ -24,20 +24,21 @@ export async function init() {
   router.use('/ffplay', (req, res) => {
     createReadStream('./js/build/' + req.params.file).pipe(res);
   });
-  router.get('/sample/:key/:vel', async (req, res) => {
+  router.get('/sample/:channel/:key/:vel', async (req, res) => {
     res.write(`HTTP/1.1 200 OK \r\n`);
-    rend.keyOn(req.params.key, req.params.vel, 0);
+    const { key, vel, channel } = req.params;
+    rend.keyOn(key, vel, channel);
     res.write(
       `Content-Disposition: form-data; name="audio" \r\n` +
         `Content-Type: application/octet-stream \r\n\r\n`
     );
     for (let i = 0; i < 48000; i += 1280) {
-      res.write(new Uint8Array(rend.render(128).buffer));
+      res.write(rend.render(1280));
     }
-
     res.end(`\r\n\r\n`);
   });
   router.use('/', express.static('public'));
+  router.get('/sf2/:name', (req, res) => {});
   router.get('/sf2', (req, res) => {
     res.json(sffiles);
   });

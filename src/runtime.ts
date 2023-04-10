@@ -27,14 +27,17 @@ export class Runtime {
   sample: Shdr;
   iterator: number;
   zone: SFZone;
-
-  constructor(zone: SFZone, note: Note, ctx: RenderCtx) {
+  velocity: Number;
+  channel: Number;
+  constructor(zone: SFZone, { note, velocity, channel }, ctx: RenderCtx) {
     this.zone = zone;
+    this.velocity = velocity;
+    this.channel = channel;
     this.staticLevels = {
       gainCB:
         zone.attenuate + LUT.midiCB[note.velocity] * LUT.midiCB[note.velocity],
 
-      pitch: (note.key - 60) / 12,
+      pitch: calcPitchRatio(note, 48000, this.zone),
       filter: zone.lpf.cutoff,
       pan: {
         left: 0.5 - zone.pan / 1000,
@@ -45,7 +48,11 @@ export class Runtime {
     const ampVol = new Envelope(zone.volEnv.phases, zone.volEnv.sustain);
     const modVol = new Envelope(zone.modEnv.phases, zone.modEnv.sustain);
     this.length =
-      ampVol.stages[0] + ampVol.stages[1] + ampVol.stages[2] + ampVol.stages[3];
+      ampVol.stages[0] +
+      ampVol.stages[1] +
+      ampVol.stages[2] +
+      ampVol.stages[3] +
+      48000;
     this.sample = zone.sample;
     modVol.effects = zone.modEnv.effects;
     const modLFO = new LFO(
@@ -58,7 +65,7 @@ export class Runtime {
       zone.modLFO.freq,
       zone.modLFO.effects
     );
-    this.run = (steps: number) => {
+    this.run = function (steps: number) {
       const arates = {
         volume: LUT.getAmp(
           this.staticLevels.gainCB +
@@ -66,15 +73,7 @@ export class Runtime {
             modLFO.amount * modLFO.effects.volume
         ),
         pitch:
-          LUT.relPC[
-            ~~(
-              this.staticLevels.pitch +
-              modVol.modCenTune +
-              vibrLFO.amount * vibrLFO.effects.pitch +
-              modLFO.amount * vibrLFO.effects.pitch +
-              12
-            )
-          ],
+          LUT.relPC[this.staticLevels.pitch + vibrLFO.effects.pitch + 1200],
         filter: cent2hz(
           this.staticLevels.filter +
             modVol.val * modVol.effects.filter +
@@ -92,4 +91,12 @@ export class Runtime {
   get smpl() {
     return this.sample;
   }
+}
+export default function calcPitchRatio(key, outputSampleRate, zone: SFZone) {
+  const rootkey = zone.rootkey > -1 ? zone.rootkey : zone.sample.originalPitch;
+  const samplePitch = rootkey * 100 + zone.tuning;
+  const pitchDiff = (key * 100 - samplePitch) / 1200;
+  const r =
+    Math.pow(2, pitchDiff) * (zone.sample.sampleRate / outputSampleRate);
+  return r;
 }

@@ -18,7 +18,6 @@ test('LFO Instantiates and has expected parameters', (t) => {
 });
 test('LFO delay', (t) => {
   const lfo = new LFO(-12000, 1, { volume: 11 }, 100);
-  // lfo.sampleRate = 100;
 
   t.assert(lfo.delay < 3);
   lfo.shift(3);
@@ -53,7 +52,7 @@ test('runtime function', (t) => {
   sffile.rend_ctx.sampleRate = zone.sample.sampleRate;
   const rt = new Runtime(
     zone,
-    { velocity: 33, key: 50, channel: 0 },
+    { velocity: 33, note: 50, channel: 0 },
     sffile.rend_ctx
   );
   t.truthy(rt.staticLevels.pitch);

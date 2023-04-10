@@ -11,5 +11,4 @@ test('timecent', (t) => {
 });
 test('midicb', (t) => {
   t.assert(LUT.midi2cb(3) > LUT.midi2cb(5));
-  loop(127, (n) => console.log(n, LUT.midi2cb(n), LUT.getAmp(LUT.midi2cb(n))));
 });

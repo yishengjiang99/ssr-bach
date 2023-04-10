@@ -10,10 +10,9 @@
     "url": "https://github.com/yishengjiang99/ssr-bach"
   },
   "scripts": {
-    "postInstall": "chmod +x ffplay",
     "dev": "nodemon src/app.ts",
     "build": "ts-node src/index.ts",
-    "test": "npx ava src/*.test.ts"
+    "test": "npx ava --watch src/*.test.ts"
   },
   "prettier": {
     "singleQuote": true,
@@ -35,14 +34,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/storage-blob": "^12.13.0",
     "@tonejs/midi": "^2.0.28",
     "comlink": "^4.3.0",
     "connect": "^3.7.0",
     "express": "^4.17.1",
     "form-data": "^3.0.1",
     "grepupload": "^1.1.10",
+    "install": "^0.13.0",
     "memfs": "^3.2.0",
     "midiread": "^1.0.0",
+    "npm": "^9.6.4",
     "ts-node": "^9.1.1",
     "typescript-eslint": "^0.0.1-alpha.0"
   }
